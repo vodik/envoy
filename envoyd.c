@@ -55,7 +55,7 @@ static int xstrtol(const char *str, long *out)
 }
 
 /* TODO: this is soo hacky its not even funny */
-static struct agent_info_t *read_agent(int fd, struct agent_info_t *info)
+static void read_agent(int fd, struct agent_info_t *info)
 {
     char b[BUFSIZ];
     int nread = 0;
@@ -79,7 +79,6 @@ static struct agent_info_t *read_agent(int fd, struct agent_info_t *info)
 
     info->pid = (pid_t)value;
     info->next = NULL;
-    return info;
 }
 
 static void start_agent(uid_t uid, gid_t gid, struct agent_info_t *info)
