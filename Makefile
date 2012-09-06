@@ -2,7 +2,7 @@ CFLAGS := -std=c99 \
 	-Wall -Wextra -pedantic \
 	${CFLAGS}
 
-LDFLAGS = -lsystemd-daemon
+LDLIBS = -lsystemd-daemon
 
 all: envoyd envoy
 envoyd: envoyd.o
