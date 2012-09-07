@@ -20,36 +20,33 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <memory.h>
+#include <getopt.h>
 #include <err.h>
 #include <unistd.h>
 #include <sys/wait.h>
 #include <sys/socket.h>
 #include <sys/un.h>
 
-static void ssh_key_add(struct agent_data_t *data, int argc, char *argv[])
+enum action {
+    ACTION_PRINT,
+    ACTION_ADD,
+    ACTION_FORCE_ADD,
+    ACTION_INVALID
+};
+
+static void ssh_key_add(int argc, char *argv[])
 {
-    char *args[argc], pid[10];
+    char *args[argc + 2];
     int i;
 
-    switch (fork()) {
-    case -1:
-        err(EXIT_FAILURE, "failed to fork");
-        break;
-    case 0:
-        for (i = 0; i < argc; ++i)
-            args[i] = argv[i];
-        args[argc] = NULL;
+    for (i = 0; i < argc; ++i)
+        args[i + 1] = argv[i];
 
-        snprintf(pid, 10, "%ld", (long)data->pid);
+    args[0] = "ssh-add";
+    args[argc + 1] = NULL;
 
-        setenv("SSH_AUTH_SOCK", data->sock, true);
-        setenv("SSH_AGENT_PID", pid, true);
-
-        execvp("ssh-add", args);
-    default:
-        wait(NULL);
-        break;
-    }
+    if (execvp(args[0], args) < 0)
+        err(EXIT_FAILURE, "failed to start ssh-add");
 }
 
 static int get_agent(struct agent_data_t *data)
@@ -79,15 +76,52 @@ static int get_agent(struct agent_data_t *data)
 int main(int argc, char *argv[])
 {
     struct agent_data_t data;
+    enum action verb = ACTION_ADD;
+
+    static const struct option opts[] = {
+        { "print", no_argument, 0, 'p' },
+        { "add",   no_argument, 0, 'a' },
+        { 0, 0, 0, 0 }
+    };
+
+    while (true) {
+        int opt = getopt_long(argc, argv, "pa", opts, NULL);
+        if (opt == -1)
+            break;
+
+        switch (opt) {
+        case 'p':
+            verb = ACTION_PRINT;
+            break;
+        case 'a':
+            verb = ACTION_FORCE_ADD;
+            break;
+        default:
+            return EXIT_FAILURE;
+        }
+    }
+
+    argv += optind;
+    argc -= optind;
 
     if (get_agent(&data) < 0)
         err(EXIT_FAILURE, "failed to read data");
 
-    if (data.first_run)
-        ssh_key_add(&data, argc, argv);
+    setenv("SSH_AUTH_SOCK", data.sock, true);
 
-    printf("export SSH_AUTH_SOCK=%s\n", data.sock);
-    printf("export SSH_AGENT_PID=%ld\n", (long)data.pid);
+    switch (verb) {
+    case ACTION_PRINT:
+        printf("export SSH_AUTH_SOCK=%s\n",  data.sock);
+        printf("export SSH_AGENT_PID=%ld\n", (long)data.pid);
+    case ACTION_ADD:
+        if (!data.first_run)
+            return 0;
+    case ACTION_FORCE_ADD:
+        ssh_key_add(argc, argv);
+        break;
+    default:
+        break;
+    }
 
     return 0;
 }
