@@ -25,16 +25,14 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 
-int main()
+int get_agent(struct agent_data_t *data)
 {
-    struct agent_data_t data;
     union {
         struct sockaddr sa;
         struct sockaddr_un un;
     } sa;
-    int fd;
 
-    fd = socket(PF_UNIX, SOCK_STREAM, 0);
+    int fd = socket(PF_UNIX, SOCK_STREAM, 0);
     if (fd < 0)
         err(EXIT_FAILURE, "couldn't create socket");
 
@@ -45,17 +43,21 @@ int main()
     if (connect(fd, &sa.sa, sizeof(sa)) < 0)
         err(EXIT_FAILURE, "failed to connect");
 
-    if (read(fd, &data, sizeof(data)) < 0)
-        err(EXIT_FAILURE, "failed to read data");
+    int rc = read(fd, data, sizeof(*data));
 
-    if (data.first_run)
-        printf("FIRST RUN!\n");
+    close(fd);
+    return rc;
+}
+
+int main()
+{
+    struct agent_data_t data;
+
+    if (get_agent(&data) < 0)
+        err(EXIT_FAILURE, "failed to read data");
 
     printf("export SSH_AUTH_SOCK=%s\n", data.sock);
     printf("export SSH_AGENT_PID=%d\n", data.pid);
-
-    close(fd);
-    return 0;
 }
 
 // vim: et:sts=4:sw=4:cino=(0
