@@ -36,14 +36,15 @@ enum action {
 
 static void ssh_key_add(int argc, char *argv[])
 {
-    char *args[argc + 2];
+    char *args[argc + 3];
     int i;
 
     for (i = 0; i < argc; ++i)
-        args[i + 1] = argv[i];
+        args[i + 2] = argv[i];
 
     args[0] = "ssh-add";
-    args[argc + 1] = NULL;
+    args[1] = "--";
+    args[argc + 2] = NULL;
 
     if (execvp(args[0], args) < 0)
         err(EXIT_FAILURE, "failed to start ssh-add");
