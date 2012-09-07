@@ -22,10 +22,37 @@
 #include <memory.h>
 #include <err.h>
 #include <unistd.h>
+#include <sys/wait.h>
 #include <sys/socket.h>
 #include <sys/un.h>
 
-int get_agent(struct agent_data_t *data)
+static void ssh_key_add(struct agent_data_t *data, int argc, char *argv[])
+{
+    char *args[argc], pid[10];
+    int i;
+
+    switch (fork()) {
+    case -1:
+        err(EXIT_FAILURE, "failed to fork");
+        break;
+    case 0:
+        for (i = 0; i < argc; ++i)
+            args[i] = argv[i];
+        args[argc] = NULL;
+
+        snprintf(pid, 10, "%ld", (long)data->pid);
+
+        setenv("SSH_AUTH_SOCK", data->sock, true);
+        setenv("SSH_AGENT_PID", pid, true);
+
+        execvp("ssh-add", args);
+    default:
+        wait(NULL);
+        break;
+    }
+}
+
+static int get_agent(struct agent_data_t *data)
 {
     union {
         struct sockaddr sa;
@@ -49,15 +76,20 @@ int get_agent(struct agent_data_t *data)
     return rc;
 }
 
-int main()
+int main(int argc, char *argv[])
 {
     struct agent_data_t data;
 
     if (get_agent(&data) < 0)
         err(EXIT_FAILURE, "failed to read data");
 
+    if (data.first_run)
+        ssh_key_add(&data, argc, argv);
+
     printf("export SSH_AUTH_SOCK=%s\n", data.sock);
-    printf("export SSH_AGENT_PID=%d\n", data.pid);
+    printf("export SSH_AGENT_PID=%ld\n", (long)data.pid);
+
+    return 0;
 }
 
 // vim: et:sts=4:sw=4:cino=(0
