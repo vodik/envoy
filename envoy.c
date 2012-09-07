@@ -27,6 +27,7 @@
 
 int main()
 {
+    struct agent_data_t data;
     union {
         struct sockaddr sa;
         struct sockaddr_un un;
@@ -45,15 +46,13 @@ int main()
     if (rc < 0)
         err(EXIT_FAILURE, "failed to connect");
 
-    int nread;
-    char buf[BUFSIZ];
+    if (read(fd, &data, sizeof(data)) < 0)
+        err(EXIT_FAILURE, "failed to read data");
 
-    nread = read(fd, buf, BUFSIZ);
-    buf[nread] = 0;
+    printf("export SSH_AUTH_SOCK=%s\n", data.sock);
+    printf("export SSH_AGENT_PID=%d\n", data.pid);
 
-    fputs(buf, stdout);
     close(fd);
-
     return 0;
 }
 

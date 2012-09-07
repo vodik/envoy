@@ -21,4 +21,9 @@
 #define SOCK_PATH "/run/keychain"
 #define MSG_LEN   64
 
+struct agent_data_t {
+    pid_t pid;
+    char sock[MSG_LEN];
+};
+
 #endif

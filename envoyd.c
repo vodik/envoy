@@ -35,9 +35,7 @@
 
 struct agent_info_t {
     uid_t uid;
-    pid_t pid;
-    char *sock;
-
+    struct agent_data_t d;
     struct agent_info_t *next;
 };
 
@@ -50,7 +48,7 @@ static void sigterm()
     unlink(SOCK_PATH);
 
     while (agents) {
-        kill(agents->pid, SIGTERM);
+        kill(agents->d.pid, SIGTERM);
         agents = agents->next;
     }
 
@@ -85,7 +83,7 @@ static void read_agent(int fd, struct agent_info_t *info)
     k = strchr(b, '='); ++k;
     t = strchr(b, ';'); *t++ = '\0';
 
-    info->sock = strdup(k);
+    strcpy(info->d.sock, k);
 
     t = strchr(t, '\n'); ++t;
     k = strchr(t, '='); ++k;
@@ -94,7 +92,7 @@ static void read_agent(int fd, struct agent_info_t *info)
     long value;
     xstrtol(k, &value);
 
-    info->pid = (pid_t)value;
+    info->d.pid = (pid_t)value;
     info->next = NULL;
 }
 
@@ -102,7 +100,7 @@ static void start_agent(uid_t uid, gid_t gid, struct agent_info_t *info)
 {
     int fd[2];
 
-    sd_journal_print(LOG_INFO, "starting ssh-agent for uid=%ld gid=%ld", uid, gid);
+    sd_journal_print(LOG_INFO, "starting ssh-agent for uid=%ld gid=%ld", (long)uid, (long)gid);
 
     if (pipe(fd) < 0)
         err(EXIT_FAILURE, "failed to create pipe");
@@ -135,15 +133,8 @@ static void start_agent(uid_t uid, gid_t gid, struct agent_info_t *info)
 
 static void write_agent(int fd, struct agent_info_t *info)
 {
-    char buf[MSG_LEN], nbytes;
-
-    nbytes = snprintf(buf, MSG_LEN, "export SSH_AUTH_SOCK=%s\n", info->sock);
-    if (write(fd, buf, nbytes) < 0)
-        err(EXIT_FAILURE, "failed to write message");
-
-    nbytes = snprintf(buf, MSG_LEN, "export SSH_AGENT_PID=%d\n", info->pid);
-    if (write(fd, buf, nbytes) < 0)
-        err(EXIT_FAILURE, "failed to write message");
+    if (write(fd, &info->d, sizeof(info->d)) < 0)
+        err(EXIT_FAILURE, "failed to write agent data");
 }
 
 static int get_socket()
@@ -212,7 +203,7 @@ int main(void)
                 break;
         }
 
-        if (!node || kill(node->pid, 0) < 0) {
+        if (!node || kill(node->d.pid, 0) < 0) {
             if (node && errno != ESRCH)
                 err(EXIT_FAILURE, "something strange happened with kill");
 
@@ -222,7 +213,7 @@ int main(void)
                 node->next = agents;
                 agents = node;
             } else
-                free(node->sock);
+                free(node->d.sock);
 
             start_agent(cred.uid, cred.gid, node);
         }
