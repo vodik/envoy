@@ -85,12 +85,10 @@ static void start_agent(uid_t uid, gid_t gid, struct agent_info_t *info)
 {
     int rc, fd[2];
 
-    rc = pipe(fd);
-    if (rc < 0)
+    if (pipe(fd) < 0)
         err(EXIT_FAILURE, "failed to create pipe");
 
-    rc = fork();
-    switch (rc) {
+    switch (fork()) {
     case -1:
         err(EXIT_FAILURE, "failed to fork");
         break;
@@ -123,13 +121,15 @@ static void start_agent(uid_t uid, gid_t gid, struct agent_info_t *info)
 
 static void write_agent(int fd, struct agent_info_t *info)
 {
-    char buf[MSG_LEN], rc;
+    char buf[MSG_LEN], nbytes;
 
-    rc = snprintf(buf, MSG_LEN, "export SSH_AUTH_SOCK=%s\n", info->sock);
-    write(fd, buf, rc);
+    nbytes = snprintf(buf, MSG_LEN, "export SSH_AUTH_SOCK=%s\n", info->sock);
+    if (write(fd, buf, nbytes) < 0)
+        err(EXIT_FAILURE, "failed to write message");
 
-    rc = snprintf(buf, MSG_LEN, "export SSH_AGENT_PID=%d\n", info->pid);
-    write(fd, buf, rc);
+    nbytes = snprintf(buf, MSG_LEN, "export SSH_AGENT_PID=%d\n", info->pid);
+    if (write(fd, buf, nbytes) < 0)
+        err(EXIT_FAILURE, "failed to write message");
 }
 
 static int get_socket()
@@ -170,8 +170,6 @@ static int get_socket()
 
 int main(void)
 {
-    int rc, cfd;
-
     fd = get_socket();
 
     signal(SIGTERM, sigterm);
@@ -184,15 +182,14 @@ int main(void)
         } sa;
         socklen_t sa_len = sizeof(sa);
 
-        cfd = accept(fd, &sa.sa, &sa_len);
+        int cfd = accept(fd, &sa.sa, &sa_len);
         if (cfd < 0)
             err(EXIT_FAILURE, "failed to accept connection");
 
         struct ucred cred;
         socklen_t cred_len = sizeof(struct ucred);
 
-        rc = getsockopt(cfd, SOL_SOCKET, SO_PEERCRED, &cred, &cred_len);
-        if (rc < 0)
+        if (getsockopt(cfd, SOL_SOCKET, SO_PEERCRED, &cred, &cred_len) < 0)
             err(EXIT_FAILURE, "couldn't obtain credentials from unix domain socket");
 
         struct agent_info_t *node = agents;
