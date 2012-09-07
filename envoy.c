@@ -15,6 +15,8 @@
  * Copyright (C) Simon Gomizelj, 2012
  */
 
+#include "config.h"
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <memory.h>
@@ -22,8 +24,6 @@
 #include <unistd.h>
 #include <sys/socket.h>
 #include <sys/un.h>
-
-#include "config.h"
 
 int main()
 {
@@ -47,6 +47,9 @@ int main()
 
     if (read(fd, &data, sizeof(data)) < 0)
         err(EXIT_FAILURE, "failed to read data");
+
+    if (data.first_run)
+        printf("FIRST RUN!\n");
 
     printf("export SSH_AUTH_SOCK=%s\n", data.sock);
     printf("export SSH_AGENT_PID=%d\n", data.pid);

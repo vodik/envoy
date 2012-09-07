@@ -15,7 +15,8 @@
  * Copyright (C) Simon Gomizelj, 2012
  */
 
-#define _GNU_SOURCE
+#include "config.h"
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdbool.h>
@@ -30,8 +31,6 @@
 #include <sys/un.h>
 #include <systemd/sd-daemon.h>
 #include <systemd/sd-journal.h>
-
-#include "config.h"
 
 struct agent_info_t {
     uid_t uid;
@@ -71,7 +70,7 @@ static int xstrtol(const char *str, long *out)
 }
 
 /* TODO: this is soo hacky its not even funny */
-static void read_agent(int fd, struct agent_info_t *info)
+static void read_agent(int fd, struct agent_data_t *data)
 {
     char b[BUFSIZ];
     int nread = 0;
@@ -83,7 +82,7 @@ static void read_agent(int fd, struct agent_info_t *info)
     k = strchr(b, '='); ++k;
     t = strchr(b, ';'); *t++ = '\0';
 
-    strcpy(info->d.sock, k);
+    strcpy(data->sock, k);
 
     t = strchr(t, '\n'); ++t;
     k = strchr(t, '='); ++k;
@@ -91,16 +90,15 @@ static void read_agent(int fd, struct agent_info_t *info)
 
     long value;
     xstrtol(k, &value);
-
-    info->d.pid = (pid_t)value;
-    info->next = NULL;
+    data->pid = (pid_t)value;
 }
 
-static void start_agent(uid_t uid, gid_t gid, struct agent_info_t *info)
+static void start_agent(uid_t uid, gid_t gid, struct agent_data_t *data)
 {
     int fd[2];
 
     sd_journal_print(LOG_INFO, "starting ssh-agent for uid=%ld gid=%ld", (long)uid, (long)gid);
+    data->first_run = true;
 
     if (pipe(fd) < 0)
         err(EXIT_FAILURE, "failed to create pipe");
@@ -127,14 +125,8 @@ static void start_agent(uid_t uid, gid_t gid, struct agent_info_t *info)
         break;
     }
 
-    read_agent(fd[STDIN_FILENO], info);
+    read_agent(fd[STDIN_FILENO], data);
     wait(NULL);
-}
-
-static void write_agent(int fd, struct agent_info_t *info)
-{
-    if (write(fd, &info->d, sizeof(info->d)) < 0)
-        err(EXIT_FAILURE, "failed to write agent data");
 }
 
 static int get_socket()
@@ -215,10 +207,13 @@ int main(void)
             } else
                 free(node->d.sock);
 
-            start_agent(cred.uid, cred.gid, node);
+            start_agent(cred.uid, cred.gid, &node->d);
         }
 
-        write_agent(cfd, node);
+        if (write(cfd, &node->d, sizeof(node->d)) < 0)
+            err(EXIT_FAILURE, "failed to write agent data");
+
+        node->d.first_run = false;
         close(cfd);
     }
 
