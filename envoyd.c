@@ -210,7 +210,9 @@ int main(void)
                 node->uid = cred.uid;
                 node->next = agents;
                 agents = node;
-            }
+            } else
+                free(node->sock);
+
             start_agent(cred.uid, cred.gid, node);
         }
 
