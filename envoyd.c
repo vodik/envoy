@@ -83,7 +83,7 @@ static void read_agent(int fd, struct agent_info_t *info)
 
 static void start_agent(uid_t uid, gid_t gid, struct agent_info_t *info)
 {
-    int rc, fd[2];
+    int fd[2];
 
     sd_journal_print(LOG_INFO, "starting ssh-agent for uid=%ld gid=%ld", uid, gid);
 
@@ -104,8 +104,8 @@ static void start_agent(uid_t uid, gid_t gid, struct agent_info_t *info)
         if (setuid(uid) < 0)
             err(EXIT_FAILURE, "unable to drop to user id %d\n", uid);
 
-        rc = execlp("ssh-agent", "ssh-agent", NULL);
-        exit(rc);
+        if (execlp("ssh-agent", "ssh-agent", NULL) < 0)
+            err(EXIT_FAILURE, "failed to start ssh-agent");
         break;
     default:
         close(fd[1]);
