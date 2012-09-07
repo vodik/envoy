@@ -32,7 +32,7 @@ int main()
         struct sockaddr sa;
         struct sockaddr_un un;
     } sa;
-    int fd, rc;
+    int fd;
 
     fd = socket(PF_UNIX, SOCK_STREAM, 0);
     if (fd < 0)
@@ -42,8 +42,7 @@ int main()
     sa.un.sun_family = AF_UNIX;
     strncpy(sa.un.sun_path, SOCK_PATH, sizeof(sa.un.sun_path));
 
-    rc = connect(fd, &sa.sa, sizeof(sa));
-    if (rc < 0)
+    if (connect(fd, &sa.sa, sizeof(sa)) < 0)
         err(EXIT_FAILURE, "failed to connect");
 
     if (read(fd, &data, sizeof(data)) < 0)
