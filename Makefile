@@ -5,7 +5,7 @@ CFLAGS := -std=c99 \
 	-DENVOY_VERSION=\"${VERSION}\" \
 	${CFLAGS}
 
-LDLIBS = -lsystemd-daemon
+LDLIBS = -lsystemd-daemon -lsystemd-journal
 
 all: envoyd envoy
 envoyd: envoyd.o

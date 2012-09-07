@@ -12,6 +12,7 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <systemd/sd-daemon.h>
+#include <systemd/sd-journal.h>
 
 #include "config.h"
 
@@ -62,7 +63,6 @@ static void read_agent(int fd, struct agent_info_t *info)
 
     nread = read(fd, b, BUFSIZ);
     b[nread] = '\0';
-    printf("DEBUG:\n---\n%s---\n", b);
 
     char *k, *t;
     k = strchr(b, '='); ++k;
@@ -84,6 +84,8 @@ static void read_agent(int fd, struct agent_info_t *info)
 static void start_agent(uid_t uid, gid_t gid, struct agent_info_t *info)
 {
     int rc, fd[2];
+
+    sd_journal_print(LOG_INFO, "starting ssh-agent for uid=%ld gid=%ld", uid, gid);
 
     if (pipe(fd) < 0)
         err(EXIT_FAILURE, "failed to create pipe");
@@ -112,11 +114,6 @@ static void start_agent(uid_t uid, gid_t gid, struct agent_info_t *info)
 
     read_agent(fd[STDIN_FILENO], info);
     wait(NULL);
-
-    if (info) {
-        printf("SOCK: %s\n", info->sock);
-        printf("PID:  %d\n", info->pid);
-    }
 }
 
 static void write_agent(int fd, struct agent_info_t *info)
