@@ -22,6 +22,7 @@
 #include <memory.h>
 #include <getopt.h>
 #include <err.h>
+#include <errno.h>
 #include <unistd.h>
 #include <sys/wait.h>
 #include <sys/socket.h>
@@ -74,23 +75,38 @@ static int get_agent(struct agent_data_t *data)
     return rc;
 }
 
+static void __attribute__((__noreturn__)) usage(FILE *out)
+{
+	fprintf(out, "usage: %s [options] [files ...]\n", program_invocation_short_name);
+	fputs("Options:\n"
+	      " -h, --help       display this help and exit\n"
+	      " -a, --add        always invode ssh-add, not just on ssh-agent start\n"
+	      " -p, --print      print out environmental arguments\n", out);
+
+	exit(out == stderr ? EXIT_FAILURE : EXIT_SUCCESS);
+}
+
 int main(int argc, char *argv[])
 {
     struct agent_data_t data;
     enum action verb = ACTION_ADD;
 
     static const struct option opts[] = {
+        { "help",  no_argument, 0, 'h' },
         { "print", no_argument, 0, 'p' },
         { "add",   no_argument, 0, 'a' },
         { 0, 0, 0, 0 }
     };
 
     while (true) {
-        int opt = getopt_long(argc, argv, "pa", opts, NULL);
+        int opt = getopt_long(argc, argv, "hpa", opts, NULL);
         if (opt == -1)
             break;
 
         switch (opt) {
+        case 'h':
+            usage(stdout);
+            break;
         case 'p':
             verb = ACTION_PRINT;
             break;
@@ -98,7 +114,7 @@ int main(int argc, char *argv[])
             verb = ACTION_FORCE_ADD;
             break;
         default:
-            return EXIT_FAILURE;
+            usage(stderr);
         }
     }
 
