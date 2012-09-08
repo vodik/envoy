@@ -81,6 +81,7 @@ static void __attribute__((__noreturn__)) usage(FILE *out)
 	fprintf(out, "usage: %s [options] [files ...]\n", program_invocation_short_name);
 	fputs("Options:\n"
 	      " -h, --help       display this help and exit\n"
+	      " -v, --version    display version\n"
 	      " -a, --add        always invode ssh-add, not just on ssh-agent start\n"
 	      " -k, --kill       kill the running ssh-agent\n"
 	      " -p, --print      print out environmental arguments\n", out);
@@ -94,15 +95,16 @@ int main(int argc, char *argv[])
     enum action verb = ACTION_ADD;
 
     static const struct option opts[] = {
-        { "help",  no_argument, 0, 'h' },
-        { "add",   no_argument, 0, 'a' },
-        { "kill",  no_argument, 0, 'k' },
-        { "print", no_argument, 0, 'p' },
+        { "help",    no_argument, 0, 'h' },
+        { "version", no_argument, 0, 'v' },
+        { "add",     no_argument, 0, 'a' },
+        { "kill",    no_argument, 0, 'k' },
+        { "print",   no_argument, 0, 'p' },
         { 0, 0, 0, 0 }
     };
 
     while (true) {
-        int opt = getopt_long(argc, argv, "hakp", opts, NULL);
+        int opt = getopt_long(argc, argv, "hvakp", opts, NULL);
         if (opt == -1)
             break;
 
@@ -110,6 +112,9 @@ int main(int argc, char *argv[])
         case 'h':
             usage(stdout);
             break;
+        case 'v':
+            printf("%s %s\n", program_invocation_short_name, ENVOY_VERSION);
+            return 0;
         case 'a':
             verb = ACTION_FORCE_ADD;
             break;
