@@ -97,8 +97,9 @@ static void start_agent(uid_t uid, gid_t gid, struct agent_data_t *data)
 {
     int fd[2];
 
-    sd_journal_print(LOG_INFO, "starting ssh-agent for uid=%ld gid=%ld", (long)uid, (long)gid);
     data->first_run = true;
+    sd_journal_print(LOG_INFO, "starting ssh-agent for uid=%ld gid=%ld",
+                     (long)uid, (long)gid);
 
     if (pipe(fd) < 0)
         err(EXIT_FAILURE, "failed to create pipe");
@@ -196,9 +197,12 @@ int main(void)
         }
 
         if (!node || kill(node->d.pid, 0) < 0) {
-            if (node && errno != ESRCH)
-                err(EXIT_FAILURE, "something strange happened with kill");
-            else if (!node) {
+            if (node) {
+                if (errno != ESRCH)
+                    err(EXIT_FAILURE, "something strange happened with kill");
+                sd_journal_print(LOG_INFO, "ssh-agent for uid=%ld no longer running...",
+                                 (long)cred.uid);
+            } else if (!node) {
                 node = malloc(sizeof(struct agent_info_t));
                 node->uid = cred.uid;
                 node->next = agents;

@@ -32,6 +32,7 @@ enum action {
     ACTION_PRINT,
     ACTION_ADD,
     ACTION_FORCE_ADD,
+    ACTION_KILL,
     ACTION_INVALID
 };
 
@@ -81,6 +82,7 @@ static void __attribute__((__noreturn__)) usage(FILE *out)
 	fputs("Options:\n"
 	      " -h, --help       display this help and exit\n"
 	      " -a, --add        always invode ssh-add, not just on ssh-agent start\n"
+	      " -k, --kill       kill the running ssh-agent\n"
 	      " -p, --print      print out environmental arguments\n", out);
 
 	exit(out == stderr ? EXIT_FAILURE : EXIT_SUCCESS);
@@ -93,13 +95,14 @@ int main(int argc, char *argv[])
 
     static const struct option opts[] = {
         { "help",  no_argument, 0, 'h' },
-        { "print", no_argument, 0, 'p' },
         { "add",   no_argument, 0, 'a' },
+        { "kill",  no_argument, 0, 'k' },
+        { "print", no_argument, 0, 'p' },
         { 0, 0, 0, 0 }
     };
 
     while (true) {
-        int opt = getopt_long(argc, argv, "hpa", opts, NULL);
+        int opt = getopt_long(argc, argv, "hakp", opts, NULL);
         if (opt == -1)
             break;
 
@@ -107,11 +110,14 @@ int main(int argc, char *argv[])
         case 'h':
             usage(stdout);
             break;
-        case 'p':
-            verb = ACTION_PRINT;
-            break;
         case 'a':
             verb = ACTION_FORCE_ADD;
+            break;
+        case 'k':
+            verb = ACTION_KILL;
+            break;
+        case 'p':
+            verb = ACTION_PRINT;
             break;
         default:
             usage(stderr);
@@ -136,6 +142,9 @@ int main(int argc, char *argv[])
             return 0;
     case ACTION_FORCE_ADD:
         ssh_key_add(argc, argv);
+        break;
+    case ACTION_KILL:
+        kill(data.pid, SIGTERM);
         break;
     default:
         break;
