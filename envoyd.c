@@ -198,8 +198,7 @@ int main(void)
         if (!node || kill(node->d.pid, 0) < 0) {
             if (node && errno != ESRCH)
                 err(EXIT_FAILURE, "something strange happened with kill");
-
-            if (!node) {
+            else if (!node) {
                 node = malloc(sizeof(struct agent_info_t));
                 node->uid = cred.uid;
                 node->next = agents;
