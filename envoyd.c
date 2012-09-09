@@ -151,12 +151,16 @@ static void start_agent(uid_t uid, gid_t gid, struct agent_data_t *data)
     if (wait(&stat) < 1)
         err(EXIT_FAILURE, "failed to get process status");
 
-    if (WIFEXITED(stat) && WEXITSTATUS(stat))
-        sd_journal_print(LOG_ERR, "ssh-agent exited with status %d",
-                         WEXITSTATUS(stat));
-    else if (WIFSIGNALED(stat))
-        sd_journal_print(LOG_ERR, "ssh-agent terminated with signal %d",
-                         WTERMSIG(stat));
+    if (stat) {
+        data->pid = 0;
+
+        if (WIFEXITED(stat))
+            sd_journal_print(LOG_ERR, "ssh-agent exited with status %d",
+                             WEXITSTATUS(stat));
+        if (WIFSIGNALED(stat))
+            sd_journal_print(LOG_ERR, "ssh-agent terminated with signal %d",
+                             WTERMSIG(stat));
+    }
 }
 
 static int get_socket(void)
@@ -226,8 +230,8 @@ int main(void)
                 break;
         }
 
-        if (!node || kill(node->d.pid, 0) < 0) {
-            if (node) {
+        if (!node || node->d.pid == 0 || kill(node->d.pid, 0) < 0) {
+            if (node && node->d.pid) {
                 if (errno != ESRCH)
                     err(EXIT_FAILURE, "something strange happened with kill");
                 sd_journal_print(LOG_INFO, "ssh-agent for uid=%ld no longer running...",
