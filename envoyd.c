@@ -25,7 +25,6 @@
 #include <signal.h>
 #include <errno.h>
 #include <err.h>
-#include <sys/prctl.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
 #include <sys/socket.h>
@@ -42,16 +41,14 @@ struct agent_info_t {
 struct agent_info_t *agents = NULL;
 int fd;
 
-static bool is_subreaper;
+static bool sd_activated;
 
 static void sigterm(int __attribute__((unused)) signum)
 {
     close(fd);
     unlink(SOCK_PATH);
 
-    if (is_subreaper)
-        kill(0, SIGTERM);
-    else
+    if (!sd_activated)
         while (agents) {
             kill(agents->d.pid, SIGTERM);
             agents = agents->next;
@@ -145,9 +142,10 @@ static int get_socket(void)
     n = sd_listen_fds(0);
     if (n > 1)
         err(EXIT_FAILURE, "too many file descriptors recieved");
-    else if (n == 1)
+    else if (n == 1) {
         fd = SD_LISTEN_FDS_START;
-    else {
+        sd_activated = true;
+    } else {
         union {
             struct sockaddr sa;
             struct sockaddr_un un;
@@ -180,10 +178,6 @@ int main(void)
 
     signal(SIGTERM, sigterm);
     signal(SIGINT,  sigterm);
-
-    /* silently fail on old kernels */
-    if (prctl(PR_SET_CHILD_SUBREAPER, 1) == 0)
-        is_subreaper = true;
 
     while (true) {
         union {
