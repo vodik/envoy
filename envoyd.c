@@ -60,43 +60,45 @@ static void sigterm(int __attribute__((unused)) signum)
     exit(EXIT_SUCCESS);
 }
 
-static int xstrtol(const char *str, long *out)
+void parse_agentdata_line(char *val, struct agent_data_t *info)
 {
-    char *end = NULL;
+    char *eol, *var;
 
-    if (str == NULL || *str == '\0')
-        return -1;
-    errno = 0;
+    eol = strchr(val, ';');
+    if (eol)
+        *eol = '\0';
 
-    *out = strtol(str, &end, 10);
-    if (errno || str == end || (end && *end))
-        return -1;
+    if (strchr(val, '=') == NULL)
+        return;
 
-    return 0;
+    var = strsep(&val, "=");
+
+    if (strcmp(var, "SSH_AUTH_SOCK") == 0)
+        strcpy(info->sock, val);
+    else if (strcmp(var, "SSH_AGENT_PID") == 0)
+        info->pid = atoi(val);
 }
 
-/* TODO: this is soo hacky its not even funny */
-static void read_agent(int fd, struct agent_data_t *data)
+static void parse_agentdata(int fd, struct agent_data_t *data)
 {
     char b[BUFSIZ];
-    int nread = 0;
+    char *l, *nl;
+    ssize_t bytes_r;
 
-    nread = read(fd, b, BUFSIZ);
-    b[nread] = '\0';
+    bytes_r = read(fd, b, sizeof(b));
+    b[bytes_r] = '\0';
+    l = &b[0];
 
-    char *k, *t;
-    k = strchr(b, '='); ++k;
-    t = strchr(b, ';'); *t++ = '\0';
+    while (l < &b[bytes_r]) {
+        nl = strchr(l, '\n');
+        if (!nl)
+            break;
 
-    strcpy(data->sock, k);
+        *nl = '\0';
+        parse_agentdata_line(l, data);
 
-    t = strchr(t, '\n'); ++t;
-    k = strchr(t, '='); ++k;
-    t = strchr(t, ';'); *t = '\0';
-
-    long value;
-    xstrtol(k, &value);
-    data->pid = (pid_t)value;
+        l = nl + 1;
+    }
 }
 
 static void start_agent(uid_t uid, gid_t gid, struct agent_data_t *data)
@@ -132,7 +134,7 @@ static void start_agent(uid_t uid, gid_t gid, struct agent_data_t *data)
         break;
     }
 
-    read_agent(fd[STDIN_FILENO], data);
+    parse_agentdata(fd[STDIN_FILENO], data);
     wait(NULL);
 }
 
