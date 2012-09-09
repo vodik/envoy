@@ -43,18 +43,28 @@ int fd;
 
 static bool sd_activated;
 
-static void sigterm(int __attribute__((unused)) signum)
+static void cleanup(void)
 {
     close(fd);
     unlink(SOCK_PATH);
 
-    if (!sd_activated)
-        while (agents) {
-            kill(agents->d.pid, SIGTERM);
-            agents = agents->next;
-        }
+    while (agents) {
+        if (agents->d.pid < 0)
+            continue;
+        kill(agents->d.pid, SIGTERM);
+        agents = agents->next;
+    }
+}
 
-    exit(EXIT_SUCCESS);
+static void sighandler(int signum)
+{
+    switch (signum) {
+    case SIGINT:
+    case SIGTERM:
+        if (!sd_activated)
+            cleanup();
+        exit(EXIT_SUCCESS);
+    }
 }
 
 void parse_agentdata_line(char *val, struct agent_data_t *info)
@@ -176,8 +186,8 @@ int main(void)
 {
     fd = get_socket();
 
-    signal(SIGTERM, sigterm);
-    signal(SIGINT,  sigterm);
+    signal(SIGTERM, sighandler);
+    signal(SIGINT,  sighandler);
 
     while (true) {
         union {
