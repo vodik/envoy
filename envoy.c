@@ -162,8 +162,14 @@ int main(int argc, char *argv[])
         }
     }
 
-    if (get_agent(&data) < 0)
+    switch (get_agent(&data)) {
+    case -1:
         err(EXIT_FAILURE, "failed to read data");
+    case 0:
+        errx(EXIT_FAILURE, "recieved no data, did ssh-agent fail to start?");
+    default:
+        break;
+    }
 
     setenv("SSH_AUTH_SOCK", data.sock, true);
 
