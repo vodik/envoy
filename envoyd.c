@@ -86,13 +86,16 @@ void parse_agentdata_line(char *val, struct agent_data_t *info)
         info->pid = atoi(val);
 }
 
-static void parse_agentdata(int fd, struct agent_data_t *data)
+static int parse_agentdata(int fd, struct agent_data_t *data)
 {
     char b[BUFSIZ];
     char *l, *nl;
     ssize_t bytes_r;
 
     bytes_r = read(fd, b, sizeof(b));
+    if (bytes_r <= 0)
+        return bytes_r;
+
     b[bytes_r] = '\0';
     l = &b[0];
 
@@ -106,11 +109,13 @@ static void parse_agentdata(int fd, struct agent_data_t *data)
 
         l = nl + 1;
     }
+
+    return 0;
 }
 
 static void start_agent(uid_t uid, gid_t gid, struct agent_data_t *data)
 {
-    int fd[2];
+    int fd[2], stat = 0;
 
     data->first_run = true;
     sd_journal_print(LOG_INFO, "starting ssh-agent for uid=%ld gid=%ld",
@@ -141,8 +146,18 @@ static void start_agent(uid_t uid, gid_t gid, struct agent_data_t *data)
         break;
     }
 
-    parse_agentdata(fd[STDIN_FILENO], data);
-    wait(NULL);
+    if (parse_agentdata(fd[STDIN_FILENO], data) < 0)
+        err(EXIT_FAILURE, "failed to parse ssh-agent output");
+
+    if (wait(&stat) < 1)
+        err(EXIT_FAILURE, "failed to get process status");
+
+    if (WIFEXITED(stat) && WEXITSTATUS(stat))
+        sd_journal_print(LOG_ERR, "ssh-agent exited with status %d",
+                         WEXITSTATUS(stat));
+    else if (WIFSIGNALED(stat))
+        sd_journal_print(LOG_ERR, "ssh-agent terminated with signal %d",
+                         WTERMSIG(stat));
 }
 
 static int get_socket(void)
