@@ -34,6 +34,7 @@ enum action {
     ACTION_ADD,
     ACTION_FORCE_ADD,
     ACTION_KILL,
+    ACTION_LIST,
     ACTION_INVALID
 };
 
@@ -124,6 +125,7 @@ static void __attribute__((__noreturn__)) usage(FILE *out)
         " -v, --version    display version\n"
         " -a, --add        also add keys (default)\n"
         " -k, --kill       kill the running ssh-agent\n"
+        " -l, --list       list loaded keys\n"
         " -p, --print      print out environmental arguments\n", out);
 
     exit(out == stderr ? EXIT_FAILURE : EXIT_SUCCESS);
@@ -139,12 +141,13 @@ int main(int argc, char *argv[])
         { "version", no_argument, 0, 'v' },
         { "add",     no_argument, 0, 'a' },
         { "kill",    no_argument, 0, 'k' },
+        { "list",    no_argument, 0, 'l' },
         { "print",   no_argument, 0, 'p' },
         { 0, 0, 0, 0 }
     };
 
     while (true) {
-        int opt = getopt_long(argc, argv, "hvakp", opts, NULL);
+        int opt = getopt_long(argc, argv, "hlvakp", opts, NULL);
         if (opt == -1)
             break;
 
@@ -160,6 +163,9 @@ int main(int argc, char *argv[])
             break;
         case 'k':
             verb = ACTION_KILL;
+            break;
+        case 'l':
+            verb = ACTION_LIST;
             break;
         case 'p':
             verb = ACTION_PRINT;
@@ -185,6 +191,9 @@ int main(int argc, char *argv[])
     case ACTION_KILL:
         kill(data.pid, SIGTERM);
         break;
+    case ACTION_LIST:
+        execl("/usr/bin/ssh-add", "ssh-add", "-l", NULL);
+        err(EXIT_FAILURE, "failed to launch ssh-add");
     default:
         break;
     }
