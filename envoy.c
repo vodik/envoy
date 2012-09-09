@@ -23,6 +23,7 @@
 #include <getopt.h>
 #include <err.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <pwd.h>
 #include <unistd.h>
 #include <sys/wait.h>
@@ -86,6 +87,7 @@ static int get_agent(struct agent_data_t *data)
         struct sockaddr_un un;
     } sa;
 
+    int rc, flags;
     int fd = socket(PF_UNIX, SOCK_STREAM, 0);
     if (fd < 0)
         err(EXIT_FAILURE, "couldn't create socket");
@@ -94,10 +96,23 @@ static int get_agent(struct agent_data_t *data)
     sa.un.sun_family = AF_UNIX;
     strncpy(sa.un.sun_path, SOCK_PATH, sizeof(sa.un.sun_path));
 
+    /* set non-blocking */
+    flags = fcntl(fd, F_GETFL);
+    fcntl(fd, F_SETFL, flags|O_NONBLOCK);
+
     if (connect(fd, &sa.sa, sizeof(sa)) < 0)
         err(EXIT_FAILURE, "failed to connect");
 
-    int rc = read(fd, data, sizeof(*data));
+    for (;;) {
+        rc = read(fd, data, sizeof(*data));
+        if (rc < 0) {
+            if (errno != EAGAIN) {
+                warn("failed to receive data from server");
+                break;
+            }
+        } else
+            break;
+    }
 
     close(fd);
     return rc;
