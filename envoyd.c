@@ -38,10 +38,9 @@ struct agent_info_t {
     struct agent_info_t *next;
 };
 
-struct agent_info_t *agents = NULL;
-int fd;
-
+static struct agent_info_t *agents = NULL;
 static bool sd_activated;
+static int fd;
 
 static void cleanup(void)
 {
