@@ -32,7 +32,6 @@
 enum action {
     ACTION_PRINT,
     ACTION_ADD,
-    ACTION_FORCE_ADD,
     ACTION_KILL,
     ACTION_LIST,
     ACTION_INVALID
