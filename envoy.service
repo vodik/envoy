@@ -1,2 +1,5 @@
 [Service]
 ExecStart=/usr/bin/envoyd
+
+[Install]
+Also=envoy.socket
