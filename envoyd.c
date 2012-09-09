@@ -44,7 +44,7 @@ int fd;
 
 static bool is_subreaper;
 
-static void sigterm()
+static void sigterm(int __attribute__((unused)) signum)
 {
     close(fd);
     unlink(SOCK_PATH);
@@ -136,7 +136,7 @@ static void start_agent(uid_t uid, gid_t gid, struct agent_data_t *data)
     wait(NULL);
 }
 
-static int get_socket()
+static int get_socket(void)
 {
     int fd, n;
 
