@@ -139,8 +139,8 @@ int main(int argc, char *argv[])
 
     switch (verb) {
     case ACTION_PRINT:
-        printf("export SSH_AUTH_SOCK=%s\n",  data.sock);
-        printf("export SSH_AGENT_PID=%ld\n", (long)data.pid);
+        printf("export SSH_AUTH_SOCK='%s'\n",  data.sock);
+        printf("export SSH_AGENT_PID='%ld'\n", (long)data.pid);
         break;
     case ACTION_ADD:
         if (!data.first_run)
