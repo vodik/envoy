@@ -246,10 +246,12 @@ int main(void)
             start_agent(cred.uid, cred.gid, &node->d);
         }
 
-        if (write(cfd, &node->d, sizeof(node->d)) < 0)
-            err(EXIT_FAILURE, "failed to write agent data");
+        if (node->d.pid) {
+            if (write(cfd, &node->d, sizeof(node->d)) < 0)
+                err(EXIT_FAILURE, "failed to write agent data");
+            node->d.first_run = false;
+        }
 
-        node->d.first_run = false;
         close(cfd);
     }
 
