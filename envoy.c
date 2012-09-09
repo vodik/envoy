@@ -23,6 +23,7 @@
 #include <getopt.h>
 #include <err.h>
 #include <errno.h>
+#include <pwd.h>
 #include <unistd.h>
 #include <sys/wait.h>
 #include <sys/socket.h>
@@ -36,20 +37,59 @@ enum action {
     ACTION_INVALID
 };
 
-static void ssh_key_add(int argc, char *argv[])
+static char *get_key_path(const char *home, const char *fragment)
 {
-    char *args[argc + 3];
+    char *out;
+
+    /* path exists, add it */
+    if (access(fragment, F_OK) == 0)
+        return strdup(fragment);
+
+    /* assume it's a key in $HOME/.ssh */
+    if (asprintf(&out, "%s/.ssh/%s", home, fragment) < 0)
+        err(EXIT_FAILURE, "failed to allocate memory");
+
+    return out;
+}
+
+static void add_keys(char **keys, int count, int first_run)
+{
+    struct passwd *pwd;
+    char **argv;
     int i;
 
-    for (i = 0; i < argc; ++i)
-        args[i + 2] = argv[i];
+    if (count == 0 && !first_run)
+        errx(EXIT_FAILURE, "no keys specified");
 
-    args[0] = "ssh-add";
-    args[1] = "--";
-    args[argc + 2] = NULL;
+    pwd = getpwuid(getuid());
+    if (pwd == NULL || pwd->pw_dir == NULL)
+        /* unlikely */
+        err(EXIT_FAILURE, "failed to lookup passwd entry");
 
-    if (execvp(args[0], args) < 0)
-        err(EXIT_FAILURE, "failed to start ssh-add");
+    /* command + end-of-opts + NULL + keys */
+    if (first_run && count == 0)
+        argv = calloc(1 + 3, sizeof(char*));
+    else
+        argv = calloc(count + 3, sizeof(char*));
+
+    if (argv == NULL)
+        err(EXIT_FAILURE, "failed to allocate memory");
+
+    argv[0] = "/usr/bin/ssh-add";
+    argv[1] = "--";
+
+    /* if none specified, add ~/.ssh/id_rsa */
+    if (count == 0) {
+        argv[2] = get_key_path(pwd->pw_dir, "id_rsa");
+        argv[3] = NULL;
+    } else {
+        for (i = 0; i < count; i++)
+            argv[2 + i] = get_key_path(pwd->pw_dir, keys[i]);
+        argv[2 + i] = NULL;
+    }
+
+    execv(argv[0], argv);
+    err(EXIT_FAILURE, "failed to launch ssh-add");
 }
 
 static int get_agent(struct agent_data_t *data)
@@ -82,7 +122,7 @@ static void __attribute__((__noreturn__)) usage(FILE *out)
     fputs("Options:\n"
         " -h, --help       display this help and exit\n"
         " -v, --version    display version\n"
-        " -a, --add        always invode ssh-add, not just on ssh-agent start\n"
+        " -a, --add        also add keys (default)\n"
         " -k, --kill       kill the running ssh-agent\n"
         " -p, --print      print out environmental arguments\n", out);
 
@@ -116,7 +156,7 @@ int main(int argc, char *argv[])
             printf("%s %s\n", program_invocation_short_name, ENVOY_VERSION);
             return 0;
         case 'a':
-            verb = ACTION_FORCE_ADD;
+            verb = ACTION_ADD;
             break;
         case 'k':
             verb = ACTION_KILL;
@@ -129,9 +169,6 @@ int main(int argc, char *argv[])
         }
     }
 
-    argv += optind;
-    argc -= optind;
-
     if (get_agent(&data) < 0)
         err(EXIT_FAILURE, "failed to read data");
 
@@ -143,10 +180,7 @@ int main(int argc, char *argv[])
         printf("export SSH_AGENT_PID='%ld'\n", (long)data.pid);
         break;
     case ACTION_ADD:
-        if (!data.first_run)
-            return 0;
-    case ACTION_FORCE_ADD:
-        ssh_key_add(argc, argv);
+        add_keys(&argv[optind], argc - optind, data.first_run);
         break;
     case ACTION_KILL:
         kill(data.pid, SIGTERM);
