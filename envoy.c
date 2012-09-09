@@ -78,15 +78,15 @@ static int get_agent(struct agent_data_t *data)
 
 static void __attribute__((__noreturn__)) usage(FILE *out)
 {
-	fprintf(out, "usage: %s [options] [files ...]\n", program_invocation_short_name);
-	fputs("Options:\n"
-	      " -h, --help       display this help and exit\n"
-	      " -v, --version    display version\n"
-	      " -a, --add        always invode ssh-add, not just on ssh-agent start\n"
-	      " -k, --kill       kill the running ssh-agent\n"
-	      " -p, --print      print out environmental arguments\n", out);
+    fprintf(out, "usage: %s [options] [files ...]\n", program_invocation_short_name);
+    fputs("Options:\n"
+        " -h, --help       display this help and exit\n"
+        " -v, --version    display version\n"
+        " -a, --add        always invode ssh-add, not just on ssh-agent start\n"
+        " -k, --kill       kill the running ssh-agent\n"
+        " -p, --print      print out environmental arguments\n", out);
 
-	exit(out == stderr ? EXIT_FAILURE : EXIT_SUCCESS);
+    exit(out == stderr ? EXIT_FAILURE : EXIT_SUCCESS);
 }
 
 int main(int argc, char *argv[])
