@@ -25,6 +25,7 @@
 #include <signal.h>
 #include <errno.h>
 #include <err.h>
+#include <sys/prctl.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
 #include <sys/socket.h>
@@ -41,15 +42,20 @@ struct agent_info_t {
 struct agent_info_t *agents = NULL;
 int fd;
 
+static bool is_subreaper;
+
 static void sigterm()
 {
     close(fd);
     unlink(SOCK_PATH);
 
-    while (agents) {
-        kill(agents->d.pid, SIGTERM);
-        agents = agents->next;
-    }
+    if (is_subreaper)
+        kill(0, SIGTERM);
+    else
+        while (agents) {
+            kill(agents->d.pid, SIGTERM);
+            agents = agents->next;
+        }
 
     exit(EXIT_SUCCESS);
 }
@@ -172,6 +178,10 @@ int main(void)
 
     signal(SIGTERM, sigterm);
     signal(SIGINT,  sigterm);
+
+    /* silently fail on old kernels */
+    if (prctl(PR_SET_CHILD_SUBREAPER, 1) == 0)
+        is_subreaper = true;
 
     while (true) {
         union {
