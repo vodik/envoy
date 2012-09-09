@@ -55,8 +55,9 @@ static char *get_key_path(const char *home, const char *fragment)
 
 static void add_keys(char **keys, int count, int first_run)
 {
+    /* command + end-of-opts + NULL + keys */
+    char *argv[count + 3];
     struct passwd *pwd;
-    char **argv;
     int i;
 
     if (count == 0 && !first_run)
@@ -67,27 +68,13 @@ static void add_keys(char **keys, int count, int first_run)
         /* unlikely */
         err(EXIT_FAILURE, "failed to lookup passwd entry");
 
-    /* command + end-of-opts + NULL + keys */
-    if (first_run && count == 0)
-        argv = calloc(1 + 3, sizeof(char*));
-    else
-        argv = calloc(count + 3, sizeof(char*));
-
-    if (argv == NULL)
-        err(EXIT_FAILURE, "failed to allocate memory");
-
     argv[0] = "/usr/bin/ssh-add";
     argv[1] = "--";
 
-    /* if none specified, add ~/.ssh/id_rsa */
-    if (count == 0) {
-        argv[2] = get_key_path(pwd->pw_dir, "id_rsa");
-        argv[3] = NULL;
-    } else {
-        for (i = 0; i < count; i++)
-            argv[2 + i] = get_key_path(pwd->pw_dir, keys[i]);
-        argv[2 + i] = NULL;
-    }
+    for (i = 0; i < count; i++)
+        argv[2 + i] = get_key_path(pwd->pw_dir, keys[i]);
+
+    argv[2 + count] = NULL;
 
     execv(argv[0], argv);
     err(EXIT_FAILURE, "failed to launch ssh-add");
