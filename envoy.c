@@ -193,6 +193,11 @@ int main(int argc, char *argv[])
         printf("export SSH_AGENT_PID='%ld'\n", (long)data.pid);
         break;
     case ACTION_ADD:
+        if (data.first_run) {
+            printf("export SSH_AUTH_SOCK='%s'\n",  data.sock);
+            printf("export SSH_AGENT_PID='%ld'\n", (long)data.pid);
+            fflush(stdout);
+        }
         add_keys(&argv[optind], argc - optind, data.first_run);
         break;
     case ACTION_KILL:
