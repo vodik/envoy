@@ -23,7 +23,7 @@
 #include <limits.h>
 #include <sys/types.h>
 
-#define SOCK_PATH "/run/keychain"
+#define SOCK_PATH "@/vodik/envoy"
 
 struct agent_data_t {
     bool first_run;

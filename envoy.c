@@ -88,19 +88,19 @@ static int get_agent(struct agent_data_t *data)
     } sa;
 
     int rc, flags;
-    int fd = socket(PF_UNIX, SOCK_STREAM, 0);
+    int fd = socket(AF_UNIX, SOCK_STREAM, 0);
     if (fd < 0)
         err(EXIT_FAILURE, "couldn't create socket");
 
     memset(&sa, 0, sizeof(sa));
     sa.un.sun_family = AF_UNIX;
-    strncpy(sa.un.sun_path, SOCK_PATH, sizeof(sa.un.sun_path));
+    memcpy(&sa.un.sun_path[1], &SOCK_PATH[1], sizeof(SOCK_PATH) + 1);
 
     /* set non-blocking */
     flags = fcntl(fd, F_GETFL);
     fcntl(fd, F_SETFL, flags|O_NONBLOCK);
 
-    if (connect(fd, &sa.sa, sizeof(sa)) < 0)
+    if (connect(fd, &sa.sa, sizeof(SOCK_PATH) + 1) < 0)
         err(EXIT_FAILURE, "failed to connect");
 
     for (;;) {

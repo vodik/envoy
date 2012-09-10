@@ -25,6 +25,7 @@
 #include <signal.h>
 #include <errno.h>
 #include <err.h>
+#include <fcntl.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
 #include <sys/socket.h>
@@ -40,12 +41,11 @@ struct agent_info_t {
 
 static struct agent_info_t *agents = NULL;
 static bool sd_activated;
-static int fd;
+static int server_sock;
 
 static void cleanup(void)
 {
-    close(fd);
-    unlink(SOCK_PATH);
+    close(server_sock);
 
     while (agents) {
         if (agents->d.pid < 0)
@@ -66,7 +66,7 @@ static void sighandler(int signum)
     }
 }
 
-void parse_agentdata_line(char *val, struct agent_data_t *info)
+static void parse_agentdata_line(char *val, struct agent_data_t *info)
 {
     char *eol, *var;
 
@@ -185,13 +185,10 @@ static int get_socket(void)
 
         memset(&sa, 0, sizeof(sa));
         sa.un.sun_family = AF_UNIX;
-        strncpy(sa.un.sun_path, SOCK_PATH, sizeof(sa.un.sun_path));
+        memcpy(sa.un.sun_path + 1, &SOCK_PATH[1], sizeof(SOCK_PATH) + 1);
 
-        if (bind(fd, &sa.sa, sizeof(sa)) < 0)
+        if (bind(fd, &sa.sa, sizeof(SOCK_PATH) + 1) < 0)
             err(EXIT_FAILURE, "failed to bind");
-
-        if (chmod(sa.un.sun_path, 0666) < 0)
-            err(EXIT_FAILURE, "failed to set permissions");
 
         if (listen(fd, SOMAXCONN) < 0)
             err(EXIT_FAILURE, "failed to listen");
@@ -202,7 +199,7 @@ static int get_socket(void)
 
 int main(void)
 {
-    fd = get_socket();
+    server_sock = get_socket();
 
     signal(SIGTERM, sighandler);
     signal(SIGINT,  sighandler);
@@ -212,11 +209,14 @@ int main(void)
             struct sockaddr sa;
             struct sockaddr_un un;
         } sa;
-        socklen_t sa_len = sizeof(sa);
+        socklen_t sa_len;
 
-        int cfd = accept(fd, &sa.sa, &sa_len);
+        int cfd = accept(server_sock, &sa.sa, &sa_len);
         if (cfd < 0)
             err(EXIT_FAILURE, "failed to accept connection");
+
+        if (fcntl(cfd, F_SETFD, FD_CLOEXEC) < 0)
+            err(EXIT_FAILURE, "failed to set FD_CLOEXEC on client connection");
 
         struct ucred cred;
         socklen_t cred_len = sizeof(struct ucred);
