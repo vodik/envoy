@@ -53,15 +53,20 @@ static char *get_key_path(const char *home, const char *fragment)
     return out;
 }
 
-static void add_keys(char **keys, int count, int first_run)
+static void add_keys(char **keys, int count, struct agent_data_t *data)
 {
     /* command + end-of-opts + NULL + keys */
     char *argv[count + 3];
     struct passwd *pwd;
     int i;
 
-    if (count == 0 && !first_run)
-        errx(EXIT_FAILURE, "no keys specified");
+    /* when there are no agument, with gpg-agent it should be a no op */
+    if (count == 0) {
+        if (data->gpg[0])
+            exit(EXIT_SUCCESS);
+        else if (!data->first_run)
+            errx(EXIT_FAILURE, "no keys specified");
+    }
 
     pwd = getpwuid(getuid());
     if (pwd == NULL || pwd->pw_dir == NULL)
@@ -202,7 +207,7 @@ int main(int argc, char *argv[])
         print_env(&data);
         break;
     case ACTION_ADD:
-        add_keys(&argv[optind], argc - optind, data.first_run);
+        add_keys(&argv[optind], argc - optind, &data);
         break;
     case ACTION_KILL:
         kill(data.pid, SIGTERM);
