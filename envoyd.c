@@ -48,7 +48,7 @@ static void cleanup(void)
     close(server_sock);
 
     while (agents) {
-        if (agents->d.pid < 0)
+        if (agents->d.pid <= 0)
             continue;
         kill(agents->d.pid, SIGTERM);
         agents = agents->next;
