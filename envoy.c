@@ -80,6 +80,15 @@ static void add_keys(char **keys, int count, int first_run)
     err(EXIT_FAILURE, "failed to launch ssh-add");
 }
 
+static void print_env(struct agent_data_t *data)
+{
+    if (data->gpg[0])
+        printf("export GPG_AGENT_INFO='%s'\n", data->gpg);
+
+    printf("export SSH_AUTH_SOCK='%s'\n",  data->sock);
+    printf("export SSH_AGENT_PID='%ld'\n", (long)data->pid);
+}
+
 static int get_agent(struct agent_data_t *data)
 {
     union {
@@ -189,15 +198,11 @@ int main(int argc, char *argv[])
 
     switch (verb) {
     case ACTION_PRINT:
-        printf("export SSH_AUTH_SOCK='%s'\n",  data.sock);
-        printf("export SSH_AGENT_PID='%ld'\n", (long)data.pid);
+        print_env(&data);
         break;
     case ACTION_ADD:
-        if (data.first_run) {
-            printf("export SSH_AUTH_SOCK='%s'\n",  data.sock);
-            printf("export SSH_AGENT_PID='%ld'\n", (long)data.pid);
-            fflush(stdout);
-        }
+        if (data.first_run)
+            print_env(&data);
         add_keys(&argv[optind], argc - optind, data.first_run);
         break;
     case ACTION_KILL:

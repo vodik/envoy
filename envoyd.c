@@ -21,11 +21,13 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <string.h>
+#include <getopt.h>
 #include <unistd.h>
 #include <signal.h>
 #include <errno.h>
 #include <err.h>
 #include <fcntl.h>
+#include <pwd.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
 #include <sys/socket.h>
@@ -33,15 +35,32 @@
 #include <systemd/sd-daemon.h>
 #include <systemd/sd-journal.h>
 
+enum agent {
+    AGENT_SSH_AGENT,
+    AGENT_GPG_AGENT,
+    INVALID_AGENT
+};
+
+struct agent_t {
+    const char *name;
+    const char *bin;
+};
+
 struct agent_info_t {
     uid_t uid;
     struct agent_data_t d;
     struct agent_info_t *next;
 };
 
+static const struct agent_t Agent[INVALID_AGENT] = {
+    [AGENT_SSH_AGENT] = { "ssh-agent", "/usr/bin/ssh-agent" },
+    [AGENT_GPG_AGENT] = { "gpg-agent", "/usr/bin/gpg-agent" }
+};
+
 static struct agent_info_t *agents = NULL;
 static bool sd_activated;
 static int server_sock;
+static const struct agent_t *agent = &Agent[AGENT_SSH_AGENT];
 
 static void cleanup(void)
 {
@@ -83,6 +102,8 @@ static void parse_agentdata_line(char *val, struct agent_data_t *info)
         strcpy(info->sock, val);
     else if (strcmp(var, "SSH_AGENT_PID") == 0)
         info->pid = atoi(val);
+    else if (strcmp(var, "GPG_AGENT_INFO") == 0)
+        strcpy(info->gpg, val);
 }
 
 static int parse_agentdata(int fd, struct agent_data_t *data)
@@ -115,10 +136,11 @@ static int parse_agentdata(int fd, struct agent_data_t *data)
 static void start_agent(uid_t uid, gid_t gid, struct agent_data_t *data)
 {
     int fd[2], stat = 0;
+    struct passwd *pw = getpwuid(uid);
 
     data->first_run = true;
-    sd_journal_print(LOG_INFO, "starting ssh-agent for uid=%ld gid=%ld",
-                     (long)uid, (long)gid);
+    sd_journal_print(LOG_INFO, "starting %s for uid=%ld gid=%ld",
+                     agent->name, (long)uid, (long)gid);
 
     if (pipe(fd) < 0)
         err(EXIT_FAILURE, "failed to create pipe");
@@ -131,14 +153,16 @@ static void start_agent(uid_t uid, gid_t gid, struct agent_data_t *data)
         dup2(fd[1], STDOUT_FILENO);
         close(fd[0]);
 
-        if (setgid(gid) < 0)
-            err(EXIT_FAILURE, "unable to drop to group id %d\n", gid);
+        if (setgid(gid) < 0 || setuid(uid) < 0)
+            err(EXIT_FAILURE, "unable to drop to group id=%ld gui=%ld\n",
+                (long)gid, (long)uid);
 
-        if (setuid(uid) < 0)
-            err(EXIT_FAILURE, "unable to drop to user id %d\n", uid);
+        /* gpg-agent expects HOME to be set */
+        if (setenv("HOME", pw->pw_dir, true))
+            err(EXIT_FAILURE, "failed to set HOME=%s\n", pw->pw_dir);
 
-        if (execl("/usr/bin/ssh-agent", "ssh-agent", NULL) < 0)
-            err(EXIT_FAILURE, "failed to start ssh-agent");
+        if (execl(agent->bin, agent->name, NULL) < 0)
+            err(EXIT_FAILURE, "failed to start %s", agent->name);
         break;
     default:
         close(fd[1]);
@@ -146,7 +170,7 @@ static void start_agent(uid_t uid, gid_t gid, struct agent_data_t *data)
     }
 
     if (parse_agentdata(fd[STDIN_FILENO], data) < 0)
-        err(EXIT_FAILURE, "failed to parse ssh-agent output");
+        err(EXIT_FAILURE, "failed to parse %s output", agent->name);
 
     if (wait(&stat) < 1)
         err(EXIT_FAILURE, "failed to get process status");
@@ -155,11 +179,11 @@ static void start_agent(uid_t uid, gid_t gid, struct agent_data_t *data)
         data->pid = 0;
 
         if (WIFEXITED(stat))
-            sd_journal_print(LOG_ERR, "ssh-agent exited with status %d",
-                             WEXITSTATUS(stat));
+            sd_journal_print(LOG_ERR, "%s exited with status %d",
+                             agent->name, WEXITSTATUS(stat));
         if (WIFSIGNALED(stat))
-            sd_journal_print(LOG_ERR, "ssh-agent terminated with signal %d",
-                             WTERMSIG(stat));
+            sd_journal_print(LOG_ERR, "%s terminated with signal %d",
+                             agent->name, WTERMSIG(stat));
     }
 }
 
@@ -197,8 +221,61 @@ static int get_socket(void)
     return fd;
 }
 
-int main(void)
+static enum agent find_agent(const char *string)
 {
+    size_t i;
+
+    for (i = 0; i < INVALID_AGENT; i++)
+        if (strcmp(Agent[i].name, string) == 0)
+            break;
+
+    return i;
+}
+
+static void __attribute__((__noreturn__)) usage(FILE *out)
+{
+    fprintf(out, "usage: %s [options] [files ...]\n", program_invocation_short_name);
+    fputs("Options:\n"
+        " -h, --help           display this help and exit\n"
+        " -v, --version        display version\n"
+        " -a, --agent=AGENT    set the prefered agent\n", out);
+
+    exit(out == stderr ? EXIT_FAILURE : EXIT_SUCCESS);
+}
+
+int main(int argc, char *argv[])
+{
+    enum agent id;
+    static const struct option opts[] = {
+        { "help",    no_argument,       0, 'h' },
+        { "version", no_argument,       0, 'v' },
+        { "agent",   required_argument, 0, 'a' },
+        { 0, 0, 0, 0 }
+    };
+
+    while (true) {
+        int opt = getopt_long(argc, argv, "hva:", opts, NULL);
+        if (opt == -1)
+            break;
+
+        switch (opt) {
+        case 'h':
+            usage(stdout);
+            break;
+        case 'v':
+            printf("%s %s\n", program_invocation_short_name, ENVOY_VERSION);
+            return 0;
+        case 'a':
+            if ((id = find_agent(optarg)) == INVALID_AGENT)
+                errx(EXIT_FAILURE, "unknown agent: %s", optarg);
+
+            agent = &Agent[id];
+            break;
+        default:
+            usage(stderr);
+        }
+    }
+
     server_sock = get_socket();
 
     signal(SIGTERM, sighandler);
@@ -235,10 +312,10 @@ int main(void)
             if (node && node->d.pid) {
                 if (errno != ESRCH)
                     err(EXIT_FAILURE, "something strange happened with kill");
-                sd_journal_print(LOG_INFO, "ssh-agent for uid=%ld no longer running...",
-                                 (long)cred.uid);
+                sd_journal_print(LOG_INFO, "%s for uid=%ld no longer running...",
+                                 agent->name, (long)cred.uid);
             } else if (!node) {
-                node = malloc(sizeof(struct agent_info_t));
+                node = calloc(1, sizeof(struct agent_info_t));
                 node->uid = cred.uid;
                 node->next = agents;
                 agents = node;

@@ -29,6 +29,7 @@ struct agent_data_t {
     bool first_run;
     pid_t pid;
     char sock[PATH_MAX];
+    char gpg[PATH_MAX];
 };
 
 #endif
