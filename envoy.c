@@ -194,7 +194,8 @@ int main(int argc, char *argv[])
         break;
     }
 
-    setenv("SSH_AUTH_SOCK", data.sock, true);
+    setenv("SSH_AUTH_SOCK",  data.sock, true);
+    setenv("GPG_AGENT_INFO", data.gpg,  true);
 
     switch (verb) {
     case ACTION_PRINT:
