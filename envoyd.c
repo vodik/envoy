@@ -234,7 +234,7 @@ static enum agent find_agent(const char *string)
 
 static void __attribute__((__noreturn__)) usage(FILE *out)
 {
-    fprintf(out, "usage: %s [options] [files ...]\n", program_invocation_short_name);
+    fprintf(out, "usage: %s [options]\n", program_invocation_short_name);
     fputs("Options:\n"
         " -h, --help           display this help and exit\n"
         " -v, --version        display version\n"
