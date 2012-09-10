@@ -228,6 +228,7 @@ int main(void)
         while (node) {
             if (node->uid == cred.uid)
                 break;
+            node = node->next;
         }
 
         if (!node || node->d.pid == 0 || kill(node->d.pid, 0) < 0) {
