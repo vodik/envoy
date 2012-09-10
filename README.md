@@ -4,7 +4,7 @@ A simple `ssh-agent` and `ssh-add` wrapper. I wrote this tool to better
 manage the lifetime of `ssh-agent` under systemd. Starting it in
 `.zshrc` was clobbering systemd's session tracking with old sessions.
 
-### usage
+### Usage
 
 ```
 systemctl enable envoy.socket

@@ -137,7 +137,7 @@ static void start_agent(uid_t uid, gid_t gid, struct agent_data_t *data)
         if (setuid(uid) < 0)
             err(EXIT_FAILURE, "unable to drop to user id %d\n", uid);
 
-        if (execlp("ssh-agent", "ssh-agent", NULL) < 0)
+        if (execl("/usr/bin/ssh-agent", "ssh-agent", NULL) < 0)
             err(EXIT_FAILURE, "failed to start ssh-agent");
         break;
     default:
