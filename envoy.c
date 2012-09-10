@@ -202,8 +202,6 @@ int main(int argc, char *argv[])
         print_env(&data);
         break;
     case ACTION_ADD:
-        if (data.first_run)
-            print_env(&data);
         add_keys(&argv[optind], argc - optind, data.first_run);
         break;
     case ACTION_KILL:
