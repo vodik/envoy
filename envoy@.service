@@ -1,0 +1,5 @@
+[Service]
+ExecStart=/usr/bin/envoyd --agent=%i
+
+[Install]
+Also=envoy@%i.socket
