@@ -138,6 +138,7 @@ static int gpg_update_tty(const char *sock)
     gpg_send_message(fd, "RESET");
     gpg_send_message(fd, "OPTION ttyname=%s", ttyname(0));
     gpg_send_message(fd, "OPTION ttytype=%s", getenv("TERM"));
+    gpg_send_message(fd, "OPTION display=%s", getenv("DISPLAY"));
     gpg_send_message(fd, "UPDATESTARTUPTTY");
 
     close(fd);
