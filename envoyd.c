@@ -161,6 +161,10 @@ static void start_agent(uid_t uid, gid_t gid, struct agent_data_t *data)
         if (setenv("HOME", pw->pw_dir, true))
             err(EXIT_FAILURE, "failed to set HOME=%s\n", pw->pw_dir);
 
+        /* gpg-agent expects GPG_TTY to be set or there will be blood */
+        if (setenv("GPG_TTY", "/dev/null", true))
+            err(EXIT_FAILURE, "failed to set GPG_TTY\n");
+
         if (execl(agent->bin, agent->name, NULL) < 0)
             err(EXIT_FAILURE, "failed to start %s", agent->name);
         break;

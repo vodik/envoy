@@ -19,6 +19,7 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <stdarg.h>
 #include <memory.h>
 #include <getopt.h>
 #include <err.h>
@@ -83,6 +84,64 @@ static void add_keys(char **keys, int count, struct agent_data_t *data)
 
     execv(argv[0], argv);
     err(EXIT_FAILURE, "failed to launch ssh-add");
+}
+
+static int gpg_send_message(int fd, const char *fmt, ...)
+{
+    va_list ap;
+    int nbytes;
+    char buf[1024];
+
+    va_start(ap, fmt);
+    nbytes = vsnprintf(buf, 1024, fmt, ap);
+    va_end(ap);
+
+    buf[nbytes++] = '\n';
+    if (write(fd, buf, nbytes) < 0)
+        return -1;
+
+    if (read(fd, buf, 1024) < 3)
+        return -1;
+
+    return !strncmp(buf, "OK\n", 3);
+}
+
+static int gpg_update_tty(const char *sock)
+{
+    union {
+        struct sockaddr sa;
+        struct sockaddr_un un;
+    } sa;
+
+    char buf[1024];
+    int fd = socket(AF_UNIX, SOCK_STREAM, 0), nbytes;
+    if (fd < 0)
+        err(EXIT_FAILURE, "couldn't create socket");
+
+    char *term = strchr(sock, ':');
+    size_t len = term - sock + 2;
+
+    memset(&sa, 0, sizeof(sa));
+    sa.un.sun_family = AF_UNIX;
+    memcpy(&sa.un.sun_path, sock, len);
+
+    if (connect(fd, &sa.sa, len) < 0)
+        err(EXIT_FAILURE, "failed to connect");
+
+    nbytes = read(fd, buf, 1024);
+    if (nbytes < 0)
+        err(EXIT_FAILURE, "failed to read from gpg-agent socket");
+
+    if (strncmp(buf, "OK", 2) != 0)
+        errx(EXIT_FAILURE, "incorrect response from gpg-agent");
+
+    gpg_send_message(fd, "RESET");
+    gpg_send_message(fd, "OPTION ttyname=%s", ttyname(0));
+    gpg_send_message(fd, "OPTION ttytype=%s", getenv("TERM"));
+    gpg_send_message(fd, "UPDATESTARTUPTTY");
+
+    close(fd);
+    return 0;
 }
 
 static void print_env(struct agent_data_t *data)
@@ -200,7 +259,11 @@ int main(int argc, char *argv[])
     }
 
     setenv("SSH_AUTH_SOCK",  data.sock, true);
-    setenv("GPG_AGENT_INFO", data.gpg,  true);
+
+    if (data.gpg[0]) {
+        setenv("GPG_AGENT_INFO", data.gpg,  true);
+        gpg_update_tty(data.gpg);
+    }
 
     switch (verb) {
     case ACTION_PRINT:
