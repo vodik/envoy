@@ -271,7 +271,7 @@ int main(int argc, char *argv[])
 
     setenv("SSH_AUTH_SOCK",  data.sock, true);
 
-    if (data.gpg[0]) {
+    if (data.gpg[0] && verb != ACTION_KILL) {
         setenv("GPG_AGENT_INFO", data.gpg,  true);
         gpg_update_tty(data.gpg);
     }
