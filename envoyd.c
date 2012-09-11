@@ -209,12 +209,9 @@ static int get_socket(void)
             struct sockaddr_un un;
         } sa;
 
-        fd = socket(AF_UNIX, SOCK_STREAM, 0);
+        fd = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
         if (fd < 0)
             err(EXIT_FAILURE, "couldn't create socket");
-
-        if (fcntl(fd, F_SETFD, FD_CLOEXEC) < 0)
-            err(EXIT_FAILURE, "failed to set FD_CLOEXEC on server connection");
 
         memset(&sa, 0, sizeof(sa));
         sa.un.sun_family = AF_UNIX;
@@ -297,12 +294,9 @@ int main(int argc, char *argv[])
         } sa;
         socklen_t sa_len;
 
-        int cfd = accept(server_sock, &sa.sa, &sa_len);
+        int cfd = accept4(server_sock, &sa.sa, &sa_len, SOCK_CLOEXEC);
         if (cfd < 0)
             err(EXIT_FAILURE, "failed to accept connection");
-
-        if (fcntl(cfd, F_SETFD, FD_CLOEXEC) < 0)
-            err(EXIT_FAILURE, "failed to set FD_CLOEXEC on client connection");
 
         struct ucred cred;
         socklen_t cred_len = sizeof(struct ucred);

@@ -171,18 +171,13 @@ static int get_agent(struct agent_data_t *data)
         struct sockaddr_un un;
     } sa;
 
-    int rc, flags;
-    int fd = socket(AF_UNIX, SOCK_STREAM, 0);
+    int rc, fd = socket(AF_UNIX, SOCK_STREAM | SOCK_NONBLOCK, 0);
     if (fd < 0)
         err(EXIT_FAILURE, "couldn't create socket");
 
     memset(&sa, 0, sizeof(sa));
     sa.un.sun_family = AF_UNIX;
     memcpy(&sa.un.sun_path[1], &SOCK_PATH[1], sizeof(SOCK_PATH) + 1);
-
-    /* set non-blocking */
-    flags = fcntl(fd, F_GETFL);
-    fcntl(fd, F_SETFL, flags|O_NONBLOCK);
 
     if (connect(fd, &sa.sa, sizeof(SOCK_PATH) + 1) < 0)
         err(EXIT_FAILURE, "failed to connect");
