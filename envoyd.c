@@ -156,8 +156,8 @@ static void start_agent(uid_t uid, gid_t gid, struct agent_data_t *data)
         close(fd[0]);
 
         if (setgid(gid) < 0 || setuid(uid) < 0)
-            err(EXIT_FAILURE, "unable to drop to group id=%ld gui=%ld\n",
-                (long)gid, (long)uid);
+            err(EXIT_FAILURE, "unable to drop to uid=%ld gid=%ld\n",
+                (long)uid, (long)gid);
 
         /* gpg-agent expects HOME to be set */
         if (setenv("HOME", pwd->pw_dir, true))
