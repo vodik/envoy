@@ -136,7 +136,9 @@ static int parse_agentdata(int fd, struct agent_data_t *data)
 static void start_agent(uid_t uid, gid_t gid, struct agent_data_t *data)
 {
     int fd[2], stat = 0;
-    struct passwd *pw = getpwuid(uid);
+    struct passwd *pwd = getpwuid(uid);
+    if (pwd == NULL || pwd->pw_dir == NULL)
+        err(EXIT_FAILURE, "failed to lookup passwd entry");
 
     data->first_run = true;
     sd_journal_print(LOG_INFO, "starting %s for uid=%ld gid=%ld",
@@ -158,8 +160,8 @@ static void start_agent(uid_t uid, gid_t gid, struct agent_data_t *data)
                 (long)gid, (long)uid);
 
         /* gpg-agent expects HOME to be set */
-        if (setenv("HOME", pw->pw_dir, true))
-            err(EXIT_FAILURE, "failed to set HOME=%s\n", pw->pw_dir);
+        if (setenv("HOME", pwd->pw_dir, true))
+            err(EXIT_FAILURE, "failed to set HOME=%s\n", pwd->pw_dir);
 
         /* gpg-agent expects GPG_TTY to be set or there will be blood */
         if (setenv("GPG_TTY", "/dev/null", true))

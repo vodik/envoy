@@ -71,7 +71,6 @@ static void add_keys(char **keys, int count, struct agent_data_t *data)
 
     pwd = getpwuid(getuid());
     if (pwd == NULL || pwd->pw_dir == NULL)
-        /* unlikely */
         err(EXIT_FAILURE, "failed to lookup passwd entry");
 
     argv[0] = "/usr/bin/ssh-add";
@@ -135,7 +134,6 @@ static int gpg_update_tty(const char *sock)
     if (strncmp(buf, "OK", 2) != 0)
         errx(EXIT_FAILURE, "incorrect response from gpg-agent");
 
-    struct passwd *pw = getpwuid(getuid());
     const char *display = getenv("DISPLAY");
 
     gpg_send_message(fd, "RESET");
@@ -143,9 +141,12 @@ static int gpg_update_tty(const char *sock)
     gpg_send_message(fd, "OPTION ttytype=%s", getenv("TERM"));
 
     if (display) {
+        struct passwd *pwd = getpwuid(getuid());
+        if (pwd == NULL || pwd->pw_dir == NULL)
+            err(EXIT_FAILURE, "failed to lookup passwd entry");
+
         gpg_send_message(fd, "OPTION display=%s", display);
-        gpg_send_message(fd, "OPTION xauthority=%s/.Xauthority", pw->pw_dir);
-        fprintf(stderr, "sending display!\n");
+        gpg_send_message(fd, "OPTION xauthority=%s/.Xauthority", pwd->pw_dir);
     }
 
     gpg_send_message(fd, "UPDATESTARTUPTTY");
