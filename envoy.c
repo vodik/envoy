@@ -135,10 +135,13 @@ static int gpg_update_tty(const char *sock)
     if (strncmp(buf, "OK", 2) != 0)
         errx(EXIT_FAILURE, "incorrect response from gpg-agent");
 
+    struct passwd *pw = getpwuid(getuid());
+
     gpg_send_message(fd, "RESET");
     gpg_send_message(fd, "OPTION ttyname=%s", ttyname(0));
     gpg_send_message(fd, "OPTION ttytype=%s", getenv("TERM"));
     gpg_send_message(fd, "OPTION display=%s", getenv("DISPLAY"));
+    gpg_send_message(fd, "OPTION xauthority=%s/.Xauthority", pw->pw_dir);
     gpg_send_message(fd, "UPDATESTARTUPTTY");
 
     close(fd);
