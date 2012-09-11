@@ -207,6 +207,9 @@ static int get_socket(void)
         if (fd < 0)
             err(EXIT_FAILURE, "couldn't create socket");
 
+        if (fcntl(fd, F_SETFD, FD_CLOEXEC) < 0)
+            err(EXIT_FAILURE, "failed to set FD_CLOEXEC on server connection");
+
         memset(&sa, 0, sizeof(sa));
         sa.un.sun_family = AF_UNIX;
         memcpy(sa.un.sun_path + 1, &SOCK_PATH[1], sizeof(SOCK_PATH) + 1);
