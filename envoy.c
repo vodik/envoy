@@ -85,7 +85,7 @@ static void add_keys(char **keys, int count, struct agent_data_t *data)
     err(EXIT_FAILURE, "failed to launch ssh-add");
 }
 
-static int gpg_send_message(int fd, const char *fmt, ...)
+static int __attribute__((format (printf, 2, 3))) gpg_send_message(int fd, const char *fmt, ...)
 {
     va_list ap;
     int nbytes;
