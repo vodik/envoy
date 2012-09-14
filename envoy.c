@@ -34,6 +34,7 @@
 enum action {
     ACTION_PRINT,
     ACTION_ADD,
+    ACTION_CLEAR,
     ACTION_KILL,
     ACTION_LIST,
     ACTION_INVALID
@@ -204,7 +205,8 @@ static void __attribute__((__noreturn__)) usage(FILE *out)
         " -h, --help       display this help and exit\n"
         " -v, --version    display version\n"
         " -a, --add        also add keys (default)\n"
-        " -k, --kill       kill the running ssh-agent\n"
+        " -k, --clear      force keys to expire (gpg-agent only)\n"
+        " -K, --kill       kill the running ssh-agent\n"
         " -l, --list       list loaded keys\n"
         " -p, --print      print out environmental arguments\n", out);
 
@@ -213,6 +215,7 @@ static void __attribute__((__noreturn__)) usage(FILE *out)
 
 int main(int argc, char *argv[])
 {
+    bool source = true;
     struct agent_data_t data;
     enum action verb = ACTION_ADD;
 
@@ -220,14 +223,15 @@ int main(int argc, char *argv[])
         { "help",    no_argument, 0, 'h' },
         { "version", no_argument, 0, 'v' },
         { "add",     no_argument, 0, 'a' },
-        { "kill",    no_argument, 0, 'k' },
+        { "clear",   no_argument, 0, 'k' },
+        { "kill",    no_argument, 0, 'K' },
         { "list",    no_argument, 0, 'l' },
         { "print",   no_argument, 0, 'p' },
         { 0, 0, 0, 0 }
     };
 
     while (true) {
-        int opt = getopt_long(argc, argv, "hlvakp", opts, NULL);
+        int opt = getopt_long(argc, argv, "hvakKlp", opts, NULL);
         if (opt == -1)
             break;
 
@@ -242,7 +246,12 @@ int main(int argc, char *argv[])
             verb = ACTION_ADD;
             break;
         case 'k':
+            verb = ACTION_CLEAR;
+            source = false;
+            break;
+        case 'K':
             verb = ACTION_KILL;
+            source = false;
             break;
         case 'l':
             verb = ACTION_LIST;
@@ -264,11 +273,13 @@ int main(int argc, char *argv[])
         break;
     }
 
-    setenv("SSH_AUTH_SOCK",  data.sock, true);
+    if (source) {
+        setenv("SSH_AUTH_SOCK",  data.sock, true);
 
-    if (data.gpg[0] && verb != ACTION_KILL) {
-        setenv("GPG_AGENT_INFO", data.gpg,  true);
-        gpg_update_tty(data.gpg);
+        if (data.gpg[0]) {
+            setenv("GPG_AGENT_INFO", data.gpg,  true);
+            gpg_update_tty(data.gpg);
+        }
     }
 
     switch (verb) {
@@ -277,6 +288,10 @@ int main(int argc, char *argv[])
         break;
     case ACTION_ADD:
         add_keys(&argv[optind], argc - optind, &data);
+        break;
+    case ACTION_CLEAR:
+        if (data.gpg[0])
+            kill(data.pid, SIGHUP);
         break;
     case ACTION_KILL:
         kill(data.pid, SIGTERM);
