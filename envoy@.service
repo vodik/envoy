@@ -1,5 +1,9 @@
+[Unit]
+Description=Envoy %i monitor
+
 [Service]
 ExecStart=/usr/bin/envoyd --agent=%i
 
 [Install]
+WantedBy=multi-user.target
 Also=envoy@%i.socket
