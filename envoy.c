@@ -34,6 +34,7 @@
 enum action {
     ACTION_PRINT,
     ACTION_ADD,
+    ACTION_FORCE_ADD,
     ACTION_CLEAR,
     ACTION_KILL,
     ACTION_LIST,
@@ -55,7 +56,7 @@ static char *get_key_path(const char *home, const char *fragment)
     return out;
 }
 
-static void add_keys(char **keys, int count, struct agent_data_t *data)
+static void add_keys(char **keys, int count)
 {
     /* command + end-of-opts + NULL + keys */
     char *argv[count + 3];
@@ -63,13 +64,6 @@ static void add_keys(char **keys, int count, struct agent_data_t *data)
     int i;
 
     /* when there are no agument, with gpg-agent it should be a no op */
-    if (count == 0) {
-        if (data->gpg[0])
-            exit(EXIT_SUCCESS);
-        else if (!data->first_run)
-            errx(EXIT_FAILURE, "no keys specified");
-    }
-
     pwd = getpwuid(getuid());
     if (pwd == NULL || pwd->pw_dir == NULL)
         err(EXIT_FAILURE, "failed to lookup passwd entry");
@@ -243,7 +237,7 @@ int main(int argc, char *argv[])
             printf("%s %s\n", program_invocation_short_name, ENVOY_VERSION);
             return 0;
         case 'a':
-            verb = ACTION_ADD;
+            verb = ACTION_FORCE_ADD;
             break;
         case 'k':
             verb = ACTION_CLEAR;
@@ -287,7 +281,10 @@ int main(int argc, char *argv[])
         print_env(&data);
         break;
     case ACTION_ADD:
-        add_keys(&argv[optind], argc - optind, &data);
+        if (!data.first_run || data.gpg[0])
+            return 0;
+    case ACTION_FORCE_ADD:
+        add_keys(&argv[optind], argc - optind);
         break;
     case ACTION_CLEAR:
         if (data.gpg[0])
