@@ -3,6 +3,8 @@ Description=Envoy %i monitor
 
 [Service]
 ExecStart=/usr/bin/envoyd --agent=%i
+StandardOutput=syslog
+StandardError=syslog
 
 [Install]
 WantedBy=multi-user.target

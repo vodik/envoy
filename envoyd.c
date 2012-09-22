@@ -22,6 +22,7 @@
 #include <stdbool.h>
 #include <string.h>
 #include <getopt.h>
+#include <syslog.h>
 #include <unistd.h>
 #include <signal.h>
 #include <errno.h>
@@ -33,7 +34,6 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <systemd/sd-daemon.h>
-#include <systemd/sd-journal.h>
 
 enum agent {
     AGENT_SSH_AGENT,
@@ -141,8 +141,8 @@ static void start_agent(uid_t uid, gid_t gid, struct agent_data_t *data)
         err(EXIT_FAILURE, "failed to lookup passwd entry");
 
     data->first_run = true;
-    sd_journal_print(LOG_INFO, "starting %s for uid=%ld gid=%ld",
-                     agent->argv[0], (long)uid, (long)gid);
+    fprintf(stdout, "starting %s for uid=%ld gid=%ld\n",
+            agent->argv[0], (long)uid, (long)gid);
 
     if (pipe(fd) < 0)
         err(EXIT_FAILURE, "failed to create pipe");
@@ -185,11 +185,11 @@ static void start_agent(uid_t uid, gid_t gid, struct agent_data_t *data)
         data->pid = 0;
 
         if (WIFEXITED(stat))
-            sd_journal_print(LOG_ERR, "%s exited with status %d",
-                             agent->argv[0], WEXITSTATUS(stat));
+            fprintf(stderr, "%s exited with status %d\n",
+                    agent->argv[0], WEXITSTATUS(stat));
         if (WIFSIGNALED(stat))
-            sd_journal_print(LOG_ERR, "%s terminated with signal %d",
-                             agent->argv[0], WTERMSIG(stat));
+            fprintf(stderr, "%s terminated with signal %d\n",
+                    agent->argv[0], WTERMSIG(stat));
     }
 }
 
@@ -315,8 +315,8 @@ int main(int argc, char *argv[])
             if (node && node->d.pid) {
                 if (errno != ESRCH)
                     err(EXIT_FAILURE, "something strange happened with kill");
-                sd_journal_print(LOG_INFO, "%s for uid=%ld no longer running...",
-                                 agent->argv[0], (long)cred.uid);
+                fprintf(stdout, "%s for uid=%ld no longer running...\n",
+                        agent->argv[0], (long)cred.uid);
             } else if (!node) {
                 node = calloc(1, sizeof(struct agent_info_t));
                 node->uid = cred.uid;
@@ -333,6 +333,8 @@ int main(int argc, char *argv[])
             node->d.first_run = false;
         }
 
+        fflush(stdout);
+        fflush(stderr);
         close(cfd);
     }
 
