@@ -42,8 +42,8 @@ enum agent {
 };
 
 struct agent_t {
-    const char *name;
     const char *bin;
+    char *const *argv;
 };
 
 struct agent_info_t {
@@ -53,8 +53,8 @@ struct agent_info_t {
 };
 
 static const struct agent_t Agent[INVALID_AGENT] = {
-    [AGENT_SSH_AGENT] = { "ssh-agent", "/usr/bin/ssh-agent" },
-    [AGENT_GPG_AGENT] = { "gpg-agent", "/usr/bin/gpg-agent" }
+    [AGENT_SSH_AGENT] = { "/usr/bin/ssh-agent", (char *const []){ "ssh-agent", NULL } },
+    [AGENT_GPG_AGENT] = { "/usr/bin/gpg-agent", (char *const []){ "gpg-agent", "--daemon", "--enable-ssh-support", NULL } }
 };
 
 static struct agent_info_t *agents = NULL;
@@ -142,7 +142,7 @@ static void start_agent(uid_t uid, gid_t gid, struct agent_data_t *data)
 
     data->first_run = true;
     sd_journal_print(LOG_INFO, "starting %s for uid=%ld gid=%ld",
-                     agent->name, (long)uid, (long)gid);
+                     agent->argv[0], (long)uid, (long)gid);
 
     if (pipe(fd) < 0)
         err(EXIT_FAILURE, "failed to create pipe");
@@ -167,8 +167,8 @@ static void start_agent(uid_t uid, gid_t gid, struct agent_data_t *data)
         if (setenv("GPG_TTY", "/dev/null", true))
             err(EXIT_FAILURE, "failed to set GPG_TTY\n");
 
-        if (execl(agent->bin, agent->name, NULL) < 0)
-            err(EXIT_FAILURE, "failed to start %s", agent->name);
+        if (execv(agent->bin, agent->argv) < 0)
+            err(EXIT_FAILURE, "failed to start %s", agent->argv[0]);
         break;
     default:
         close(fd[1]);
@@ -176,7 +176,7 @@ static void start_agent(uid_t uid, gid_t gid, struct agent_data_t *data)
     }
 
     if (parse_agentdata(fd[STDIN_FILENO], data) < 0)
-        err(EXIT_FAILURE, "failed to parse %s output", agent->name);
+        err(EXIT_FAILURE, "failed to parse %s output", agent->argv[0]);
 
     if (wait(&stat) < 1)
         err(EXIT_FAILURE, "failed to get process status");
@@ -186,10 +186,10 @@ static void start_agent(uid_t uid, gid_t gid, struct agent_data_t *data)
 
         if (WIFEXITED(stat))
             sd_journal_print(LOG_ERR, "%s exited with status %d",
-                             agent->name, WEXITSTATUS(stat));
+                             agent->argv[0], WEXITSTATUS(stat));
         if (WIFSIGNALED(stat))
             sd_journal_print(LOG_ERR, "%s terminated with signal %d",
-                             agent->name, WTERMSIG(stat));
+                             agent->argv[0], WTERMSIG(stat));
     }
 }
 
@@ -232,7 +232,7 @@ static enum agent find_agent(const char *string)
     size_t i;
 
     for (i = 0; i < INVALID_AGENT; i++)
-        if (strcmp(Agent[i].name, string) == 0)
+        if (strcmp(Agent[i].argv[0], string) == 0)
             break;
 
     return i;
@@ -316,7 +316,7 @@ int main(int argc, char *argv[])
                 if (errno != ESRCH)
                     err(EXIT_FAILURE, "something strange happened with kill");
                 sd_journal_print(LOG_INFO, "%s for uid=%ld no longer running...",
-                                 agent->name, (long)cred.uid);
+                                 agent->argv[0], (long)cred.uid);
             } else if (!node) {
                 node = calloc(1, sizeof(struct agent_info_t));
                 node->uid = cred.uid;
