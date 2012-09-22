@@ -63,7 +63,6 @@ static void add_keys(char **keys, int count)
     struct passwd *pwd;
     int i;
 
-    /* when there are no agument, with gpg-agent it should be a no op */
     pwd = getpwuid(getuid());
     if (pwd == NULL || pwd->pw_dir == NULL)
         err(EXIT_FAILURE, "failed to lookup passwd entry");
@@ -281,7 +280,8 @@ int main(int argc, char *argv[])
         print_env(&data);
         break;
     case ACTION_ADD:
-        if (!data.first_run || data.gpg[0])
+        /* when there are no agumert, with gpg-agent it should be a no op */
+        if (argc == optind && (!data.first_run || data.gpg[0]))
             return 0;
     case ACTION_FORCE_ADD:
         add_keys(&argv[optind], argc - optind);
