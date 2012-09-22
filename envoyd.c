@@ -53,8 +53,14 @@ struct agent_info_t {
 };
 
 static const struct agent_t Agent[INVALID_AGENT] = {
-    [AGENT_SSH_AGENT] = { "/usr/bin/ssh-agent", (char *const []){ "ssh-agent", NULL } },
-    [AGENT_GPG_AGENT] = { "/usr/bin/gpg-agent", (char *const []){ "gpg-agent", "--daemon", "--enable-ssh-support", NULL } }
+    [AGENT_SSH_AGENT] = {
+        .bin  = "/usr/bin/ssh-agent",
+        .argv = (char *const []){ "ssh-agent", NULL }
+    },
+    [AGENT_GPG_AGENT] = {
+        .bin  = "/usr/bin/gpg-agent",
+        .argv = (char *const []){ "gpg-agent", "--daemon", "--enable-ssh-support", NULL }
+    }
 };
 
 static struct agent_info_t *agents = NULL;
