@@ -251,6 +251,7 @@ int main(int argc, char *argv[])
             break;
         case 'p':
             verb = ACTION_PRINT;
+            source = false;
             break;
         default:
             usage(stderr);
