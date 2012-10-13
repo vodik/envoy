@@ -64,7 +64,7 @@ static const struct agent_t Agent[INVALID_AGENT] = {
 };
 
 static struct agent_info_t *agents = NULL;
-static bool sd_activated;
+static bool sd_activated = false;
 static int server_sock;
 static const struct agent_t *agent = &Agent[AGENT_SSH_AGENT];
 
