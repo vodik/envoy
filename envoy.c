@@ -195,12 +195,12 @@ static void __attribute__((__noreturn__)) usage(FILE *out)
 {
     fprintf(out, "usage: %s [options] [files ...]\n", program_invocation_short_name);
     fputs("Options:\n"
-        " -h, --help       display this help and exit\n"
+        " -h, --help       display this help\n"
         " -v, --version    display version\n"
-        " -a, --add        also add keys (default)\n"
-        " -k, --clear      force keys to expire (gpg-agent only)\n"
-        " -K, --kill       kill the running ssh-agent\n"
-        " -l, --list       list loaded keys\n"
+        " -a, --add        add private key identities\n"
+        " -k, --clear      force identities to expire (gpg-agent only)\n"
+        " -K, --kill       kill the running agent\n"
+        " -l, --list       list fingerprints of all loaded identities\n"
         " -p, --print      print out environmental arguments\n", out);
 
     exit(out == stderr ? EXIT_FAILURE : EXIT_SUCCESS);
