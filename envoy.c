@@ -105,20 +105,23 @@ static int gpg_update_tty(const char *sock)
         struct sockaddr sa;
         struct sockaddr_un un;
     } sa;
+    socklen_t sa_len;
 
-    char buf[1024];
+    char buf[1024], *term;
+    const char *display;
+
     int fd = socket(AF_UNIX, SOCK_STREAM, 0), nbytes;
     if (fd < 0)
         err(EXIT_FAILURE, "couldn't create socket");
 
-    char *term = strchr(sock, ':');
-    size_t len = term - sock + 2;
+    term = strchr(sock, ':');
+    sa_len = term - sock + 2;
 
     memset(&sa, 0, sizeof(sa));
     sa.un.sun_family = AF_UNIX;
-    memcpy(&sa.un.sun_path, sock, len);
+    memcpy(&sa.un.sun_path, sock, sa_len);
 
-    if (connect(fd, &sa.sa, len) < 0)
+    if (connect(fd, &sa.sa, sa_len) < 0)
         err(EXIT_FAILURE, "failed to connect");
 
     nbytes = read(fd, buf, 1024);
@@ -128,12 +131,11 @@ static int gpg_update_tty(const char *sock)
     if (strncmp(buf, "OK", 2) != 0)
         errx(EXIT_FAILURE, "incorrect response from gpg-agent");
 
-    const char *display = getenv("DISPLAY");
-
     gpg_send_message(fd, "RESET");
     gpg_send_message(fd, "OPTION ttyname=%s", ttyname(0));
     gpg_send_message(fd, "OPTION ttytype=%s", getenv("TERM"));
 
+    display = getenv("DISPLAY");
     if (display) {
         struct passwd *pwd = getpwuid(getuid());
         if (pwd == NULL || pwd->pw_dir == NULL)
