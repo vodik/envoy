@@ -280,6 +280,8 @@ int main(int argc, char *argv[])
 
     switch (verb) {
     case ACTION_PRINT:
+        if (data.gpg[0])
+            gpg_update_tty(data.gpg);
         print_env(&data);
         break;
     case ACTION_ADD:
