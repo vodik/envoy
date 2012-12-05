@@ -108,7 +108,7 @@ static int gpg_update_tty(const char *sock)
     socklen_t sa_len;
 
     char buf[1024], *term;
-    const char *display;
+    const char *display = NULL, *tty = NULL;
 
     int fd = socket(AF_UNIX, SOCK_STREAM, 0), nbytes;
     if (fd < 0)
@@ -132,8 +132,12 @@ static int gpg_update_tty(const char *sock)
         errx(EXIT_FAILURE, "incorrect response from gpg-agent");
 
     gpg_send_message(fd, "RESET");
-    gpg_send_message(fd, "OPTION ttyname=%s", ttyname(0));
-    gpg_send_message(fd, "OPTION ttytype=%s", getenv("TERM"));
+
+    tty = ttyname(STDIN_FILENO);
+    if (tty) {
+        gpg_send_message(fd, "OPTION ttyname=%s", tty);
+        gpg_send_message(fd, "OPTION ttytype=%s", getenv("TERM"));
+    }
 
     display = getenv("DISPLAY");
     if (display) {
