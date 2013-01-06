@@ -15,14 +15,13 @@
  * Copyright (C) Simon Gomizelj, 2012
  */
 
-#include "config.h"
+#include "common.h"
 
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdbool.h>
 #include <string.h>
 #include <getopt.h>
-#include <syslog.h>
 #include <unistd.h>
 #include <signal.h>
 #include <errno.h>
@@ -210,6 +209,7 @@ static int get_socket(void)
         fd = SD_LISTEN_FDS_START;
         sd_activated = true;
     } else {
+        size_t len;
         union {
             struct sockaddr sa;
             struct sockaddr_un un;
@@ -221,9 +221,9 @@ static int get_socket(void)
 
         memset(&sa, 0, sizeof(sa));
         sa.un.sun_family = AF_UNIX;
-        memcpy(sa.un.sun_path + 1, &SOCK_PATH[1], sizeof(SOCK_PATH) + 1);
+        len = set_socket_path(&sa.un);
 
-        if (bind(fd, &sa.sa, sizeof(SOCK_PATH) + 1) < 0)
+        if (bind(fd, &sa.sa, len) < 0)
             err(EXIT_FAILURE, "failed to bind");
 
         if (listen(fd, SOMAXCONN) < 0)

@@ -15,13 +15,14 @@
  * Copyright (C) Simon Gomizelj, 2012
  */
 
-#ifndef CONFIG_H
-#define CONFIG_H
+#ifndef COMMON_H
+#define COMMON_H
 
 #define _GNU_SOURCE
 #include <stdbool.h>
 #include <limits.h>
 #include <sys/types.h>
+#include <sys/un.h>
 
 #define SOCK_PATH "@/vodik/envoy"
 
@@ -31,5 +32,7 @@ struct agent_data_t {
     char sock[PATH_MAX];
     char gpg[PATH_MAX];
 };
+
+size_t set_socket_path(struct sockaddr_un *un);
 
 #endif

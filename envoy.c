@@ -15,7 +15,7 @@
  * Copyright (C) Simon Gomizelj, 2012
  */
 
-#include "config.h"
+#include "common.h"
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -166,6 +166,7 @@ static void print_env(struct agent_data_t *data)
 
 static int get_agent(struct agent_data_t *data)
 {
+    size_t len;
     union {
         struct sockaddr sa;
         struct sockaddr_un un;
@@ -177,9 +178,9 @@ static int get_agent(struct agent_data_t *data)
 
     memset(&sa, 0, sizeof(sa));
     sa.un.sun_family = AF_UNIX;
-    memcpy(&sa.un.sun_path[1], &SOCK_PATH[1], sizeof(SOCK_PATH) + 1);
+    len = set_socket_path(&sa.un);
 
-    if (connect(fd, &sa.sa, sizeof(SOCK_PATH) + 1) < 0)
+    if (connect(fd, &sa.sa, len) < 0)
         err(EXIT_FAILURE, "failed to connect");
 
     for (;;) {
