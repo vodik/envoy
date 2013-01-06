@@ -299,6 +299,8 @@ int main(int argc, char *argv[])
     case ACTION_CLEAR:
         if (data.gpg[0])
             kill(data.pid, SIGHUP);
+        else
+            errx(EXIT_FAILURE, "only gpg-agent supports this operation");
         break;
     case ACTION_KILL:
         kill(data.pid, SIGTERM);
