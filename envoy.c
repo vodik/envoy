@@ -186,10 +186,7 @@ static int get_agent(struct agent_data_t *data)
     if (fd < 0)
         err(EXIT_FAILURE, "couldn't create socket");
 
-    memset(&sa, 0, sizeof(sa));
-    sa.un.sun_family = AF_UNIX;
-    len = set_socket_path(&sa.un);
-
+    len = init_envoy_socket(&sa.un);
     if (connect(fd, &sa.sa, len) < 0)
         err(EXIT_FAILURE, "failed to connect");
 

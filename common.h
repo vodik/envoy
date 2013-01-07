@@ -36,6 +36,6 @@ struct agent_data_t {
     char gpg[PATH_MAX];
 };
 
-size_t set_socket_path(struct sockaddr_un *un);
+size_t init_envoy_socket(struct sockaddr_un *un);
 
 #endif
