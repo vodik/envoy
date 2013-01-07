@@ -164,6 +164,16 @@ static void print_env(struct agent_data_t *data)
     printf("export SSH_AGENT_PID='%zd'\n", data->pid);
 }
 
+static void source_env(struct agent_data_t *data)
+{
+    setenv("SSH_AUTH_SOCK",  data->sock, true);
+
+    if (data->gpg[0]) {
+        setenv("GPG_AGENT_INFO", data->gpg,  true);
+        gpg_update_tty(data->gpg);
+    }
+}
+
 static int get_agent(struct agent_data_t *data)
 {
     size_t len;
@@ -274,14 +284,8 @@ int main(int argc, char *argv[])
         break;
     }
 
-    if (source) {
-        setenv("SSH_AUTH_SOCK",  data.sock, true);
-
-        if (data.gpg[0]) {
-            setenv("GPG_AGENT_INFO", data.gpg,  true);
-            gpg_update_tty(data.gpg);
-        }
-    }
+    if (source)
+        source_env(&data);
 
     switch (verb) {
     case ACTION_PRINT:
