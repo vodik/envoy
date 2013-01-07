@@ -24,8 +24,6 @@
 #include <sys/types.h>
 #include <sys/un.h>
 
-#define SOCK_PATH "@/vodik/envoy"
-
 enum agent_status {
     ENVOY_RUNNING = 0,
     ENVOY_FIRSTRUN

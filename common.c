@@ -7,13 +7,15 @@
 #include <pwd.h>
 #include <sys/un.h>
 
+static const char *socket_path = "@/vodik/envoy";
+
 size_t set_socket_path(struct sockaddr_un *un)
 {
     off_t off = 0; size_t len = 0;
     const char *socket = getenv("ENVOY_SOCKET");
 
     if (!socket)
-        socket = SOCK_PATH;
+        socket = socket_path;
     if (socket[0] == '@')
         off = 1;
 
