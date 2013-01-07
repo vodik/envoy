@@ -161,7 +161,7 @@ static void print_env(struct agent_data_t *data)
         printf("export GPG_AGENT_INFO='%s'\n", data->gpg);
 
     printf("export SSH_AUTH_SOCK='%s'\n",  data->sock);
-    printf("export SSH_AGENT_PID='%ld'\n", (long)data->pid);
+    printf("export SSH_AGENT_PID='%zd'\n", data->pid);
 }
 
 static int get_agent(struct agent_data_t *data)

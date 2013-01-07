@@ -146,8 +146,8 @@ static void start_agent(uid_t uid, gid_t gid, struct agent_data_t *data)
         err(EXIT_FAILURE, "failed to lookup passwd entry");
 
     data->first_run = true;
-    fprintf(stdout, "starting %s for uid=%ld gid=%ld\n",
-            agent->argv[0], (long)uid, (long)gid);
+    fprintf(stdout, "starting %s for uid=%zd gid=%zd\n",
+            agent->argv[0], uid, gid);
 
     if (pipe(fd) < 0)
         err(EXIT_FAILURE, "failed to create pipe");
@@ -161,8 +161,8 @@ static void start_agent(uid_t uid, gid_t gid, struct agent_data_t *data)
         close(fd[0]);
 
         if (setgid(gid) < 0 || setuid(uid) < 0)
-            err(EXIT_FAILURE, "unable to drop to uid=%ld gid=%ld\n",
-                (long)uid, (long)gid);
+            err(EXIT_FAILURE, "unable to drop to uid=%zd gid=%zd\n",
+                uid, gid);
 
         /* gpg-agent expects HOME to be set */
         if (setenv("HOME", pwd->pw_dir, true))
@@ -258,6 +258,8 @@ static void __attribute__((__noreturn__)) usage(FILE *out)
 int main(int argc, char *argv[])
 {
     enum agent id;
+    uid_t uid = geteuid();
+
     static const struct option opts[] = {
         { "help",    no_argument,       0, 'h' },
         { "version", no_argument,       0, 'v' },
@@ -310,6 +312,11 @@ int main(int argc, char *argv[])
         if (getsockopt(cfd, SOL_SOCKET, SO_PEERCRED, &cred, &cred_len) < 0)
             err(EXIT_FAILURE, "couldn't obtain credentials from unix domain socket");
 
+        if (uid != 0 && uid != cred.uid) {
+            fprintf(stderr, "rejecting connection from uid=%zd\n", cred.uid);
+            goto done;
+        }
+
         struct agent_info_t *node = agents;
         while (node) {
             if (node->uid == cred.uid)
@@ -321,8 +328,8 @@ int main(int argc, char *argv[])
             if (node && node->d.pid) {
                 if (errno != ESRCH)
                     err(EXIT_FAILURE, "something strange happened with kill");
-                fprintf(stdout, "%s for uid=%ld no longer running...\n",
-                        agent->argv[0], (long)cred.uid);
+                fprintf(stdout, "%s for uid=%zd no longer running...\n",
+                        agent->argv[0], cred.uid);
             } else if (!node) {
                 node = calloc(1, sizeof(struct agent_info_t));
                 node->uid = cred.uid;
@@ -339,6 +346,7 @@ int main(int argc, char *argv[])
             node->d.first_run = false;
         }
 
+done:
         fflush(stdout);
         fflush(stderr);
         close(cfd);
