@@ -291,7 +291,7 @@ int main(int argc, char *argv[])
         break;
     case ACTION_ADD:
         /* when there are no agumert, with gpg-agent it should be a no op */
-        if (!data.first_run || data.gpg[0])
+        if (!data.status == ENVOY_FIRSTRUN || data.gpg[0])
             return 0;
     case ACTION_FORCE_ADD:
         add_keys(&argv[optind], argc - optind);

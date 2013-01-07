@@ -145,7 +145,7 @@ static void start_agent(uid_t uid, gid_t gid, struct agent_data_t *data)
     if (pwd == NULL || pwd->pw_dir == NULL)
         err(EXIT_FAILURE, "failed to lookup passwd entry");
 
-    data->first_run = true;
+    data->status = ENVOY_FIRSTRUN;
     fprintf(stdout, "starting %s for uid=%zd gid=%zd\n",
             agent->argv[0], uid, gid);
 
@@ -343,7 +343,7 @@ int main(int argc, char *argv[])
         if (node->d.pid) {
             if (write(cfd, &node->d, sizeof(node->d)) < 0)
                 err(EXIT_FAILURE, "failed to write agent data");
-            node->d.first_run = false;
+            node->d.status = ENVOY_RUNNING;
         }
 
 done:

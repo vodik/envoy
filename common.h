@@ -26,9 +26,14 @@
 
 #define SOCK_PATH "@/vodik/envoy"
 
+enum agent_status {
+    ENVOY_RUNNING = 0,
+    ENVOY_FIRSTRUN
+};
+
 struct agent_data_t {
-    bool first_run;
     pid_t pid;
+    enum agent_status status;
     char sock[PATH_MAX];
     char gpg[PATH_MAX];
 };
