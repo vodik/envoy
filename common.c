@@ -8,8 +8,9 @@ static const char *socket_path = "@/vodik/envoy";
 
 size_t init_envoy_socket(struct sockaddr_un *un)
 {
-    off_t off = 0; size_t len = 0;
     const char *socket = getenv("ENVOY_SOCKET");
+    off_t off = 0;
+    size_t len;
 
     *un = (struct sockaddr_un){ .sun_family = AF_UNIX };
 
