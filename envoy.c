@@ -81,17 +81,17 @@ static void __attribute__((format (printf, 2, 3))) gpg_send_message(int fd, cons
 {
     va_list ap;
     int nbytes;
-    char buf[1024];
+    char buf[BUFSIZ];
 
     va_start(ap, fmt);
-    nbytes = vsnprintf(buf, 1023, fmt, ap);
+    nbytes = vsnprintf(buf, BUFSIZ - 1, fmt, ap);
     va_end(ap);
 
     buf[nbytes++] = '\n';
     if (write(fd, buf, nbytes) < 0)
         err(EXIT_FAILURE, "failed to talk to gpg-agent");
 
-    if (read(fd, buf, 1024) < 3)
+    if (read(fd, buf, BUFSIZ) < 3)
         err(EXIT_FAILURE, "failed to talk to gpg-agent");
 
     if (strncmp(buf, "OK\n", 3) != 0)
@@ -106,7 +106,7 @@ static int gpg_update_tty(const char *sock)
     } sa;
     socklen_t sa_len;
 
-    char buf[1024], *split;
+    char buf[BUFSIZ], *split;
     const char *display = NULL, *tty = NULL, *term = NULL;
 
     int fd = socket(AF_UNIX, SOCK_STREAM, 0), nbytes;
@@ -123,7 +123,7 @@ static int gpg_update_tty(const char *sock)
     if (connect(fd, &sa.sa, sa_len) < 0)
         err(EXIT_FAILURE, "failed to connect");
 
-    nbytes = read(fd, buf, 1024);
+    nbytes = read(fd, buf, BUFSIZ);
     if (nbytes < 0)
         err(EXIT_FAILURE, "failed to read from gpg-agent socket");
 
