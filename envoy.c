@@ -167,7 +167,7 @@ static void print_env(struct agent_data_t *data)
 
 static void source_env(struct agent_data_t *data)
 {
-    setenv("SSH_AUTH_SOCK",  data->sock, true);
+    setenv("SSH_AUTH_SOCK", data->sock, true);
 
     if (data->gpg[0]) {
         setenv("GPG_AGENT_INFO", data->gpg,  true);
