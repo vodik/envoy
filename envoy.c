@@ -77,24 +77,25 @@ static void add_keys(char **keys, int count)
     err(EXIT_FAILURE, "failed to launch ssh-add");
 }
 
-static int __attribute__((format (printf, 2, 3))) gpg_send_message(int fd, const char *fmt, ...)
+static void __attribute__((format (printf, 2, 3))) gpg_send_message(int fd, const char *fmt, ...)
 {
     va_list ap;
     int nbytes;
     char buf[1024];
 
     va_start(ap, fmt);
-    nbytes = vsnprintf(buf, 1024, fmt, ap);
+    nbytes = vsnprintf(buf, 1023, fmt, ap);
     va_end(ap);
 
     buf[nbytes++] = '\n';
     if (write(fd, buf, nbytes) < 0)
-        return -1;
+        err(EXIT_FAILURE, "failed to talk to gpg-agent");
 
     if (read(fd, buf, 1024) < 3)
-        return -1;
+        err(EXIT_FAILURE, "failed to talk to gpg-agent");
 
-    return !strncmp(buf, "OK\n", 3);
+    if (strncmp(buf, "OK\n", 3) != 0)
+        errx(EXIT_FAILURE, "incorrect response from gpg-agent");
 }
 
 static int gpg_update_tty(const char *sock)
@@ -105,15 +106,15 @@ static int gpg_update_tty(const char *sock)
     } sa;
     socklen_t sa_len;
 
-    char buf[1024], *term;
-    const char *display = NULL, *tty = NULL;
+    char buf[1024], *split;
+    const char *display = NULL, *tty = NULL, *term = NULL;
 
     int fd = socket(AF_UNIX, SOCK_STREAM, 0), nbytes;
     if (fd < 0)
         err(EXIT_FAILURE, "couldn't create socket");
 
-    term = strchr(sock, ':');
-    sa_len = term - sock + 2;
+    split = strchr(sock, ':');
+    sa_len = split - sock + 2;
 
     memset(&sa, 0, sizeof(sa));
     sa.un.sun_family = AF_UNIX;
@@ -132,10 +133,12 @@ static int gpg_update_tty(const char *sock)
     gpg_send_message(fd, "RESET");
 
     tty = ttyname(STDIN_FILENO);
-    if (tty) {
+    if (tty)
         gpg_send_message(fd, "OPTION ttyname=%s", tty);
+
+    term = getenv("TERM");
+    if (term)
         gpg_send_message(fd, "OPTION ttytype=%s", getenv("TERM"));
-    }
 
     display = getenv("DISPLAY");
     if (display) {
