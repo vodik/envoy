@@ -91,7 +91,7 @@ static int __attribute__((format (printf, 2, 3))) gpg_send_message(int fd, const
     if (write(fd, buf, nbytes) < 0)
         return -1;
 
-    if (read(fd, buf, BUFSIZ) < 3)
+    if (read(fd, buf, BUFSIZ) < 0)
         return -1;
 
     return !strncmp(buf, "OK\n", 3);
