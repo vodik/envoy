@@ -183,7 +183,7 @@ static int get_agent(struct agent_data_t *data)
         struct sockaddr_un un;
     } sa;
 
-    int rc, fd = socket(AF_UNIX, SOCK_STREAM | SOCK_NONBLOCK, 0);
+    int nbytes_r, fd = socket(AF_UNIX, SOCK_STREAM | SOCK_NONBLOCK, 0);
     if (fd < 0)
         err(EXIT_FAILURE, "couldn't create socket");
 
@@ -192,8 +192,8 @@ static int get_agent(struct agent_data_t *data)
         err(EXIT_FAILURE, "failed to connect");
 
     for (;;) {
-        rc = read(fd, data, sizeof(*data));
-        if (rc < 0) {
+        nbytes_r = read(fd, data, sizeof(*data));
+        if (nbytes_r < 0) {
             if (errno != EAGAIN) {
                 warn("failed to receive data from server");
                 break;
@@ -203,7 +203,15 @@ static int get_agent(struct agent_data_t *data)
     }
 
     close(fd);
-    return rc;
+
+    switch (data->status) {
+    case ENVOY_RUNNING:
+    case ENVOY_FIRSTRUN:
+        return nbytes_r;
+    case ENVOY_BADUSER:
+        fprintf(stderr, "connection rejected because of bad user\n");
+        return -1;
+    }
 }
 
 static void __attribute__((__noreturn__)) usage(FILE *out)
@@ -275,7 +283,7 @@ int main(int argc, char *argv[])
 
     switch (get_agent(&data)) {
     case -1:
-        err(EXIT_FAILURE, "failed to read data");
+        return 1;
     case 0:
         errx(EXIT_FAILURE, "recieved no data, did ssh-agent fail to start?");
     default:

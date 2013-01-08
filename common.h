@@ -26,7 +26,8 @@
 
 enum agent_status {
     ENVOY_RUNNING = 0,
-    ENVOY_FIRSTRUN
+    ENVOY_FIRSTRUN,
+    ENVOY_BADUSER,
 };
 
 struct agent_data_t {
@@ -39,3 +40,5 @@ struct agent_data_t {
 size_t init_envoy_socket(struct sockaddr_un *un);
 
 #endif
+
+// vim: et:sts=4:sw=4:cino=(0

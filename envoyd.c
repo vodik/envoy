@@ -248,6 +248,13 @@ static void __attribute__((__noreturn__)) usage(FILE *out)
     exit(out == stderr ? EXIT_FAILURE : EXIT_SUCCESS);
 }
 
+static void send_error(int fd, enum agent_status status)
+{
+    struct agent_data_t d = { .status = status };
+    if (write(fd, &d, sizeof(d)) < 0)
+        err(EXIT_FAILURE, "failed to write agent data");
+}
+
 int main(int argc, char *argv[])
 {
     enum agent id;
@@ -306,7 +313,8 @@ int main(int argc, char *argv[])
             err(EXIT_FAILURE, "couldn't obtain credentials from unix domain socket");
 
         if (uid != 0 && uid != cred.uid) {
-            fprintf(stderr, "rejecting connection from uid=%zd\n", cred.uid);
+            send_error(cfd, ENVOY_BADUSER);
+            fprintf(stderr, "connection from uid=%zd rejected\n", cred.uid);
             goto done;
         }
 
