@@ -139,8 +139,7 @@ static int gpg_update_tty(const char *sock)
     split = strchr(sock, ':');
     sa_len = split - sock + 2;
 
-    memset(&sa, 0, sizeof(sa));
-    sa.un.sun_family = AF_UNIX;
+    sa.un = (struct sockaddr_un){ .sun_family = AF_UNIX };
     memcpy(&sa.un.sun_path, sock, sa_len);
 
     if (connect(fd, &sa.sa, sa_len) < 0)
