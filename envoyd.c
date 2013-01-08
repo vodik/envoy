@@ -37,7 +37,7 @@ enum agent {
 };
 
 struct agent_t {
-    const char *bin;
+    const char *name;
     char *const *argv;
 };
 
@@ -49,12 +49,12 @@ struct agent_info_t {
 
 static const struct agent_t Agent[INVALID_AGENT] = {
     [AGENT_SSH_AGENT] = {
-        .bin  = "/usr/bin/ssh-agent",
-        .argv = (char *const []){ "ssh-agent", NULL }
+        .name = "ssh-agent",
+        .argv = (char *const []){ "/usr/bin/ssh-agent", NULL }
     },
     [AGENT_GPG_AGENT] = {
-        .bin  = "/usr/bin/gpg-agent",
-        .argv = (char *const []){ "gpg-agent", "--daemon", "--enable-ssh-support", NULL }
+        .name = "gpg-agent",
+        .argv = (char *const []){ "/usr/bin/gpg-agent", "--daemon", "--enable-ssh-support", NULL }
     }
 };
 
@@ -143,7 +143,7 @@ static void start_agent(uid_t uid, gid_t gid, struct agent_data_t *data)
 
     data->status = ENVOY_FIRSTRUN;
     fprintf(stdout, "starting %s for uid=%zd gid=%zd\n",
-            agent->argv[0], uid, gid);
+            agent->name, uid, gid);
 
     if (pipe(fd) < 0)
         err(EXIT_FAILURE, "failed to create pipe");
@@ -168,7 +168,7 @@ static void start_agent(uid_t uid, gid_t gid, struct agent_data_t *data)
         if (setenv("GPG_TTY", "/dev/null", true))
             err(EXIT_FAILURE, "failed to set GPG_TTY\n");
 
-        if (execv(agent->bin, agent->argv) < 0)
+        if (execv(agent->argv[0], agent->argv) < 0)
             err(EXIT_FAILURE, "failed to start %s", agent->argv[0]);
         break;
     default:
@@ -177,7 +177,7 @@ static void start_agent(uid_t uid, gid_t gid, struct agent_data_t *data)
     }
 
     if (parse_agentdata(fd[STDIN_FILENO], data) < 0)
-        err(EXIT_FAILURE, "failed to parse %s output", agent->argv[0]);
+        err(EXIT_FAILURE, "failed to parse %s output", agent->name);
 
     if (wait(&stat) < 1)
         err(EXIT_FAILURE, "failed to get process status");
@@ -231,7 +231,7 @@ static enum agent find_agent(const char *string)
     size_t i;
 
     for (i = 0; i < INVALID_AGENT; i++)
-        if (strcmp(Agent[i].argv[0], string) == 0)
+        if (strcmp(Agent[i].name, string) == 0)
             break;
 
     return i;
@@ -322,7 +322,7 @@ int main(int argc, char *argv[])
                 if (errno != ESRCH)
                     err(EXIT_FAILURE, "something strange happened with kill");
                 fprintf(stdout, "%s for uid=%zd no longer running...\n",
-                        agent->argv[0], cred.uid);
+                        agent->name, cred.uid);
             } else if (!node) {
                 node = calloc(1, sizeof(struct agent_info_t));
                 node->uid = cred.uid;
