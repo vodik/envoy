@@ -1,10 +1,6 @@
 #include "common.h"
 
 #include <stdlib.h>
-#include <string.h>
-#include <errno.h>
-#include <err.h>
-#include <pwd.h>
 #include <sys/socket.h>
 #include <sys/un.h>
 

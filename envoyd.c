@@ -20,15 +20,11 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdbool.h>
-#include <string.h>
 #include <getopt.h>
 #include <unistd.h>
-#include <signal.h>
 #include <errno.h>
 #include <err.h>
-#include <fcntl.h>
 #include <pwd.h>
-#include <sys/stat.h>
 #include <sys/wait.h>
 #include <sys/socket.h>
 #include <sys/un.h>

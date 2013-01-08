@@ -19,9 +19,9 @@
 #define COMMON_H
 
 #define _GNU_SOURCE
-#include <stdbool.h>
 #include <limits.h>
 #include <sys/types.h>
+#include <sys/socket.h>
 #include <sys/un.h>
 
 enum agent_status {
