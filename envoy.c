@@ -97,16 +97,40 @@ static int __attribute__((format (printf, 2, 3))) gpg_send_message(int fd, const
     return !strncmp(buf, "OK\n", 3);
 }
 
+static void gpg_send_messages(int fd)
+{
+    const char *display = getenv("DISPLAY");
+    const char *tty = ttyname(STDIN_FILENO);
+    const char *term = getenv("TERM");
+
+    gpg_send_message(fd, "RESET");
+
+    if (tty)
+        gpg_send_message(fd, "OPTION ttyname=%s", tty);
+
+    if (term)
+        gpg_send_message(fd, "OPTION ttytype=%s", term);
+
+    if (display) {
+        struct passwd *pwd = getpwuid(getuid());
+        if (pwd == NULL || pwd->pw_dir == NULL)
+            err(EXIT_FAILURE, "failed to lookup passwd entry");
+
+        gpg_send_message(fd, "OPTION display=%s", display);
+        gpg_send_message(fd, "OPTION xauthority=%s/.Xauthority", pwd->pw_dir);
+    }
+
+    gpg_send_message(fd, "UPDATESTARTUPTTY");
+}
+
 static int gpg_update_tty(const char *sock)
 {
+    char buf[BUFSIZ], *split;
     union {
         struct sockaddr sa;
         struct sockaddr_un un;
     } sa;
     socklen_t sa_len;
-
-    char buf[BUFSIZ], *split;
-    const char *display = NULL, *tty = NULL, *term = NULL;
 
     int fd = socket(AF_UNIX, SOCK_STREAM, 0), nbytes;
     if (fd < 0)
@@ -129,28 +153,7 @@ static int gpg_update_tty(const char *sock)
     if (strncmp(buf, "OK", 2) != 0)
         errx(EXIT_FAILURE, "incorrect response from gpg-agent");
 
-    gpg_send_message(fd, "RESET");
-
-    tty = ttyname(STDIN_FILENO);
-    if (tty)
-        gpg_send_message(fd, "OPTION ttyname=%s", tty);
-
-    term = getenv("TERM");
-    if (term)
-        gpg_send_message(fd, "OPTION ttytype=%s", getenv("TERM"));
-
-    display = getenv("DISPLAY");
-    if (display) {
-        struct passwd *pwd = getpwuid(getuid());
-        if (pwd == NULL || pwd->pw_dir == NULL)
-            err(EXIT_FAILURE, "failed to lookup passwd entry");
-
-        gpg_send_message(fd, "OPTION display=%s", display);
-        gpg_send_message(fd, "OPTION xauthority=%s/.Xauthority", pwd->pw_dir);
-    }
-
-    gpg_send_message(fd, "UPDATESTARTUPTTY");
-
+    gpg_send_messages(fd);
     close(fd);
     return 0;
 }
