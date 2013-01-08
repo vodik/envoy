@@ -169,7 +169,7 @@ static void start_agent(uid_t uid, gid_t gid, struct agent_data_t *data)
             err(EXIT_FAILURE, "failed to set GPG_TTY\n");
 
         if (execv(agent->argv[0], agent->argv) < 0)
-            err(EXIT_FAILURE, "failed to start %s", agent->argv[0]);
+            err(EXIT_FAILURE, "failed to start %s", agent->name);
         break;
     default:
         close(fd[1]);
@@ -187,10 +187,10 @@ static void start_agent(uid_t uid, gid_t gid, struct agent_data_t *data)
 
         if (WIFEXITED(stat))
             fprintf(stderr, "%s exited with status %d\n",
-                    agent->argv[0], WEXITSTATUS(stat));
+                    agent->name, WEXITSTATUS(stat));
         if (WIFSIGNALED(stat))
             fprintf(stderr, "%s terminated with signal %d\n",
-                    agent->argv[0], WTERMSIG(stat));
+                    agent->name, WTERMSIG(stat));
     }
 }
 
