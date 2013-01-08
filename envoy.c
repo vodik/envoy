@@ -175,7 +175,7 @@ static void source_env(struct agent_data_t *data)
     }
 }
 
-static int get_agent(struct agent_data_t *data)
+static size_t get_agent(struct agent_data_t *data)
 {
     size_t len;
     union {
@@ -209,8 +209,7 @@ static int get_agent(struct agent_data_t *data)
     case ENVOY_FIRSTRUN:
         return nbytes_r;
     case ENVOY_BADUSER:
-        fprintf(stderr, "connection rejected because of bad user\n");
-        return -1;
+        errx(EXIT_FAILURE, "connection rejected, user is unauthorized to use this agent");
     }
 }
 
@@ -282,8 +281,6 @@ int main(int argc, char *argv[])
     }
 
     switch (get_agent(&data)) {
-    case -1:
-        return 1;
     case 0:
         errx(EXIT_FAILURE, "recieved no data, did ssh-agent fail to start?");
     default:
