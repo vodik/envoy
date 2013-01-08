@@ -241,9 +241,9 @@ static void __attribute__((__noreturn__)) usage(FILE *out)
 {
     fprintf(out, "usage: %s [options]\n", program_invocation_short_name);
     fputs("Options:\n"
-        " -h, --help           display this help and exit\n"
-        " -v, --version        display version\n"
-        " -a, --agent=AGENT    set the prefered agent\n", out);
+        " -h, --help            display this help and exit\n"
+        " -v, --version         display version\n"
+        " -a, --agent=AGENT     set the prefered agent\n", out);
 
     exit(out == stderr ? EXIT_FAILURE : EXIT_SUCCESS);
 }
