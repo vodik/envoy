@@ -77,7 +77,7 @@ static void add_keys(char **keys, int count)
     err(EXIT_FAILURE, "failed to launch ssh-add");
 }
 
-static void __attribute__((format (printf, 2, 3))) gpg_send_message(int fd, const char *fmt, ...)
+static int __attribute__((format (printf, 2, 3))) gpg_send_message(int fd, const char *fmt, ...)
 {
     va_list ap;
     int nbytes;
@@ -89,13 +89,12 @@ static void __attribute__((format (printf, 2, 3))) gpg_send_message(int fd, cons
 
     buf[nbytes++] = '\n';
     if (write(fd, buf, nbytes) < 0)
-        err(EXIT_FAILURE, "failed to talk to gpg-agent");
+        return -1;
 
     if (read(fd, buf, BUFSIZ) < 3)
-        err(EXIT_FAILURE, "failed to talk to gpg-agent");
+        return -1;
 
-    if (strncmp(buf, "OK\n", 3) != 0)
-        errx(EXIT_FAILURE, "incorrect response from gpg-agent");
+    return !strncmp(buf, "OK\n", 3);
 }
 
 static int gpg_update_tty(const char *sock)
