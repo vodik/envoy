@@ -205,18 +205,18 @@ static int get_socket(void)
         fd = SD_LISTEN_FDS_START;
         sd_activated = true;
     } else {
-        size_t len;
         union {
             struct sockaddr sa;
             struct sockaddr_un un;
         } sa;
+        socklen_t sa_len;
 
         fd = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
         if (fd < 0)
             err(EXIT_FAILURE, "couldn't create socket");
 
-        len = init_envoy_socket(&sa.un);
-        if (bind(fd, &sa.sa, len) < 0)
+        sa_len = init_envoy_socket(&sa.un);
+        if (bind(fd, &sa.sa, sa_len) < 0)
             err(EXIT_FAILURE, "failed to bind");
 
         if (listen(fd, SOMAXCONN) < 0)

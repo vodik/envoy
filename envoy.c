@@ -178,7 +178,7 @@ static void source_env(struct agent_data_t *data)
 
 static size_t get_agent(struct agent_data_t *data)
 {
-    size_t len;
+    socklen_t sa_len;
     union {
         struct sockaddr sa;
         struct sockaddr_un un;
@@ -188,8 +188,8 @@ static size_t get_agent(struct agent_data_t *data)
     if (fd < 0)
         err(EXIT_FAILURE, "couldn't create socket");
 
-    len = init_envoy_socket(&sa.un);
-    if (connect(fd, &sa.sa, len) < 0)
+    sa_len = init_envoy_socket(&sa.un);
+    if (connect(fd, &sa.sa, sa_len) < 0)
         err(EXIT_FAILURE, "failed to connect");
 
     for (;;) {
