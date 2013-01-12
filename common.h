@@ -38,6 +38,7 @@ struct agent_data_t {
 };
 
 size_t init_envoy_socket(struct sockaddr_un *un);
+void unlink_envoy_socket(void);
 
 #endif
 

@@ -66,6 +66,7 @@ static const struct agent_t *agent = &Agent[AGENT_SSH_AGENT];
 static void cleanup(void)
 {
     close(server_sock);
+    unlink_envoy_socket();
 
     while (agents) {
         if (agents->d.pid <= 0)
