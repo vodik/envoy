@@ -20,6 +20,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdbool.h>
+#include <stdarg.h>
 #include <getopt.h>
 #include <err.h>
 #include <errno.h>
@@ -162,8 +163,8 @@ static void print_env(struct agent_data_t *data)
     if (data->gpg[0])
         printf("export GPG_AGENT_INFO='%s'\n", data->gpg);
 
-    printf("export SSH_AUTH_SOCK='%s'\n",  data->sock);
-    printf("export SSH_AGENT_PID='%zd'\n", data->pid);
+    printf("export SSH_AUTH_SOCK='%s'\n", data->sock);
+    printf("export SSH_AGENT_PID='%d'\n", data->pid);
 }
 
 static void source_env(struct agent_data_t *data)
@@ -208,10 +209,12 @@ static size_t get_agent(struct agent_data_t *data)
     switch (data->status) {
     case ENVOY_RUNNING:
     case ENVOY_FIRSTRUN:
-        return nbytes_r;
+        break;
     case ENVOY_BADUSER:
         errx(EXIT_FAILURE, "connection rejected, user is unauthorized to use this agent");
     }
+
+    return nbytes_r;
 }
 
 static void __attribute__((__noreturn__)) usage(FILE *out)

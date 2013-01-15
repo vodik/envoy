@@ -143,7 +143,7 @@ static void start_agent(uid_t uid, gid_t gid, struct agent_data_t *data)
         err(EXIT_FAILURE, "failed to lookup passwd entry");
 
     data->status = ENVOY_FIRSTRUN;
-    fprintf(stdout, "starting %s for uid=%zd gid=%zd\n",
+    fprintf(stdout, "starting %s for uid=%u gid=%u\n",
             agent->name, uid, gid);
 
     if (pipe(fd) < 0)
@@ -158,7 +158,7 @@ static void start_agent(uid_t uid, gid_t gid, struct agent_data_t *data)
         close(fd[0]);
 
         if (setgid(gid) < 0 || setuid(uid) < 0)
-            err(EXIT_FAILURE, "unable to drop to uid=%zd gid=%zd\n",
+            err(EXIT_FAILURE, "unable to drop to uid=%u gid=%u\n",
                 uid, gid);
 
         /* gpg-agent expects HOME to be set */
@@ -315,7 +315,7 @@ int main(int argc, char *argv[])
 
         if (uid != 0 && uid != cred.uid) {
             send_error(cfd, ENVOY_BADUSER);
-            fprintf(stderr, "connection from uid=%zd rejected\n", cred.uid);
+            fprintf(stderr, "connection from uid=%u rejected\n", cred.uid);
             goto done;
         }
 
@@ -330,7 +330,7 @@ int main(int argc, char *argv[])
             if (node && node->d.pid) {
                 if (errno != ESRCH)
                     err(EXIT_FAILURE, "something strange happened with kill");
-                fprintf(stdout, "%s for uid=%zd no longer running...\n",
+                fprintf(stdout, "%s for uid=%u no longer running...\n",
                         agent->name, cred.uid);
             } else if (!node) {
                 node = calloc(1, sizeof(struct agent_info_t));
