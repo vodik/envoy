@@ -227,7 +227,8 @@ static void __attribute__((__noreturn__)) usage(FILE *out)
         " -k, --clear           force identities to expire (gpg-agent only)\n"
         " -K, --kill            kill the running agent\n"
         " -l, --list            list fingerprints of all loaded identities\n"
-        " -p, --print           print out environmental arguments\n", out);
+        " -p, --print           print out environmental arguments\n"
+        " --agent=AGENT         set the prefered agent\n", out);
 
     exit(out == stderr ? EXIT_FAILURE : EXIT_SUCCESS);
 }
@@ -246,6 +247,7 @@ int main(int argc, char *argv[])
         { "kill",    no_argument, 0, 'K' },
         { "list",    no_argument, 0, 'l' },
         { "print",   no_argument, 0, 'p' },
+        { "agent",   required_argument, 0, 0x100 },
         { 0, 0, 0, 0 }
     };
 
@@ -277,6 +279,8 @@ int main(int argc, char *argv[])
             break;
         case 'p':
             verb = ACTION_PRINT;
+            break;
+        case 0x100:
             break;
         default:
             usage(stderr);

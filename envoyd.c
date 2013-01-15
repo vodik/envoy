@@ -30,32 +30,10 @@
 #include <sys/un.h>
 #include <systemd/sd-daemon.h>
 
-enum agent {
-    AGENT_SSH_AGENT,
-    AGENT_GPG_AGENT,
-    INVALID_AGENT
-};
-
-struct agent_t {
-    const char *name;
-    char *const *argv;
-};
-
 struct agent_info_t {
     uid_t uid;
     struct agent_data_t d;
     struct agent_info_t *next;
-};
-
-static const struct agent_t Agent[INVALID_AGENT] = {
-    [AGENT_SSH_AGENT] = {
-        .name = "ssh-agent",
-        .argv = (char *const []){ "/usr/bin/ssh-agent", NULL }
-    },
-    [AGENT_GPG_AGENT] = {
-        .name = "gpg-agent",
-        .argv = (char *const []){ "/usr/bin/gpg-agent", "--daemon", "--enable-ssh-support", NULL }
-    }
 };
 
 static struct agent_info_t *agents = NULL;
@@ -227,17 +205,6 @@ static int get_socket(void)
     return fd;
 }
 
-static enum agent find_agent(const char *string)
-{
-    size_t i;
-
-    for (i = 0; i < INVALID_AGENT; i++)
-        if (strcmp(Agent[i].name, string) == 0)
-            break;
-
-    return i;
-}
-
 static void __attribute__((__noreturn__)) usage(FILE *out)
 {
     fprintf(out, "usage: %s [options]\n", program_invocation_short_name);
@@ -281,9 +248,9 @@ int main(int argc, char *argv[])
             printf("%s %s\n", program_invocation_short_name, ENVOY_VERSION);
             return 0;
         case 'a':
-            if ((id = find_agent(optarg)) == INVALID_AGENT)
+            id = find_agent(optarg);
+            if (id == LAST_AGENT)
                 errx(EXIT_FAILURE, "unknown agent: %s", optarg);
-
             agent = &Agent[id];
             break;
         default:
