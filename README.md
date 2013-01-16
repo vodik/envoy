@@ -26,7 +26,7 @@ To setup envoy, first enable the socket unit. For example, for
 Then add the following to your shell's rc file.
 
     envoy [file ...]
-    eval $(envoy -p)
+    source <(envoy -p)
 
 ### Usage
 
