@@ -25,10 +25,10 @@
 #include <sys/un.h>
 
 enum agent {
-    AGENT_SSH_AGENT,
+    AGENT_DEFAULT = -1,
+    AGENT_SSH_AGENT = 0,
     AGENT_GPG_AGENT,
-    AGENT_DEFAULT,
-    LAST_AGENT = AGENT_DEFAULT
+    LAST_AGENT
 };
 
 enum agent_status {
