@@ -228,7 +228,7 @@ static void __attribute__((__noreturn__)) usage(FILE *out)
         " -K, --kill            kill the running agent\n"
         " -l, --list            list fingerprints of all loaded identities\n"
         " -p, --print           print out environmental arguments\n"
-        " --agent=AGENT         set the prefered agent\n", out);
+        " -t, --agent=AGENT     set the prefered to start\n", out);
 
     exit(out == stderr ? EXIT_FAILURE : EXIT_SUCCESS);
 }
@@ -247,12 +247,12 @@ int main(int argc, char *argv[])
         { "kill",    no_argument, 0, 'K' },
         { "list",    no_argument, 0, 'l' },
         { "print",   no_argument, 0, 'p' },
-        { "agent",   required_argument, 0, 0x100 },
+        { "agent",   required_argument, 0, 't' },
         { 0, 0, 0, 0 }
     };
 
     while (true) {
-        int opt = getopt_long(argc, argv, "hvakKlp", opts, NULL);
+        int opt = getopt_long(argc, argv, "hvakKlpt:", opts, NULL);
         if (opt == -1)
             break;
 
@@ -280,7 +280,7 @@ int main(int argc, char *argv[])
         case 'p':
             verb = ACTION_PRINT;
             break;
-        case 0x100:
+        case 't':
             break;
         default:
             usage(stderr);

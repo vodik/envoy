@@ -239,11 +239,10 @@ static int loop(void)
             goto done;
         }
 
-        struct agent_info_t *node = agents;
-        while (node) {
+        struct agent_info_t *node;
+        for (node = agents; node; node = node->next) {
             if (node->uid == cred.uid)
                 break;
-            node = node->next;
         }
 
         if (!node || node->d.pid == 0 || kill(node->d.pid, 0) < 0) {
@@ -295,12 +294,12 @@ int main(int argc, char *argv[])
     static const struct option opts[] = {
         { "help",    no_argument,       0, 'h' },
         { "version", no_argument,       0, 'v' },
-        { "agent",   required_argument, 0, 'a' },
+        { "agent",   required_argument, 0, 't' },
         { 0, 0, 0, 0 }
     };
 
     while (true) {
-        int opt = getopt_long(argc, argv, "hva:", opts, NULL);
+        int opt = getopt_long(argc, argv, "hvt:", opts, NULL);
         if (opt == -1)
             break;
 
@@ -311,7 +310,7 @@ int main(int argc, char *argv[])
         case 'v':
             printf("%s %s\n", program_invocation_short_name, ENVOY_VERSION);
             return 0;
-        case 'a':
+        case 't':
             id = find_agent(optarg);
             if (id == LAST_AGENT)
                 errx(EXIT_FAILURE, "unknown agent: %s", optarg);
