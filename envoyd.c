@@ -205,17 +205,6 @@ static int get_socket(void)
     return fd;
 }
 
-static void __attribute__((__noreturn__)) usage(FILE *out)
-{
-    fprintf(out, "usage: %s [options]\n", program_invocation_short_name);
-    fputs("Options:\n"
-        " -h, --help            display this help and exit\n"
-        " -v, --version         display version\n"
-        " -a, --agent=AGENT     set the prefered agent\n", out);
-
-    exit(out == stderr ? EXIT_FAILURE : EXIT_SUCCESS);
-}
-
 static void send_error(int fd, enum agent_status status)
 {
     struct agent_data_t d = { .status = status };
@@ -223,45 +212,9 @@ static void send_error(int fd, enum agent_status status)
         err(EXIT_FAILURE, "failed to write agent data");
 }
 
-int main(int argc, char *argv[])
+static int loop(void)
 {
-    enum agent id;
     uid_t uid = geteuid();
-
-    static const struct option opts[] = {
-        { "help",    no_argument,       0, 'h' },
-        { "version", no_argument,       0, 'v' },
-        { "agent",   required_argument, 0, 'a' },
-        { 0, 0, 0, 0 }
-    };
-
-    while (true) {
-        int opt = getopt_long(argc, argv, "hva:", opts, NULL);
-        if (opt == -1)
-            break;
-
-        switch (opt) {
-        case 'h':
-            usage(stdout);
-            break;
-        case 'v':
-            printf("%s %s\n", program_invocation_short_name, ENVOY_VERSION);
-            return 0;
-        case 'a':
-            id = find_agent(optarg);
-            if (id == LAST_AGENT)
-                errx(EXIT_FAILURE, "unknown agent: %s", optarg);
-            agent = &Agent[id];
-            break;
-        default:
-            usage(stderr);
-        }
-    }
-
-    server_sock = get_socket();
-
-    signal(SIGTERM, sighandler);
-    signal(SIGINT,  sighandler);
 
     while (true) {
         union {
@@ -322,6 +275,59 @@ done:
     }
 
     return 0;
+}
+
+static void __attribute__((__noreturn__)) usage(FILE *out)
+{
+    fprintf(out, "usage: %s [options]\n", program_invocation_short_name);
+    fputs("Options:\n"
+        " -h, --help            display this help and exit\n"
+        " -v, --version         display version\n"
+        " -a, --agent=AGENT     set the prefered agent\n", out);
+
+    exit(out == stderr ? EXIT_FAILURE : EXIT_SUCCESS);
+}
+
+int main(int argc, char *argv[])
+{
+    enum agent id;
+
+    static const struct option opts[] = {
+        { "help",    no_argument,       0, 'h' },
+        { "version", no_argument,       0, 'v' },
+        { "agent",   required_argument, 0, 'a' },
+        { 0, 0, 0, 0 }
+    };
+
+    while (true) {
+        int opt = getopt_long(argc, argv, "hva:", opts, NULL);
+        if (opt == -1)
+            break;
+
+        switch (opt) {
+        case 'h':
+            usage(stdout);
+            break;
+        case 'v':
+            printf("%s %s\n", program_invocation_short_name, ENVOY_VERSION);
+            return 0;
+        case 'a':
+            id = find_agent(optarg);
+            if (id == LAST_AGENT)
+                errx(EXIT_FAILURE, "unknown agent: %s", optarg);
+            agent = &Agent[id];
+            break;
+        default:
+            usage(stderr);
+        }
+    }
+
+    server_sock = get_socket();
+
+    signal(SIGTERM, sighandler);
+    signal(SIGINT,  sighandler);
+
+    return loop();
 }
 
 // vim: et:sts=4:sw=4:cino=(0
