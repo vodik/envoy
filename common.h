@@ -32,8 +32,10 @@ enum agent {
 };
 
 enum agent_status {
-    ENVOY_RUNNING = 0,
-    ENVOY_FIRSTRUN,
+    ENVOY_STOPPED = 0,
+    ENVOY_STARTED,
+    ENVOY_RUNNING,
+    ENVOY_FAILED,
     ENVOY_BADUSER,
 };
 

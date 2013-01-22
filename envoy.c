@@ -204,16 +204,19 @@ static size_t get_agent(struct agent_data_t *data)
             break;
     }
 
-    close(fd);
 
     switch (data->status) {
+    case ENVOY_STOPPED:
+    case ENVOY_STARTED:
     case ENVOY_RUNNING:
-    case ENVOY_FIRSTRUN:
         break;
+    case ENVOY_FAILED:
+        errx(EXIT_FAILURE, "agent failed to start, check envoyd's log");
     case ENVOY_BADUSER:
         errx(EXIT_FAILURE, "connection rejected, user is unauthorized to use this agent");
     }
 
+    close(fd);
     return nbytes_r;
 }
 
@@ -238,6 +241,7 @@ int main(int argc, char *argv[])
     bool source = true;
     struct agent_data_t data;
     enum action verb = ACTION_ADD;
+    enum agent id = AGENT_DEFAULT;
 
     static const struct option opts[] = {
         { "help",    no_argument, 0, 'h' },
@@ -281,6 +285,9 @@ int main(int argc, char *argv[])
             verb = ACTION_PRINT;
             break;
         case 't':
+            id = find_agent(optarg);
+            if (id == LAST_AGENT)
+                errx(EXIT_FAILURE, "unknown agent: %s", optarg);
             break;
         default:
             usage(stderr);
@@ -305,7 +312,7 @@ int main(int argc, char *argv[])
         break;
     case ACTION_ADD:
         /* when there are no agumert, with gpg-agent it should be a no op */
-        if (!data.status == ENVOY_FIRSTRUN || data.gpg[0])
+        if (!data.status == ENVOY_STARTED || data.gpg[0])
             return 0;
     case ACTION_FORCE_ADD:
         add_keys(&argv[optind], argc - optind);

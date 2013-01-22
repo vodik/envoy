@@ -120,7 +120,7 @@ static void start_agent(uid_t uid, gid_t gid, struct agent_data_t *data)
     if (pwd == NULL || pwd->pw_dir == NULL)
         err(EXIT_FAILURE, "failed to lookup passwd entry");
 
-    data->status = ENVOY_FIRSTRUN;
+    data->status = ENVOY_STARTED;
     fprintf(stdout, "starting %s for uid=%u gid=%u\n",
             agent->name, uid, gid);
 
@@ -163,6 +163,7 @@ static void start_agent(uid_t uid, gid_t gid, struct agent_data_t *data)
 
     if (stat) {
         data->pid = 0;
+        data->status = ENVOY_FAILED;
 
         if (WIFEXITED(stat))
             fprintf(stderr, "%s exited with status %d\n",
@@ -261,11 +262,11 @@ static int loop(void)
             start_agent(cred.uid, cred.gid, &node->d);
         }
 
-        if (node->d.pid) {
-            if (write(cfd, &node->d, sizeof(node->d)) < 0)
-                err(EXIT_FAILURE, "failed to write agent data");
+        if (write(cfd, &node->d, sizeof(node->d)) < 0)
+            err(EXIT_FAILURE, "failed to write agent data");
+
+        if (node->d.pid)
             node->d.status = ENVOY_RUNNING;
-        }
 
 done:
         fflush(stdout);
@@ -282,7 +283,7 @@ static void __attribute__((__noreturn__)) usage(FILE *out)
     fputs("Options:\n"
         " -h, --help            display this help and exit\n"
         " -v, --version         display version\n"
-        " -a, --agent=AGENT     set the prefered agent\n", out);
+        " -a, --agent=AGENT     set the agent to start\n", out);
 
     exit(out == stderr ? EXIT_FAILURE : EXIT_SUCCESS);
 }
