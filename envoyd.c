@@ -358,7 +358,7 @@ int main(int argc, char *argv[])
         }
     }
 
-    epoll_fd = epoll_create1(0);
+    epoll_fd = epoll_create1(EPOLL_CLOEXEC);
     if (epoll_fd < 0)
         err(EXIT_FAILURE, "failed to start epoll");
 
