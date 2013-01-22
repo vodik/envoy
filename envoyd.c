@@ -25,9 +25,10 @@
 #include <errno.h>
 #include <err.h>
 #include <pwd.h>
-#include <sys/wait.h>
+#include <sys/epoll.h>
 #include <sys/socket.h>
 #include <sys/un.h>
+#include <sys/wait.h>
 #include <systemd/sd-daemon.h>
 
 struct agent_info_t {
@@ -38,7 +39,8 @@ struct agent_info_t {
 
 static struct agent_info_t *agents = NULL;
 static bool sd_activated = false;
-static int server_sock;
+static int epoll_fd, server_sock;
+static uid_t server_uid;
 static const struct agent_t *agent = &Agent[AGENT_SSH_AGENT];
 
 static void cleanup(void)
@@ -56,6 +58,8 @@ static void cleanup(void)
 
 static void sighandler(int signum)
 {
+    close(epoll_fd);
+
     switch (signum) {
     case SIGINT:
     case SIGTERM:
@@ -224,61 +228,86 @@ static void send_error(int fd, enum agent_status status)
         err(EXIT_FAILURE, "failed to write agent data");
 }
 
-static int loop(void)
+static void accept_connection(void)
 {
-    uid_t uid = geteuid();
+    union {
+        struct sockaddr sa;
+        struct sockaddr_un un;
+    } sa;
+    socklen_t sa_len;
 
-    while (true) {
-        union {
-            struct sockaddr sa;
-            struct sockaddr_un un;
-        } sa;
-        socklen_t sa_len;
+    int cfd = accept4(server_sock, &sa.sa, &sa_len, SOCK_CLOEXEC);
+    if (cfd < 0)
+        err(EXIT_FAILURE, "failed to accept connection");
 
-        int cfd = accept4(server_sock, &sa.sa, &sa_len, SOCK_CLOEXEC);
-        if (cfd < 0)
-            err(EXIT_FAILURE, "failed to accept connection");
+    struct ucred cred;
+    socklen_t cred_len = sizeof(struct ucred);
 
-        struct ucred cred;
-        socklen_t cred_len = sizeof(struct ucred);
+    if (getsockopt(cfd, SOL_SOCKET, SO_PEERCRED, &cred, &cred_len) < 0)
+        err(EXIT_FAILURE, "couldn't obtain credentials from unix domain socket");
 
-        if (getsockopt(cfd, SOL_SOCKET, SO_PEERCRED, &cred, &cred_len) < 0)
-            err(EXIT_FAILURE, "couldn't obtain credentials from unix domain socket");
+    if (server_uid != 0 && server_uid != cred.uid) {
+        send_error(cfd, ENVOY_BADUSER);
+        fprintf(stderr, "connection from uid=%u rejected\n", cred.uid);
+        goto done;
+    }
 
-        if (uid != 0 && uid != cred.uid) {
-            send_error(cfd, ENVOY_BADUSER);
-            fprintf(stderr, "connection from uid=%u rejected\n", cred.uid);
-            goto done;
+    struct agent_info_t *node = agent_by_uid(agents, cred.uid);
+
+    if (!node || node->d.pid == 0 || kill(node->d.pid, 0) < 0) {
+        if (node && node->d.pid) {
+            if (errno != ESRCH)
+                err(EXIT_FAILURE, "something strange happened with kill");
+            fprintf(stdout, "%s for uid=%u no longer running...\n",
+                    agent->name, cred.uid);
+        } else if (!node) {
+            node = calloc(1, sizeof(struct agent_info_t));
+            node->uid = cred.uid;
+            node->next = agents;
+            agents = node;
         }
 
-        struct agent_info_t *node = agent_by_uid(agents, cred.uid);
+        start_agent(cred.uid, cred.gid, &node->d);
+    }
 
-        if (!node || node->d.pid == 0 || kill(node->d.pid, 0) < 0) {
-            if (node && node->d.pid) {
-                if (errno != ESRCH)
-                    err(EXIT_FAILURE, "something strange happened with kill");
-                fprintf(stdout, "%s for uid=%u no longer running...\n",
-                        agent->name, cred.uid);
-            } else if (!node) {
-                node = calloc(1, sizeof(struct agent_info_t));
-                node->uid = cred.uid;
-                node->next = agents;
-                agents = node;
-            }
+    if (write(cfd, &node->d, sizeof(node->d)) < 0)
+        err(EXIT_FAILURE, "failed to write agent data");
 
-            start_agent(cred.uid, cred.gid, &node->d);
-        }
-
-        if (write(cfd, &node->d, sizeof(node->d)) < 0)
-            err(EXIT_FAILURE, "failed to write agent data");
-
-        if (node->d.pid)
-            node->d.status = ENVOY_RUNNING;
+    if (node->d.pid)
+        node->d.status = ENVOY_RUNNING;
 
 done:
-        fflush(stdout);
-        fflush(stderr);
-        close(cfd);
+    fflush(stdout);
+    fflush(stderr);
+    close(cfd);
+}
+
+static int loop(void)
+{
+    struct epoll_event events[4], event = {
+        .data.fd = server_sock,
+        .events  = EPOLLIN | EPOLLET
+    };
+
+    if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, server_sock, &event) < 0)
+        err(EXIT_FAILURE, "failed to add socket to epoll");
+
+    while (true) {
+        int i, n = epoll_wait(epoll_fd, events, 4, 0);
+
+        if (n < 0)
+            err(EXIT_FAILURE, "epoll_wait failed");
+
+        for (i = 0; i < n; ++i) {
+            struct epoll_event *evt = &events[i];
+
+            if (evt->events & EPOLLERR || evt->events & EPOLLHUP)
+                close(evt->data.fd);
+            else if (evt->data.fd == server_sock)
+                accept_connection();
+            else
+                warnx("can't handle getting more data atm");
+        }
     }
 
     return 0;
@@ -329,6 +358,11 @@ int main(int argc, char *argv[])
         }
     }
 
+    epoll_fd = epoll_create1(0);
+    if (epoll_fd < 0)
+        err(EXIT_FAILURE, "failed to start epoll");
+
+    server_uid = geteuid();
     server_sock = get_socket();
 
     signal(SIGTERM, sighandler);

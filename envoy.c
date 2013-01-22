@@ -194,6 +194,7 @@ static size_t read_agent(int fd, struct agent_data_t *data)
 
     switch (data->status) {
     case ENVOY_STOPPED:
+        err(EXIT_FAILURE, "agent isn't running, TO FINISH");
     case ENVOY_STARTED:
     case ENVOY_RUNNING:
         break;
