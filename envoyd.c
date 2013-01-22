@@ -206,6 +206,17 @@ static int get_socket(void)
     return fd;
 }
 
+static struct agent_info_t *agent_by_uid(struct agent_info_t *agents, uid_t uid)
+{
+    struct agent_info_t *node;
+    for (node = agents; node; node = node->next) {
+        if (node->uid == uid)
+            return node;
+    }
+
+    return NULL;
+}
+
 static void send_error(int fd, enum agent_status status)
 {
     struct agent_data_t d = { .status = status };
@@ -240,11 +251,7 @@ static int loop(void)
             goto done;
         }
 
-        struct agent_info_t *node;
-        for (node = agents; node; node = node->next) {
-            if (node->uid == cred.uid)
-                break;
-        }
+        struct agent_info_t *node = agent_by_uid(agents, cred.uid);
 
         if (!node || node->d.pid == 0 || kill(node->d.pid, 0) < 0) {
             if (node && node->d.pid) {

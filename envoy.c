@@ -177,6 +177,35 @@ static void source_env(struct agent_data_t *data)
     }
 }
 
+static size_t read_agent(int fd, struct agent_data_t *data)
+{
+    int nbytes_r;
+
+    for (;;) {
+        nbytes_r = read(fd, data, sizeof(*data));
+        if (nbytes_r < 0) {
+            if (errno != EAGAIN) {
+                warn("failed to receive data from server");
+                break;
+            }
+        } else
+            break;
+    }
+
+    switch (data->status) {
+    case ENVOY_STOPPED:
+    case ENVOY_STARTED:
+    case ENVOY_RUNNING:
+        break;
+    case ENVOY_FAILED:
+        errx(EXIT_FAILURE, "agent failed to start, check envoyd's log");
+    case ENVOY_BADUSER:
+        errx(EXIT_FAILURE, "connection rejected, user is unauthorized to use this agent");
+    }
+
+    return nbytes_r;
+}
+
 static size_t get_agent(struct agent_data_t *data)
 {
     socklen_t sa_len;
@@ -193,30 +222,9 @@ static size_t get_agent(struct agent_data_t *data)
     if (connect(fd, &sa.sa, sa_len) < 0)
         err(EXIT_FAILURE, "failed to connect");
 
-    for (;;) {
-        nbytes_r = read(fd, data, sizeof(*data));
-        if (nbytes_r < 0) {
-            if (errno != EAGAIN) {
-                warn("failed to receive data from server");
-                break;
-            }
-        } else
-            break;
-    }
-
-
-    switch (data->status) {
-    case ENVOY_STOPPED:
-    case ENVOY_STARTED:
-    case ENVOY_RUNNING:
-        break;
-    case ENVOY_FAILED:
-        errx(EXIT_FAILURE, "agent failed to start, check envoyd's log");
-    case ENVOY_BADUSER:
-        errx(EXIT_FAILURE, "connection rejected, user is unauthorized to use this agent");
-    }
-
+    nbytes_r = read_agent(fd, data);
     close(fd);
+
     return nbytes_r;
 }
 
