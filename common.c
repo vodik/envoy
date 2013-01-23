@@ -16,12 +16,10 @@ const struct agent_t Agent[LAST_AGENT] = {
     }
 };
 
-static const char *def_socket_path = "@/vodik/envoy";
-
 static const char *get_socket_path(void)
 {
     const char *socket = getenv("ENVOY_SOCKET");
-    return socket ? socket : def_socket_path;
+    return socket ? socket : "@/vodik/envoy";
 }
 
 size_t init_envoy_socket(struct sockaddr_un *un)
