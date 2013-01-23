@@ -278,7 +278,6 @@ static void accept_connection(void)
 
 done:
     fflush(stdout);
-    fflush(stderr);
     close(cfd);
 }
 
