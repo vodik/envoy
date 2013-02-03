@@ -192,22 +192,18 @@ static size_t read_agent(int fd, struct agent_data_t *data)
             break;
     }
 
-    switch (data->status) {
-    case ENVOY_STOPPED:
-        err(EXIT_FAILURE, "agent isn't running, TO FINISH");
-    case ENVOY_STARTED:
-    case ENVOY_RUNNING:
-        break;
-    case ENVOY_FAILED:
-        errx(EXIT_FAILURE, "agent failed to start, check envoyd's log");
-    case ENVOY_BADUSER:
-        errx(EXIT_FAILURE, "connection rejected, user is unauthorized to use this agent");
-    }
-
     return nbytes_r;
 }
 
-static size_t get_agent(struct agent_data_t *data)
+static void start_agent(int fd, struct agent_data_t *data, enum agent id)
+{
+    if (write(fd, &id, sizeof(enum agent)) < 0)
+        err(EXIT_FAILURE, "failed to write agent type");
+
+    read_agent(fd, data);
+}
+
+static size_t get_agent(struct agent_data_t *data, enum agent id)
 {
     socklen_t sa_len;
     union {
@@ -224,8 +220,21 @@ static size_t get_agent(struct agent_data_t *data)
         err(EXIT_FAILURE, "failed to connect");
 
     nbytes_r = read_agent(fd, data);
-    close(fd);
 
+    switch (data->status) {
+    case ENVOY_STOPPED:
+        start_agent(fd, data, id);
+        break;
+    case ENVOY_STARTED:
+    case ENVOY_RUNNING:
+        break;
+    case ENVOY_FAILED:
+        errx(EXIT_FAILURE, "agent failed to start, check envoyd's log");
+    case ENVOY_BADUSER:
+        errx(EXIT_FAILURE, "connection rejected, user is unauthorized to use this agent");
+    }
+
+    close(fd);
     return nbytes_r;
 }
 
@@ -303,7 +312,7 @@ int main(int argc, char *argv[])
         }
     }
 
-    switch (get_agent(&data)) {
+    switch (get_agent(&data, id)) {
     case 0:
         errx(EXIT_FAILURE, "recieved no data, did ssh-agent fail to start?");
     default:

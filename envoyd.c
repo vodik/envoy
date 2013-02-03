@@ -41,7 +41,7 @@ static struct agent_info_t *agents = NULL;
 static bool sd_activated = false;
 static int epoll_fd, server_sock;
 static uid_t server_uid;
-static const struct agent_t *agent = &Agent[AGENT_SSH_AGENT];
+static const struct agent_t *default_agent = &Agent[AGENT_SSH_AGENT];
 
 static void cleanup(void)
 {
@@ -117,16 +117,39 @@ static int parse_agentdata(int fd, struct agent_data_t *data)
     return 0;
 }
 
-static void start_agent(uid_t uid, gid_t gid, struct agent_data_t *data)
+static void exec_agent(const struct agent_t *agent, uid_t uid, gid_t gid)
 {
-    int fd[2], stat = 0;
     struct passwd *pwd = getpwuid(uid);
     if (pwd == NULL || pwd->pw_dir == NULL)
         err(EXIT_FAILURE, "failed to lookup passwd entry");
 
+    if (setgid(gid) < 0 || setuid(uid) < 0)
+        err(EXIT_FAILURE, "unable to drop to uid=%u gid=%u\n", uid, gid);
+
+    /* Setup the minimal environment needed for gpg-agent to run: HOME
+     * and GPG_TTY. No special work is needed for ssh-agent.
+     *
+     * Note that setting GPG_TTY to /dev/null is intentional. This is
+     * a placeholder value. Envoy will update gpg-agent with a proper
+     * value at runtime. However it seems that the variable needs to be set in the
+     * environment for the update mechanism to work.
+     */
+    if (setenv("HOME", pwd->pw_dir, true))
+        err(EXIT_FAILURE, "failed to set HOME=%s\n", pwd->pw_dir);
+
+    if (setenv("GPG_TTY", "/dev/null", true))
+        err(EXIT_FAILURE, "failed to set GPG_TTY\n");
+
+    if (execv(agent->argv[0], agent->argv) < 0)
+        err(EXIT_FAILURE, "failed to start %s", agent->name);
+}
+
+static void start_agent(const struct agent_t *agent, uid_t uid, gid_t gid, struct agent_data_t *data)
+{
+    int fd[2], stat = 0;
+
     data->status = ENVOY_STARTED;
-    fprintf(stdout, "starting %s for uid=%u gid=%u\n",
-            agent->name, uid, gid);
+    fprintf(stdout, "starting %s for uid=%u gid=%u\n", agent->name, uid, gid);
 
     if (pipe(fd) < 0)
         err(EXIT_FAILURE, "failed to create pipe");
@@ -138,21 +161,7 @@ static void start_agent(uid_t uid, gid_t gid, struct agent_data_t *data)
     case 0:
         dup2(fd[1], STDOUT_FILENO);
         close(fd[0]);
-
-        if (setgid(gid) < 0 || setuid(uid) < 0)
-            err(EXIT_FAILURE, "unable to drop to uid=%u gid=%u\n",
-                uid, gid);
-
-        /* gpg-agent expects HOME to be set */
-        if (setenv("HOME", pwd->pw_dir, true))
-            err(EXIT_FAILURE, "failed to set HOME=%s\n", pwd->pw_dir);
-
-        /* gpg-agent expects GPG_TTY to be set or there will be blood */
-        if (setenv("GPG_TTY", "/dev/null", true))
-            err(EXIT_FAILURE, "failed to set GPG_TTY\n");
-
-        if (execv(agent->argv[0], agent->argv) < 0)
-            err(EXIT_FAILURE, "failed to start %s", agent->name);
+        exec_agent(agent, uid, gid);
         break;
     default:
         close(fd[1]);
@@ -221,11 +230,23 @@ static struct agent_info_t *agent_by_uid(struct agent_info_t *agents, uid_t uid)
     return NULL;
 }
 
-static void send_error(int fd, enum agent_status status)
+static void send_agent(int fd, struct agent_data_t *agent, bool close_sock)
+{
+    if (write(fd, agent, sizeof(struct agent_data_t)) < 0)
+        err(EXIT_FAILURE, "failed to write agent data");
+    if (close_sock)
+        close(fd);
+}
+
+static void send_message(int fd, enum agent_status status, bool close_sock)
 {
     struct agent_data_t d = { .status = status };
-    if (write(fd, &d, sizeof(d)) < 0)
-        err(EXIT_FAILURE, "failed to write agent data");
+    send_agent(fd, &d, close_sock);
+}
+
+static bool is_dead(pid_t pid)
+{
+    return kill(pid, 0) < 0 && errno == ESRCH;
 }
 
 static void accept_connection(void)
@@ -247,14 +268,69 @@ static void accept_connection(void)
         err(EXIT_FAILURE, "couldn't obtain credentials from unix domain socket");
 
     if (server_uid != 0 && server_uid != cred.uid) {
-        send_error(cfd, ENVOY_BADUSER);
         fprintf(stderr, "connection from uid=%u rejected\n", cred.uid);
-        goto done;
+        send_message(cfd, ENVOY_BADUSER, true);
+        return;
     }
 
     struct agent_info_t *node = agent_by_uid(agents, cred.uid);
 
-    if (!node || node->d.pid == 0 || kill(node->d.pid, 0) < 0) {
+    if (!node || node->d.pid == 0 || is_dead(node->d.pid)) {
+        struct epoll_event event = {
+            .data.fd = cfd,
+            .events  = EPOLLIN | EPOLLET
+        };
+
+        if (node)
+            node->d.pid = 0;
+
+        send_message(cfd, ENVOY_STOPPED, false);
+        if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, cfd, &event) < 0)
+            err(EXIT_FAILURE, "failed to add socket to epoll");
+    } else {
+        send_agent(cfd, &node->d, true);
+    }
+
+        /* if (node && node->d.pid) { */
+        /*     if (errno != ESRCH) */
+        /*         err(EXIT_FAILURE, "something strange happened with kill"); */
+        /*     fprintf(stdout, "%s for uid=%u no longer running...\n", */
+        /*             agent->name, cred.uid); */
+        /* } else if (!node) { */
+        /*     node = calloc(1, sizeof(struct agent_info_t)); */
+        /*     node->uid = cred.uid; */
+        /*     node->next = agents; */
+        /*     agents = node; */
+        /* } */
+
+        /* start_agent(cred.uid, cred.gid, &node->d); */
+    /* } */
+
+    /* if (write(cfd, &node->d, sizeof(node->d)) < 0) */
+    /*     err(EXIT_FAILURE, "failed to write agent data"); */
+
+    /* if (node->d.pid) */
+    /*     node->d.status = ENVOY_RUNNING; */
+}
+
+static void start_agent2(int cfd)
+{
+    struct ucred cred;
+    socklen_t cred_len = sizeof(struct ucred);
+    enum agent id;
+
+    int nbytes_r = read(cfd, &id, sizeof(enum agent));
+    if (nbytes_r < 0)
+        err(EXIT_FAILURE, "couldn't read agent type to start");
+
+    const struct agent_t *agent = (id == AGENT_DEFAULT ? default_agent : &Agent[id]);
+
+    if (getsockopt(cfd, SOL_SOCKET, SO_PEERCRED, &cred, &cred_len) < 0)
+        err(EXIT_FAILURE, "couldn't obtain credentials from unix domain socket");
+
+    struct agent_info_t *node = agent_by_uid(agents, cred.uid);
+
+    if (!node || node->d.pid == 0 || is_dead(node->d.pid)) {
         if (node && node->d.pid) {
             if (errno != ESRCH)
                 err(EXIT_FAILURE, "something strange happened with kill");
@@ -267,18 +343,13 @@ static void accept_connection(void)
             agents = node;
         }
 
-        start_agent(cred.uid, cred.gid, &node->d);
+        start_agent(agent, cred.uid, cred.gid, &node->d);
     }
 
-    if (write(cfd, &node->d, sizeof(node->d)) < 0)
-        err(EXIT_FAILURE, "failed to write agent data");
+    send_agent(cfd, &node->d, true);
 
     if (node->d.pid)
         node->d.status = ENVOY_RUNNING;
-
-done:
-    fflush(stdout);
-    close(cfd);
 }
 
 static int loop(void)
@@ -304,8 +375,10 @@ static int loop(void)
                 close(evt->data.fd);
             else if (evt->data.fd == server_sock)
                 accept_connection();
-            else
-                warnx("can't handle getting more data atm");
+            else {
+                start_agent2(evt->data.fd);
+                close(evt->data.fd);
+            }
         }
     }
 
@@ -350,7 +423,7 @@ int main(int argc, char *argv[])
             id = find_agent(optarg);
             if (id == LAST_AGENT)
                 errx(EXIT_FAILURE, "unknown agent: %s", optarg);
-            agent = &Agent[id];
+            default_agent = &Agent[id];
             break;
         default:
             usage(stderr);
