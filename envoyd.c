@@ -363,7 +363,7 @@ static int loop(void)
         err(EXIT_FAILURE, "failed to add socket to epoll");
 
     while (true) {
-        int i, n = epoll_wait(epoll_fd, events, 4, 0);
+        int i, n = epoll_wait(epoll_fd, events, 4, -1);
 
         if (n < 0)
             err(EXIT_FAILURE, "epoll_wait failed");
