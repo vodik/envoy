@@ -37,11 +37,12 @@ struct agent_info_t {
     struct agent_info_t *next;
 };
 
+static enum agent default_type = AGENT_DEFAULT;
 static struct agent_info_t *agents = NULL;
 static bool sd_activated = false;
 static int epoll_fd, server_sock;
 static uid_t server_uid;
-static const struct agent_t *default_agent = &Agent[AGENT_SSH_AGENT];
+
 
 static void cleanup(void)
 {
@@ -149,6 +150,9 @@ static void start_agent(const struct agent_t *agent, uid_t uid, gid_t gid, struc
     int fd[2], stat = 0;
 
     data->status = ENVOY_STARTED;
+    data->sock[0] = '\0';
+    data->gpg[0] = '\0';
+
     fprintf(stdout, "starting %s for uid=%u gid=%u\n", agent->name, uid, gid);
 
     if (pipe(fd) < 0)
@@ -290,40 +294,22 @@ static void accept_connection(void)
     } else {
         send_agent(cfd, &node->d, true);
     }
-
-        /* if (node && node->d.pid) { */
-        /*     if (errno != ESRCH) */
-        /*         err(EXIT_FAILURE, "something strange happened with kill"); */
-        /*     fprintf(stdout, "%s for uid=%u no longer running...\n", */
-        /*             agent->name, cred.uid); */
-        /* } else if (!node) { */
-        /*     node = calloc(1, sizeof(struct agent_info_t)); */
-        /*     node->uid = cred.uid; */
-        /*     node->next = agents; */
-        /*     agents = node; */
-        /* } */
-
-        /* start_agent(cred.uid, cred.gid, &node->d); */
-    /* } */
-
-    /* if (write(cfd, &node->d, sizeof(node->d)) < 0) */
-    /*     err(EXIT_FAILURE, "failed to write agent data"); */
-
-    /* if (node->d.pid) */
-    /*     node->d.status = ENVOY_RUNNING; */
 }
 
 static void start_agent2(int cfd)
 {
     struct ucred cred;
     socklen_t cred_len = sizeof(struct ucred);
-    enum agent id;
+    enum agent type;
 
-    int nbytes_r = read(cfd, &id, sizeof(enum agent));
+    int nbytes_r = read(cfd, &type, sizeof(enum agent));
     if (nbytes_r < 0)
         err(EXIT_FAILURE, "couldn't read agent type to start");
 
-    const struct agent_t *agent = (id == AGENT_DEFAULT ? default_agent : &Agent[id]);
+    if (type == AGENT_DEFAULT)
+        type = default_type;
+
+    const struct agent_t *agent = &Agent[type == AGENT_DEFAULT ? AGENT_SSH_AGENT : type];
 
     if (getsockopt(cfd, SOL_SOCKET, SO_PEERCRED, &cred, &cred_len) < 0)
         err(EXIT_FAILURE, "couldn't obtain credentials from unix domain socket");
@@ -398,8 +384,6 @@ static void __attribute__((__noreturn__)) usage(FILE *out)
 
 int main(int argc, char *argv[])
 {
-    enum agent id;
-
     static const struct option opts[] = {
         { "help",    no_argument,       0, 'h' },
         { "version", no_argument,       0, 'v' },
@@ -420,10 +404,9 @@ int main(int argc, char *argv[])
             printf("%s %s\n", program_invocation_short_name, ENVOY_VERSION);
             return 0;
         case 't':
-            id = find_agent(optarg);
-            if (id == LAST_AGENT)
+            default_type = find_agent(optarg);
+            if (default_type == LAST_AGENT)
                 errx(EXIT_FAILURE, "unknown agent: %s", optarg);
-            default_agent = &Agent[id];
             break;
         default:
             usage(stderr);

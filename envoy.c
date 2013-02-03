@@ -259,7 +259,7 @@ int main(int argc, char *argv[])
     bool source = true;
     struct agent_data_t data;
     enum action verb = ACTION_ADD;
-    enum agent id = AGENT_DEFAULT;
+    enum agent type = AGENT_DEFAULT;
 
     static const struct option opts[] = {
         { "help",    no_argument, 0, 'h' },
@@ -303,8 +303,8 @@ int main(int argc, char *argv[])
             verb = ACTION_PRINT;
             break;
         case 't':
-            id = find_agent(optarg);
-            if (id == LAST_AGENT)
+            type = find_agent(optarg);
+            if (type == LAST_AGENT)
                 errx(EXIT_FAILURE, "unknown agent: %s", optarg);
             break;
         default:
@@ -312,7 +312,7 @@ int main(int argc, char *argv[])
         }
     }
 
-    switch (get_agent(&data, id)) {
+    switch (get_agent(&data, type)) {
     case 0:
         errx(EXIT_FAILURE, "recieved no data, did ssh-agent fail to start?");
     default:
