@@ -85,9 +85,9 @@ static void exec_ssh(int argc, char *argv[])
     int i;
 
     args[0] = "/usr/bin/ssh";
-    for (i = 0; i < argc; i++)
+    for (i = 0; i < argc - 1; i++)
         args[1 + i] = argv[1 + i];
-    args[1 + argc] = NULL;
+    args[argc] = NULL;
 
     execv(args[0], args);
     err(EXIT_FAILURE, "failed to launch ssh");
