@@ -58,7 +58,7 @@ static char *get_key_path(const char *home, const char *fragment)
 static void add_keys(char **keys, int count)
 {
     /* command + end-of-opts + NULL + keys */
-    char *argv[count + 3];
+    char *args[count + 3];
     struct passwd *pwd;
     int i;
 
@@ -66,16 +66,31 @@ static void add_keys(char **keys, int count)
     if (pwd == NULL || pwd->pw_dir == NULL)
         err(EXIT_FAILURE, "failed to lookup passwd entry");
 
-    argv[0] = "/usr/bin/ssh-add";
-    argv[1] = "--";
+    args[0] = "/usr/bin/ssh-add";
+    args[1] = "--";
 
     for (i = 0; i < count; i++)
-        argv[2 + i] = get_key_path(pwd->pw_dir, keys[i]);
+        args[2 + i] = get_key_path(pwd->pw_dir, keys[i]);
 
-    argv[2 + count] = NULL;
+    args[2 + count] = NULL;
 
-    execv(argv[0], argv);
+    execv(args[0], args);
     err(EXIT_FAILURE, "failed to launch ssh-add");
+}
+
+static void exec_ssh(int argc, char *argv[])
+{
+    /* command + NULL + argv */
+    char *args[argc + 1];
+    int i;
+
+    args[0] = "/usr/bin/ssh";
+    for (i = 0; i < argc; i++)
+        args[1 + i] = argv[1 + i];
+    args[1 + argc] = NULL;
+
+    execv(args[0], args);
+    err(EXIT_FAILURE, "failed to launch ssh");
 }
 
 static int __attribute__((format (printf, 2, 3))) gpg_send_message(int fd, const char *fmt, ...)
@@ -249,6 +264,19 @@ int main(int argc, char *argv[])
         { 0, 0, 0, 0 }
     };
 
+
+    switch (get_agent(&data)) {
+    case 0:
+        errx(EXIT_FAILURE, "recieved no data, did ssh-agent fail to start?");
+    default:
+        break;
+    }
+
+    if (strcmp(program_invocation_short_name, "ssh") == 0) {
+        source_env(&data);
+        exec_ssh(argc, argv);
+    }
+
     while (true) {
         int opt = getopt_long(argc, argv, "hvakKlp", opts, NULL);
         if (opt == -1)
@@ -281,13 +309,6 @@ int main(int argc, char *argv[])
         default:
             usage(stderr);
         }
-    }
-
-    switch (get_agent(&data)) {
-    case 0:
-        errx(EXIT_FAILURE, "recieved no data, did ssh-agent fail to start?");
-    default:
-        break;
     }
 
     if (source)
