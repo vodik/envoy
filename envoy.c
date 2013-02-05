@@ -175,7 +175,7 @@ static int gpg_update_tty(const char *sock)
 
 static void print_env(struct agent_data_t *data)
 {
-    if (data->gpg[0])
+    if (data->type == AGENT_GPG_AGENT)
         printf("export GPG_AGENT_INFO='%s'\n", data->gpg);
 
     printf("export SSH_AUTH_SOCK='%s'\n", data->sock);
@@ -184,7 +184,7 @@ static void print_env(struct agent_data_t *data)
 
 static void source_env(struct agent_data_t *data)
 {
-    if (data->gpg[0])
+    if (data->type == AGENT_GPG_AGENT)
         gpg_update_tty(data->gpg);
 
     setenv("SSH_AUTH_SOCK", data->sock, true);
