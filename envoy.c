@@ -350,8 +350,6 @@ int main(int argc, char *argv[])
 
     switch (verb) {
     case ACTION_PRINT:
-        if (data.type == AGENT_GPG_AGENT)
-            gpg_update_tty(data.gpg);
         print_env(&data);
         /* fall through */
     case ACTION_NONE:
