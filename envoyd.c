@@ -155,10 +155,6 @@ static void exec_agent(const struct agent_t *agent, uid_t uid, gid_t gid)
     if (pwd == NULL || pwd->pw_dir == NULL)
         err(EXIT_FAILURE, "failed to lookup passwd entry");
 
-    pid_t pid = getpid();
-    if (setpgid(pid, pid) < 0)
-        err(EXIT_FAILURE, "setpgid2");
-
     if (setregid(gid, gid) < 0 || setreuid(uid, uid) < 0)
         err(EXIT_FAILURE, "unable to drop to uid=%u gid=%u\n", uid, gid);
 
