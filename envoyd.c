@@ -27,6 +27,7 @@
 #include <pwd.h>
 #include <sys/epoll.h>
 #include <sys/socket.h>
+#include <sys/stat.h>
 #include <sys/un.h>
 #include <sys/wait.h>
 #include <systemd/sd-daemon.h>
@@ -59,6 +60,8 @@ static void cleanup(void)
 static void sighandler(int signum)
 {
     close(epoll_fd);
+
+    rmdir("/sys/fs/cgroup/cpu/envoy");
 
     switch (signum) {
     case SIGINT:
@@ -123,7 +126,11 @@ static void exec_agent(const struct agent_t *agent, uid_t uid, gid_t gid)
     if (pwd == NULL || pwd->pw_dir == NULL)
         err(EXIT_FAILURE, "failed to lookup passwd entry");
 
-    if (setgid(gid) < 0 || setuid(uid) < 0)
+    pid_t pid = getpid();
+    if (setpgid(pid, pid) < 0)
+        err(EXIT_FAILURE, "setpgid2");
+
+    if (setregid(gid, gid) < 0 || setreuid(uid, uid) < 0)
         err(EXIT_FAILURE, "unable to drop to uid=%u gid=%u\n", uid, gid);
 
     /* Setup the minimal environment needed for gpg-agent to run: HOME
@@ -164,6 +171,7 @@ static void run_agent(const struct agent_t *agent, uid_t uid, gid_t gid, struct 
     case 0:
         dup2(fd[1], STDOUT_FILENO);
         close(fd[0]);
+
         exec_agent(agent, uid, gid);
         break;
     default:
@@ -190,6 +198,13 @@ static void run_agent(const struct agent_t *agent, uid_t uid, gid_t gid, struct 
             fprintf(stderr, "%s terminated with signal %d\n",
                     agent->name, WTERMSIG(stat));
     }
+
+    FILE *fp = fopen("/sys/fs/cgroup/cpu/envoy/tasks", "w");
+    if (!fp)
+        err(EXIT_FAILURE, "failed to open cgroup info");
+
+    fprintf(fp, "%d", data->pid);
+    fclose(fp);
 }
 
 static int get_socket(void)
@@ -249,15 +264,23 @@ static void send_message(int fd, enum status status, bool close_sock)
     send_agent(fd, &d, close_sock);
 }
 
-static bool is_dead(pid_t pid)
+static bool pid_in_cgroup(pid_t pid)
 {
-    if (kill(pid, 0) < 0) {
-        if (errno != ESRCH)
-            err(EXIT_FAILURE, "something strange happened with kill");
-        return true;
+    bool found = false;
+    pid_t cgroup_pid;
+    FILE *fp = fopen("/sys/fs/cgroup/cpu/envoy/cgroup.procs", "r");
+    if (!fp)
+        err(EXIT_FAILURE, "failed to open cgroup info");
+
+    while (fscanf(fp, "%d", &cgroup_pid) != EOF) {
+        if (cgroup_pid == pid) {
+            found = true;
+            break;
+        }
     }
 
-    return false;
+    fclose(fp);
+    return found;
 }
 
 static void accept_conn(void)
@@ -286,7 +309,7 @@ static void accept_conn(void)
 
     struct agent_info_t *node = agent_by_uid(agents, cred.uid);
 
-    if (!node || node->d.pid == 0 || is_dead(node->d.pid)) {
+    if (!node || node->d.pid == 0 || !pid_in_cgroup(node->d.pid)) {
         struct epoll_event event = {
             .data.fd = cfd,
             .events  = EPOLLIN | EPOLLET
@@ -427,6 +450,9 @@ int main(int argc, char *argv[])
 
     server_uid = geteuid();
     server_sock = get_socket();
+
+    if (mkdir("/sys/fs/cgroup/cpu/envoy", 0755) < 0)
+        printf("failed to create cgroup subsystem");
 
     signal(SIGTERM, sighandler);
     signal(SIGINT,  sighandler);
