@@ -338,6 +338,7 @@ static void handle_conn(int cfd)
     if (node->d.pid)
         node->d.status = ENVOY_RUNNING;
 
+    fflush(stdout);
     close(cfd);
 }
 
