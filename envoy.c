@@ -32,7 +32,7 @@
 
 enum action {
     ACTION_PRINT,
-    ACTION_ADD,
+    ACTION_NONE,
     ACTION_FORCE_ADD,
     ACTION_CLEAR,
     ACTION_KILL,
@@ -277,7 +277,7 @@ int main(int argc, char *argv[])
 {
     bool source = true;
     struct agent_data_t data;
-    enum action verb = ACTION_ADD;
+    enum action verb = ACTION_NONE;
     enum agent type = AGENT_DEFAULT;
 
     static const struct option opts[] = {
@@ -350,11 +350,11 @@ int main(int argc, char *argv[])
         if (data.type == AGENT_GPG_AGENT)
             gpg_update_tty(data.gpg);
         print_env(&data);
-        break;
-    case ACTION_ADD:
-        /* when there are no agumert, with gpg-agent it should be a no op */
+        /* fall through */
+    case ACTION_NONE:
         if (data.status == ENVOY_RUNNING || data.type == AGENT_GPG_AGENT)
-            return 0;
+            break;
+        /* fall through */
     case ACTION_FORCE_ADD:
         add_keys(&argv[optind], argc - optind);
         break;
