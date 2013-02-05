@@ -1,11 +1,11 @@
 [Unit]
-Description=Envoy %i monitor
+Description=Envoy agent monitor
 
 [Service]
-ExecStart=/usr/bin/envoyd --agent=%i
+ExecStart=/usr/bin/envoyd
 StandardOutput=syslog
 StandardError=syslog
 
 [Install]
 WantedBy=multi-user.target
-Also=envoy@%i.socket
+Also=envoy.socket
