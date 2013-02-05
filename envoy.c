@@ -194,7 +194,7 @@ static size_t read_agent(int fd, struct agent_data_t *data)
 {
     int nbytes_r;
 
-    for (;;) {
+    while (true) {
         nbytes_r = read(fd, data, sizeof(*data));
         if (nbytes_r < 0) {
             if (errno != EAGAIN) {

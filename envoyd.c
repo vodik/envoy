@@ -43,7 +43,6 @@ static bool sd_activated = false;
 static int epoll_fd, server_sock;
 static uid_t server_uid;
 
-
 static void cleanup(void)
 {
     close(server_sock);
@@ -145,7 +144,7 @@ static void exec_agent(const struct agent_t *agent, uid_t uid, gid_t gid)
         err(EXIT_FAILURE, "failed to start %s", agent->name);
 }
 
-static void start_agent(const struct agent_t *agent, uid_t uid, gid_t gid, struct agent_data_t *data)
+static void run_agent(const struct agent_t *agent, uid_t uid, gid_t gid, struct agent_data_t *data)
 {
     int fd[2], stat = 0;
 
@@ -285,12 +284,13 @@ static void accept_conn(void)
             .events  = EPOLLIN | EPOLLET
         };
 
+        if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, cfd, &event) < 0)
+            err(EXIT_FAILURE, "failed to add socket to epoll");
+
         if (node)
             node->d.pid = 0;
 
         send_message(cfd, ENVOY_STOPPED, false);
-        if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, cfd, &event) < 0)
-            err(EXIT_FAILURE, "failed to add socket to epoll");
     } else {
         send_agent(cfd, &node->d, true);
     }
@@ -330,7 +330,7 @@ static void handle_conn(int cfd)
         }
 
         node->d.type = type;
-        start_agent(agent, cred.uid, cred.gid, &node->d);
+        run_agent(agent, cred.uid, cred.gid, &node->d);
     }
 
     send_agent(cfd, &node->d, true);
