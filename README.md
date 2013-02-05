@@ -61,8 +61,7 @@ environment and then passes all arguments directly to `/usr/bin/ssh`. To
 use it, do something like this:
 
     export PATH="$HOME/bin:$PATH"
-    cd ~/bin
-    ln -s /usr/bin/envoy ssh
+    ln -s /usr/bin/envoy ~/bin/ssh
 
 This does an excellent job of working around the gpg-agent issues above
 since it guarantees gpg-agent will have the correct information before
