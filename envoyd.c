@@ -171,8 +171,10 @@ static void run_agent(const struct agent_t *agent, uid_t uid, gid_t gid, struct 
         break;
     }
 
-    if (parse_agentdata(fd[STDIN_FILENO], data) < 0)
+    if (parse_agentdata(fd[0], data) < 0)
         err(EXIT_FAILURE, "failed to parse %s output", agent->name);
+
+    close(fd[0]);
 
     if (wait(&stat) < 1)
         err(EXIT_FAILURE, "failed to get process status");
