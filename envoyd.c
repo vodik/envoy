@@ -249,7 +249,13 @@ static void send_message(int fd, enum status status, bool close_sock)
 
 static bool is_dead(pid_t pid)
 {
-    return kill(pid, 0) < 0 && errno == ESRCH;
+    if (kill(pid, 0) < 0) {
+        if (errno != ESRCH)
+            err(EXIT_FAILURE, "something strange happened with kill");
+        return true;
+    }
+
+    return false;
 }
 
 static void accept_conn(void)
@@ -318,8 +324,6 @@ static void handle_conn(int cfd)
 
     if (!node || node->d.pid == 0 || is_dead(node->d.pid)) {
         if (node && node->d.pid) {
-            if (errno != ESRCH)
-                err(EXIT_FAILURE, "something strange happened with kill");
             fprintf(stdout, "%s for uid=%u no longer running...\n",
                     agent->name, cred.uid);
         } else if (!node) {
