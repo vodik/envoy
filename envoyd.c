@@ -132,8 +132,8 @@ static void exec_agent(const struct agent_t *agent, uid_t uid, gid_t gid)
      *
      * Note that setting GPG_TTY to /dev/null is intentional. This is
      * a placeholder value. Envoy will update gpg-agent with a proper
-     * value at runtime. However it seems that the variable needs to be set in the
-     * environment for the update mechanism to work.
+     * value at runtime. However it seems that the environmental
+     * variable needs to be set now for the update mechanism to work.
      */
     if (setenv("HOME", pwd->pw_dir, true))
         err(EXIT_FAILURE, "failed to set HOME=%s\n", pwd->pw_dir);
@@ -253,7 +253,7 @@ static bool is_dead(pid_t pid)
     return kill(pid, 0) < 0 && errno == ESRCH;
 }
 
-static void accept_connection(void)
+static void accept_conn(void)
 {
     union {
         struct sockaddr sa;
@@ -296,7 +296,7 @@ static void accept_connection(void)
     }
 }
 
-static void start_agent2(int cfd)
+static void handle_conn(int cfd)
 {
     struct ucred cred;
     socklen_t cred_len = sizeof(struct ucred);
@@ -337,6 +337,8 @@ static void start_agent2(int cfd)
 
     if (node->d.pid)
         node->d.status = ENVOY_RUNNING;
+
+    close(cfd);
 }
 
 static int loop(void)
@@ -361,11 +363,9 @@ static int loop(void)
             if (evt->events & EPOLLERR || evt->events & EPOLLHUP)
                 close(evt->data.fd);
             else if (evt->data.fd == server_sock)
-                accept_connection();
-            else {
-                start_agent2(evt->data.fd);
-                close(evt->data.fd);
-            }
+                accept_conn();
+            else
+                handle_conn(evt->data.fd);
         }
     }
 
