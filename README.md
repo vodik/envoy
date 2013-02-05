@@ -6,7 +6,8 @@ systemd. It's a wrapper around `ssh-agent`, `ssh-add` and `gpg-agent`.
 
 `envoyd` is a daemon that supervises the various agents. On an incoming
 connection it'll start an agent if one isn't running and return that
-status of that user's running agent.
+status of that user's running agent. It uses cgroups internally to track
+the lifetime of the agents it manages.
 
 The `envoy` command connects to this server and request these
 environmental variables and do various operations with them.
