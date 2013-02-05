@@ -306,12 +306,8 @@ static void start_agent2(int cfd)
     if (nbytes_r < 0)
         err(EXIT_FAILURE, "couldn't read agent type to start");
 
-    if (type == AGENT_DEFAULT) {
+    if (type == AGENT_DEFAULT)
         type = default_type;
-
-        if (type == AGENT_DEFAULT)
-            type = AGENT_SSH_AGENT;
-    }
 
     const struct agent_t *agent = &Agent[type];
 
@@ -417,6 +413,9 @@ int main(int argc, char *argv[])
             usage(stderr);
         }
     }
+
+    if (default_type == AGENT_DEFAULT)
+        default_type = AGENT_SSH_AGENT;
 
     epoll_fd = epoll_create1(EPOLL_CLOEXEC);
     if (epoll_fd < 0)
