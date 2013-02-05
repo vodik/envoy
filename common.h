@@ -31,7 +31,7 @@ enum agent {
     LAST_AGENT
 };
 
-enum agent_status {
+enum status {
     ENVOY_STOPPED = 0,
     ENVOY_STARTED,
     ENVOY_RUNNING,
@@ -45,8 +45,9 @@ struct agent_t {
 };
 
 struct agent_data_t {
+    enum agent type;
+    enum status status;
     pid_t pid;
-    enum agent_status status;
     char sock[PATH_MAX];
     char gpg[PATH_MAX];
 };

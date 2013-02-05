@@ -242,7 +242,7 @@ static void send_agent(int fd, struct agent_data_t *agent, bool close_sock)
         close(fd);
 }
 
-static void send_message(int fd, enum agent_status status, bool close_sock)
+static void send_message(int fd, enum status status, bool close_sock)
 {
     struct agent_data_t d = { .status = status };
     send_agent(fd, &d, close_sock);
@@ -306,10 +306,14 @@ static void start_agent2(int cfd)
     if (nbytes_r < 0)
         err(EXIT_FAILURE, "couldn't read agent type to start");
 
-    if (type == AGENT_DEFAULT)
+    if (type == AGENT_DEFAULT) {
         type = default_type;
 
-    const struct agent_t *agent = &Agent[type == AGENT_DEFAULT ? AGENT_SSH_AGENT : type];
+        if (type == AGENT_DEFAULT)
+            type = AGENT_SSH_AGENT;
+    }
+
+    const struct agent_t *agent = &Agent[type];
 
     if (getsockopt(cfd, SOL_SOCKET, SO_PEERCRED, &cred, &cred_len) < 0)
         err(EXIT_FAILURE, "couldn't obtain credentials from unix domain socket");
@@ -329,6 +333,7 @@ static void start_agent2(int cfd)
             agents = node;
         }
 
+        node->d.type = type;
         start_agent(agent, cred.uid, cred.gid, &node->d);
     }
 

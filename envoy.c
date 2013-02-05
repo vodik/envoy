@@ -208,9 +208,9 @@ static size_t read_agent(int fd, struct agent_data_t *data)
     return nbytes_r;
 }
 
-static void start_agent(int fd, struct agent_data_t *data, enum agent id)
+static void start_agent(int fd, struct agent_data_t *data, enum agent type)
 {
-    if (write(fd, &id, sizeof(enum agent)) < 0)
+    if (write(fd, &type, sizeof(enum agent)) < 0)
         err(EXIT_FAILURE, "failed to write agent type");
 
     read_agent(fd, data);
@@ -286,14 +286,10 @@ int main(int argc, char *argv[])
         { 0, 0, 0, 0 }
     };
 
-    switch (get_agent(&data, type)) {
-    case 0:
-        errx(EXIT_FAILURE, "recieved no data, did ssh-agent fail to start?");
-    default:
-        break;
-    }
-
     if (strcmp(program_invocation_short_name, "ssh") == 0) {
+        if (get_agent(&data, AGENT_DEFAULT) == 0)
+            errx(EXIT_FAILURE, "recieved no data, did the agent fail to start?");
+
         source_env(&data);
         exec_ssh(argc, argv);
     }
@@ -337,24 +333,27 @@ int main(int argc, char *argv[])
         }
     }
 
+    if (get_agent(&data, type) == 0)
+        errx(EXIT_FAILURE, "recieved no data, did the agent fail to start?");
+
     if (source)
         source_env(&data);
 
     switch (verb) {
     case ACTION_PRINT:
-        if (data.gpg[0])
+        if (data.type == AGENT_GPG_AGENT)
             gpg_update_tty(data.gpg);
         print_env(&data);
         break;
     case ACTION_ADD:
         /* when there are no agumert, with gpg-agent it should be a no op */
-        if (data.status == ENVOY_RUNNING || data.gpg[0])
+        if (data.status == ENVOY_RUNNING || data.type == AGENT_GPG_AGENT)
             return 0;
     case ACTION_FORCE_ADD:
         add_keys(&argv[optind], argc - optind);
         break;
     case ACTION_CLEAR:
-        if (data.gpg[0])
+        if (data.type == AGENT_GPG_AGENT)
             kill(data.pid, SIGHUP);
         else
             errx(EXIT_FAILURE, "only gpg-agent supports this operation");
