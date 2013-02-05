@@ -72,6 +72,38 @@ static void sighandler(int signum)
     }
 }
 
+static void init_cgroup(void)
+{
+    if (mkdir("/sys/fs/cgroup/cpu/envoy", 0755) < 0)
+        printf("failed to create cgroup subsystem");
+
+    FILE *fp = fopen("/sys/fs/cgroup/cpu/envoy/tasks", "w");
+    if (!fp)
+        err(EXIT_FAILURE, "failed to open cgroup info");
+
+    fprintf(fp, "%d", getpid());
+    fclose(fp);
+}
+
+static bool pid_in_cgroup(pid_t pid)
+{
+    bool found = false;
+    pid_t cgroup_pid;
+    FILE *fp = fopen("/sys/fs/cgroup/cpu/envoy/cgroup.procs", "r");
+    if (!fp)
+        err(EXIT_FAILURE, "failed to open cgroup info");
+
+    while (fscanf(fp, "%d", &cgroup_pid) != EOF) {
+        if (cgroup_pid == pid) {
+            found = true;
+            break;
+        }
+    }
+
+    fclose(fp);
+    return found;
+}
+
 static void parse_agentdata_line(char *val, struct agent_data_t *info)
 {
     char *eol, *var;
@@ -198,13 +230,6 @@ static void run_agent(const struct agent_t *agent, uid_t uid, gid_t gid, struct 
             fprintf(stderr, "%s terminated with signal %d\n",
                     agent->name, WTERMSIG(stat));
     }
-
-    FILE *fp = fopen("/sys/fs/cgroup/cpu/envoy/tasks", "w");
-    if (!fp)
-        err(EXIT_FAILURE, "failed to open cgroup info");
-
-    fprintf(fp, "%d", data->pid);
-    fclose(fp);
 }
 
 static int get_socket(void)
@@ -262,25 +287,6 @@ static void send_message(int fd, enum status status, bool close_sock)
 {
     struct agent_data_t d = { .status = status };
     send_agent(fd, &d, close_sock);
-}
-
-static bool pid_in_cgroup(pid_t pid)
-{
-    bool found = false;
-    pid_t cgroup_pid;
-    FILE *fp = fopen("/sys/fs/cgroup/cpu/envoy/cgroup.procs", "r");
-    if (!fp)
-        err(EXIT_FAILURE, "failed to open cgroup info");
-
-    while (fscanf(fp, "%d", &cgroup_pid) != EOF) {
-        if (cgroup_pid == pid) {
-            found = true;
-            break;
-        }
-    }
-
-    fclose(fp);
-    return found;
 }
 
 static void accept_conn(void)
@@ -451,8 +457,7 @@ int main(int argc, char *argv[])
     server_uid = geteuid();
     server_sock = get_socket();
 
-    if (mkdir("/sys/fs/cgroup/cpu/envoy", 0755) < 0)
-        printf("failed to create cgroup subsystem");
+    init_cgroup();
 
     signal(SIGTERM, sighandler);
     signal(SIGINT,  sighandler);
