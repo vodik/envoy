@@ -293,8 +293,11 @@ static void accept_conn(void)
         if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, cfd, &event) < 0)
             err(EXIT_FAILURE, "failed to add socket to epoll");
 
-        if (node)
+        if (node) {
+            fprintf(stdout, "agent for uid=%u is no longer running...\n",
+                    cred.uid);
             node->d.pid = 0;
+        }
 
         send_message(cfd, ENVOY_STOPPED, false);
     } else {
@@ -322,21 +325,15 @@ static void handle_conn(int cfd)
 
     struct agent_info_t *node = agent_by_uid(agents, cred.uid);
 
-    if (!node || node->d.pid == 0 || is_dead(node->d.pid)) {
-        if (node && node->d.pid) {
-            fprintf(stdout, "%s for uid=%u no longer running...\n",
-                    agent->name, cred.uid);
-        } else if (!node) {
-            node = calloc(1, sizeof(struct agent_info_t));
-            node->uid = cred.uid;
-            node->next = agents;
-            agents = node;
-        }
-
-        node->d.type = type;
-        run_agent(agent, cred.uid, cred.gid, &node->d);
+    if (!node) {
+        node = calloc(1, sizeof(struct agent_info_t));
+        node->uid = cred.uid;
+        node->next = agents;
+        agents = node;
     }
 
+    node->d.type = type;
+    run_agent(agent, cred.uid, cred.gid, &node->d);
     send_agent(cfd, &node->d, true);
 
     if (node->d.pid)
