@@ -74,7 +74,7 @@ static void init_cgroup(void)
     if (mkdir("/sys/fs/cgroup/cpu/envoy", 0755) < 0 && errno != EEXIST)
         err(EXIT_FAILURE, "failed to create cgroup subsystem");
 
-    FILE *fp = fopen("/sys/fs/cgroup/cpu/envoy/tasks", "w");
+    FILE *fp = fopen("/sys/fs/cgroup/cpu/envoy/cgroup.procs", "w");
     if (!fp)
         err(EXIT_FAILURE, "failed to open cgroup info");
     fprintf(fp, "%d", getpid());
@@ -184,7 +184,7 @@ static void run_agent(const struct agent_t *agent, uid_t uid, gid_t gid, struct 
     data->sock[0] = '\0';
     data->gpg[0] = '\0';
 
-    fprintf(stdout, "starting %s for uid=%u gid=%u\n", agent->name, uid, gid);
+    fprintf(stdout, "Starting %s for uid=%u gid=%u.\n", agent->name, uid, gid);
 
     if (pipe(fd) < 0)
         err(EXIT_FAILURE, "failed to create pipe");
@@ -217,10 +217,10 @@ static void run_agent(const struct agent_t *agent, uid_t uid, gid_t gid, struct 
         data->status = ENVOY_FAILED;
 
         if (WIFEXITED(stat))
-            fprintf(stderr, "%s exited with status %d\n",
+            fprintf(stderr, "%s exited with status %d.\n",
                     agent->name, WEXITSTATUS(stat));
         if (WIFSIGNALED(stat))
-            fprintf(stderr, "%s terminated with signal %d\n",
+            fprintf(stderr, "%s terminated with signal %d.\n",
                     agent->name, WTERMSIG(stat));
     }
 }
@@ -301,7 +301,7 @@ static void accept_conn(void)
         err(EXIT_FAILURE, "couldn't obtain credentials from unix domain socket");
 
     if (server_uid != 0 && server_uid != cred.uid) {
-        fprintf(stderr, "connection from uid=%u rejected\n", cred.uid);
+        fprintf(stderr, "Connection from uid=%u rejected.\n", cred.uid);
         send_message(cfd, ENVOY_BADUSER, true);
         return;
     }
@@ -317,11 +317,8 @@ static void accept_conn(void)
         if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, cfd, &event) < 0)
             err(EXIT_FAILURE, "failed to add socket to epoll");
 
-        if (node) {
-            fprintf(stdout, "agent for uid=%u is no longer running...\n",
-                    cred.uid);
+        if (node)
             node->d.pid = 0;
-        }
 
         send_message(cfd, ENVOY_STOPPED, false);
     } else {
@@ -354,6 +351,9 @@ static void handle_conn(int cfd)
         node->uid = cred.uid;
         node->next = agents;
         agents = node;
+    } else {
+        fprintf(stdout, "Agent for uid=%u is has terminated. Restarting...\n",
+                cred.uid);
     }
 
     node->d.type = type;

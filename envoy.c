@@ -190,7 +190,7 @@ static void source_env(struct agent_data_t *data)
     setenv("SSH_AUTH_SOCK", data->sock, true);
 }
 
-static size_t read_agent(int fd, struct agent_data_t *data)
+static bool read_agent(int fd, struct agent_data_t *data)
 {
     int nbytes_r;
 
@@ -216,23 +216,23 @@ static size_t read_agent(int fd, struct agent_data_t *data)
         errx(EXIT_FAILURE, "connection rejected, user is unauthorized to use this agent");
     }
 
-    return nbytes_r;
+    return true;
 }
 
-static size_t start_agent(int fd, struct agent_data_t *data, enum agent type)
+static bool start_agent(int fd, struct agent_data_t *data, enum agent type)
 {
     if (write(fd, &type, sizeof(enum agent)) < 0)
         err(EXIT_FAILURE, "failed to write agent type");
 
-    size_t nbytes_r = read_agent(fd, data);
+    bool rc = read_agent(fd, data);
 
     if (data->status == ENVOY_STOPPED)
         errx(EXIT_FAILURE, "envoyd reported agent stopped twice?");
 
-    return nbytes_r;
+    return rc;
 }
 
-static size_t get_agent(struct agent_data_t *data, enum agent id)
+static bool get_agent(struct agent_data_t *data, enum agent id, bool start)
 {
     socklen_t sa_len;
     union {
@@ -240,7 +240,7 @@ static size_t get_agent(struct agent_data_t *data, enum agent id)
         struct sockaddr_un un;
     } sa;
 
-    int nbytes_r, fd = socket(AF_UNIX, SOCK_STREAM | SOCK_NONBLOCK, 0);
+    int fd = socket(AF_UNIX, SOCK_STREAM | SOCK_NONBLOCK, 0);
     if (fd < 0)
         err(EXIT_FAILURE, "couldn't create socket");
 
@@ -248,13 +248,13 @@ static size_t get_agent(struct agent_data_t *data, enum agent id)
     if (connect(fd, &sa.sa, sa_len) < 0)
         err(EXIT_FAILURE, "failed to connect");
 
-    nbytes_r = read_agent(fd, data);
+    bool rc = read_agent(fd, data);
 
-    if (data->status == ENVOY_STOPPED)
-        nbytes_r = start_agent(fd, data, id);
+    if (rc && start && data->status == ENVOY_STOPPED)
+        rc = start_agent(fd, data, id);
 
     close(fd);
-    return nbytes_r;
+    return rc;
 }
 
 static void __attribute__((__noreturn__)) usage(FILE *out)
@@ -293,7 +293,7 @@ int main(int argc, char *argv[])
     };
 
     if (strcmp(program_invocation_short_name, "ssh") == 0) {
-        if (get_agent(&data, AGENT_DEFAULT) == 0)
+        if (get_agent(&data, AGENT_DEFAULT, true) == 0)
             errx(EXIT_FAILURE, "recieved no data, did the agent fail to start?");
 
         source_env(&data);
@@ -339,10 +339,11 @@ int main(int argc, char *argv[])
         }
     }
 
-    /* XXX: conditionally choose to start a new agent, to avoid
-     * silliness with `envoy -K` when no agent is running */
-    if (get_agent(&data, type) == 0)
+    if (get_agent(&data, type, source) == 0)
         errx(EXIT_FAILURE, "recieved no data, did the agent fail to start?");
+
+    if (data.status == ENVOY_STOPPED)
+        return 0;
 
     if (source)
         source_env(&data);
