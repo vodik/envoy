@@ -339,6 +339,8 @@ int main(int argc, char *argv[])
         }
     }
 
+    /* XXX: conditionally choose to start a new agent, to avoid
+     * silliness with `envoy -K` when no agent is running */
     if (get_agent(&data, type) == 0)
         errx(EXIT_FAILURE, "recieved no data, did the agent fail to start?");
 

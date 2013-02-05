@@ -123,7 +123,11 @@ static void exec_agent(const struct agent_t *agent, uid_t uid, gid_t gid)
     if (pwd == NULL || pwd->pw_dir == NULL)
         err(EXIT_FAILURE, "failed to lookup passwd entry");
 
-    if (setgid(gid) < 0 || setuid(uid) < 0)
+    pid_t pid = getpid();
+    if (setpgid(pid, pid) < 0)
+        err(EXIT_FAILURE, "setpgid2");
+
+    if (setregid(gid, gid) < 0 || setreuid(uid, uid) < 0)
         err(EXIT_FAILURE, "unable to drop to uid=%u gid=%u\n", uid, gid);
 
     /* Setup the minimal environment needed for gpg-agent to run: HOME
@@ -164,6 +168,7 @@ static void run_agent(const struct agent_t *agent, uid_t uid, gid_t gid, struct 
     case 0:
         dup2(fd[1], STDOUT_FILENO);
         close(fd[0]);
+
         exec_agent(agent, uid, gid);
         break;
     default:
@@ -249,10 +254,32 @@ static void send_message(int fd, enum status status, bool close_sock)
 
 static bool is_dead(pid_t pid)
 {
-    if (kill(pid, 0) < 0) {
-        if (errno != ESRCH)
-            err(EXIT_FAILURE, "something strange happened with kill");
-        return true;
+    if (sd_activated) {
+        FILE *fp = fopen("/sys/fs/cgroup/systemd/system/envoy.service/cgroup.procs", "r");
+        if (!fp)
+            err(EXIT_FAILURE, "failed to open cgroup info");
+
+        pid_t p;
+        bool found = false;
+        while (fscanf(fp, "%d", &p) != EOF) {
+            printf("PID: %d vs %d\n", p, pid);
+            fflush(stdout);
+            if (p == pid) {
+                found = true;
+                break;
+            }
+        }
+
+        fclose(fp);
+        return !found;
+    } else {
+        warnx("cgroups not supported, might be borked");
+
+        if (kill(pid, 0) < 0) {
+            if (errno != ESRCH)
+                err(EXIT_FAILURE, "something strange happened with kill");
+            return true;
+        }
     }
 
     return false;
