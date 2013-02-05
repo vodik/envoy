@@ -205,15 +205,31 @@ static size_t read_agent(int fd, struct agent_data_t *data)
             break;
     }
 
+    switch (data->status) {
+    case ENVOY_STOPPED:
+    case ENVOY_STARTED:
+    case ENVOY_RUNNING:
+        break;
+    case ENVOY_FAILED:
+        errx(EXIT_FAILURE, "agent failed to start, check envoyd's log");
+    case ENVOY_BADUSER:
+        errx(EXIT_FAILURE, "connection rejected, user is unauthorized to use this agent");
+    }
+
     return nbytes_r;
 }
 
-static void start_agent(int fd, struct agent_data_t *data, enum agent type)
+static size_t start_agent(int fd, struct agent_data_t *data, enum agent type)
 {
     if (write(fd, &type, sizeof(enum agent)) < 0)
         err(EXIT_FAILURE, "failed to write agent type");
 
-    read_agent(fd, data);
+    size_t nbytes_r = read_agent(fd, data);
+
+    if (data->status == ENVOY_STOPPED)
+        errx(EXIT_FAILURE, "envoyd reported agent stopped twice?");
+
+    return nbytes_r;
 }
 
 static size_t get_agent(struct agent_data_t *data, enum agent id)
@@ -234,18 +250,8 @@ static size_t get_agent(struct agent_data_t *data, enum agent id)
 
     nbytes_r = read_agent(fd, data);
 
-    switch (data->status) {
-    case ENVOY_STOPPED:
-        start_agent(fd, data, id);
-        break;
-    case ENVOY_STARTED:
-    case ENVOY_RUNNING:
-        break;
-    case ENVOY_FAILED:
-        errx(EXIT_FAILURE, "agent failed to start, check envoyd's log");
-    case ENVOY_BADUSER:
-        errx(EXIT_FAILURE, "connection rejected, user is unauthorized to use this agent");
-    }
+    if (data->status == ENVOY_STOPPED)
+        nbytes_r = start_agent(fd, data, id);
 
     close(fd);
     return nbytes_r;
