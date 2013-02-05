@@ -59,13 +59,10 @@ static void cleanup(void)
 
 static void sighandler(int signum)
 {
-    close(epoll_fd);
-
-    rmdir("/sys/fs/cgroup/cpu/envoy");
-
     switch (signum) {
     case SIGINT:
     case SIGTERM:
+        close(epoll_fd);
         if (!sd_activated)
             cleanup();
         exit(EXIT_SUCCESS);
@@ -74,13 +71,12 @@ static void sighandler(int signum)
 
 static void init_cgroup(void)
 {
-    if (mkdir("/sys/fs/cgroup/cpu/envoy", 0755) < 0)
-        printf("failed to create cgroup subsystem");
+    if (mkdir("/sys/fs/cgroup/cpu/envoy", 0755) < 0 && errno != EEXIST)
+        err(EXIT_FAILURE, "failed to create cgroup subsystem");
 
     FILE *fp = fopen("/sys/fs/cgroup/cpu/envoy/tasks", "w");
     if (!fp)
         err(EXIT_FAILURE, "failed to open cgroup info");
-
     fprintf(fp, "%d", getpid());
     fclose(fp);
 }
@@ -89,6 +85,7 @@ static bool pid_in_cgroup(pid_t pid)
 {
     bool found = false;
     pid_t cgroup_pid;
+
     FILE *fp = fopen("/sys/fs/cgroup/cpu/envoy/cgroup.procs", "r");
     if (!fp)
         err(EXIT_FAILURE, "failed to open cgroup info");
