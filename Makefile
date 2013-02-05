@@ -14,8 +14,8 @@ envoy: envoy.o common.o
 install: envoyd envoy
 	install -Dm755 envoyd ${DESTDIR}/usr/bin/envoyd
 	install -Dm755 envoy ${DESTDIR}/usr/bin/envoy
-	install -Dm644 envoy@.service ${DESTDIR}/usr/lib/systemd/system/envoy@.service
-	install -Dm644 envoy@.socket ${DESTDIR}/usr/lib/systemd/system/envoy@.socket
+	install -Dm644 envoy.service ${DESTDIR}/usr/lib/systemd/system/envoy.service
+	install -Dm644 envoy.socket ${DESTDIR}/usr/lib/systemd/system/envoy.socket
 
 clean:
 	${RM} envoyd envoy *.o
