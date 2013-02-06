@@ -78,13 +78,13 @@ static void add_keys(char **keys, int count)
     err(EXIT_FAILURE, "failed to launch ssh-add");
 }
 
-static void exec_ssh(int argc, char *argv[])
+static void exec_wrapper(const char *cmd, int argc, char *argv[])
 {
     /* command + NULL + argv */
     char *args[argc + 1];
     int i;
 
-    args[0] = "/usr/bin/ssh";
+    asprintf(&args[0], "/usr/bin/%s", cmd);
     for (i = 0; i < argc - 1; i++)
         args[1 + i] = argv[1 + i];
     args[argc] = NULL;
@@ -292,12 +292,13 @@ int main(int argc, char *argv[])
         { 0, 0, 0, 0 }
     };
 
-    if (strcmp(program_invocation_short_name, "ssh") == 0) {
+    if (strcmp(program_invocation_short_name, "ssh") == 0 ||
+        strcmp(program_invocation_short_name, "scp") == 0) {
         if (get_agent(&data, AGENT_DEFAULT, true) == 0)
             errx(EXIT_FAILURE, "recieved no data, did the agent fail to start?");
 
         source_env(&data);
-        exec_ssh(argc, argv);
+        exec_wrapper(program_invocation_short_name, argc, argv);
     }
 
     while (true) {
