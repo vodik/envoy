@@ -55,7 +55,7 @@ static char *get_key_path(const char *home, const char *fragment)
     return out;
 }
 
-static void add_keys(char **keys, int count)
+static void __attribute__((__noreturn__)) add_keys(char **keys, int count)
 {
     /* command + end-of-opts + NULL + keys */
     char *args[count + 3];
@@ -78,7 +78,7 @@ static void add_keys(char **keys, int count)
     err(EXIT_FAILURE, "failed to launch ssh-add");
 }
 
-static void exec_wrapper(const char *cmd, int argc, char *argv[])
+static void __attribute__((__noreturn__)) exec_wrapper(const char *cmd, int argc, char *argv[])
 {
     /* command + NULL + argv */
     char *args[argc + 1];

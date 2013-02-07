@@ -149,7 +149,7 @@ static int parse_agentdata(int fd, struct agent_data_t *data)
     return 0;
 }
 
-static void exec_agent(const struct agent_t *agent, uid_t uid, gid_t gid)
+static void __attribute__((__noreturn__)) exec_agent(const struct agent_t *agent, uid_t uid, gid_t gid)
 {
     struct passwd *pwd = getpwuid(uid);
     if (pwd == NULL || pwd->pw_dir == NULL)
@@ -172,8 +172,8 @@ static void exec_agent(const struct agent_t *agent, uid_t uid, gid_t gid)
     if (setenv("GPG_TTY", "/dev/null", true))
         err(EXIT_FAILURE, "failed to set GPG_TTY\n");
 
-    if (execv(agent->argv[0], agent->argv) < 0)
-        err(EXIT_FAILURE, "failed to start %s", agent->name);
+    execv(agent->argv[0], agent->argv);
+    err(EXIT_FAILURE, "failed to start %s", agent->name);
 }
 
 static void run_agent(const struct agent_t *agent, uid_t uid, gid_t gid, struct agent_data_t *data)
