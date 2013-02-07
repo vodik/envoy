@@ -380,8 +380,11 @@ static int loop(void)
     while (true) {
         int i, n = epoll_wait(epoll_fd, events, 4, -1);
 
-        if (n < 0)
+        if (n < 0) {
+            if (errno == EINTR)
+                continue;
             err(EXIT_FAILURE, "epoll_wait failed");
+        }
 
         for (i = 0; i < n; ++i) {
             struct epoll_event *evt = &events[i];
