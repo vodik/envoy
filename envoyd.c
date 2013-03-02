@@ -196,11 +196,11 @@ static void run_agent(const struct agent_t *agent, uid_t uid, gid_t gid, struct 
     case 0:
         dup2(fd[1], STDOUT_FILENO);
         close(fd[0]);
+        close(fd[1]);
 
         exec_agent(agent, uid, gid);
         break;
     default:
-        close(fd[1]);
         break;
     }
 
@@ -208,6 +208,7 @@ static void run_agent(const struct agent_t *agent, uid_t uid, gid_t gid, struct 
         err(EXIT_FAILURE, "failed to parse %s output", agent->name);
 
     close(fd[0]);
+    close(fd[1]);
 
     if (wait(&stat) < 1)
         err(EXIT_FAILURE, "failed to get process status");
