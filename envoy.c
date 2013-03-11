@@ -78,21 +78,6 @@ static void __attribute__((__noreturn__)) add_keys(char **keys, int count)
     err(EXIT_FAILURE, "failed to launch ssh-add");
 }
 
-static void __attribute__((__noreturn__)) exec_wrapper(const char *cmd, int argc, char *argv[])
-{
-    /* command + NULL + argv */
-    char *args[argc + 1];
-    int i;
-
-    asprintf(&args[0], "/usr/bin/%s", cmd);
-    for (i = 0; i < argc - 1; i++)
-        args[1 + i] = argv[1 + i];
-    args[argc] = NULL;
-
-    execv(args[0], args);
-    err(EXIT_FAILURE, "failed to launch ssh");
-}
-
 static int __attribute__((format (printf, 2, 3))) gpg_send_message(int fd, const char *fmt, ...)
 {
     va_list ap;
@@ -257,6 +242,26 @@ static bool get_agent(struct agent_data_t *data, enum agent id, bool start)
     return rc;
 }
 
+static void __attribute__((__noreturn__)) exec_wrapper(const char *cmd, int argc, char *argv[])
+{
+    /* command + NULL + argv */
+    struct agent_data_t data;
+    char *args[argc + 1];
+    int i;
+
+    if (get_agent(&data, AGENT_DEFAULT, true) == 0)
+        errx(EXIT_FAILURE, "recieved no data, did the agent fail to start?");
+
+    asprintf(&args[0], "/usr/bin/%s", cmd);
+    for (i = 0; i < argc - 1; i++)
+        args[1 + i] = argv[1 + i];
+    args[argc] = NULL;
+
+    source_env(&data);
+    execv(args[0], args);
+    err(EXIT_FAILURE, "failed to launch ssh");
+}
+
 static void __attribute__((__noreturn__)) usage(FILE *out)
 {
     fprintf(out, "usage: %s [options] [files ...]\n", program_invocation_short_name);
@@ -294,10 +299,6 @@ int main(int argc, char *argv[])
 
     if (strcmp(program_invocation_short_name, "ssh") == 0 ||
         strcmp(program_invocation_short_name, "scp") == 0) {
-        if (get_agent(&data, AGENT_DEFAULT, true) == 0)
-            errx(EXIT_FAILURE, "recieved no data, did the agent fail to start?");
-
-        source_env(&data);
         exec_wrapper(program_invocation_short_name, argc, argv);
     }
 
