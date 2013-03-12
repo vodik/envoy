@@ -146,7 +146,7 @@ static int gpg_update_tty(const char *sock)
 
     sa_len = len + sizeof(sa.un.sun_family);
     if (connect(fd, &sa.sa, sa_len) < 0)
-        err(EXIT_FAILURE, "failed to connect");
+        err(EXIT_FAILURE, "failed to connect to gpg-agent");
 
     nbytes = read(fd, buf, BUFSIZ);
     if (nbytes < 0)
@@ -233,7 +233,7 @@ static bool get_agent(struct agent_data_t *data, enum agent id, bool start)
 
     sa_len = init_envoy_socket(&sa.un);
     if (connect(fd, &sa.sa, sa_len) < 0)
-        err(EXIT_FAILURE, "failed to connect");
+        err(EXIT_FAILURE, "failed to connect to agent");
 
     bool rc = read_agent(fd, data);
 
