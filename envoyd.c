@@ -38,7 +38,7 @@ struct agent_info_t {
     struct agent_info_t *next;
 };
 
-static enum agent default_type = AGENT_DEFAULT;
+static enum agent default_type = AGENT_SSH_AGENT;
 static struct agent_info_t *agents = NULL;
 static bool sd_activated = false;
 static int epoll_fd, server_sock;
@@ -440,9 +440,6 @@ int main(int argc, char *argv[])
             usage(stderr);
         }
     }
-
-    if (default_type == AGENT_DEFAULT)
-        default_type = AGENT_SSH_AGENT;
 
     epoll_fd = epoll_create1(EPOLL_CLOEXEC);
     if (epoll_fd < 0)
