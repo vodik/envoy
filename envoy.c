@@ -134,8 +134,10 @@ static int gpg_update_tty(const char *sock)
     socklen_t sa_len;
 
     int fd = socket(AF_UNIX, SOCK_STREAM, 0), nbytes;
-    if (fd < 0)
-        err(EXIT_FAILURE, "couldn't create socket");
+    if (fd < 0) {
+        warn("couldn't create socket");
+        return -1;
+    }
 
     split = strchr(sock, ':');
     len = split - sock;
@@ -144,15 +146,19 @@ static int gpg_update_tty(const char *sock)
     memcpy(&sa.un.sun_path, sock, len);
 
     sa_len = len + sizeof(sa.un.sun_family);
-    if (connect(fd, &sa.sa, sa_len) < 0)
-        err(EXIT_FAILURE, "failed to connect to gpg-agent");
+    if (connect(fd, &sa.sa, sa_len) < 0) {
+        warn("failed to connect to gpg-agent");
+        return -1;
+    }
 
     nbytes = read(fd, buf, BUFSIZ);
     if (nbytes < 0)
         err(EXIT_FAILURE, "failed to read from gpg-agent socket");
 
-    if (strncmp(buf, "OK", 2) != 0)
-        errx(EXIT_FAILURE, "incorrect response from gpg-agent");
+    if (strncmp(buf, "OK", 2) != 0) {
+        warnx("incorrect response from gpg-agent");
+        return -1;
+    }
 
     gpg_send_messages(fd);
     close(fd);
