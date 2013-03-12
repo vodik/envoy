@@ -73,7 +73,7 @@ static void init_cgroup(void)
     if (mkdir("/sys/fs/cgroup/cpu/envoy", 0755) < 0 && errno != EEXIST)
         err(EXIT_FAILURE, "failed to create cgroup subsystem");
 
-    FILE *fp = fopen("/sys/fs/cgroup/cpu/envoy/cgroup.procs", "w");
+    FILE *fp = fopen("/sys/fs/cgroup/cpu/envoy/tasks", "w");
     if (!fp)
         err(EXIT_FAILURE, "failed to open cgroup info");
     fputs("0", fp);
@@ -85,7 +85,7 @@ static bool pid_in_cgroup(pid_t pid)
     bool found = false;
     pid_t cgroup_pid;
 
-    FILE *fp = fopen("/sys/fs/cgroup/cpu/envoy/cgroup.procs", "r");
+    FILE *fp = fopen("/sys/fs/cgroup/cpu/envoy/tasks", "r");
     if (!fp)
         err(EXIT_FAILURE, "failed to open cgroup info");
 
