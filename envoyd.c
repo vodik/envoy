@@ -184,7 +184,7 @@ static void run_agent(struct agent_data_t *data, uid_t uid, gid_t gid)
     data->sock[0] = '\0';
     data->gpg[0] = '\0';
 
-    fprintf(stdout, "Starting %s for uid=%u gid=%u.\n", agent->name, uid, gid);
+    printf("Starting %s for uid=%u gid=%u.\n", agent->name, uid, gid);
 
     if (pipe(fd) < 0)
         err(EXIT_FAILURE, "failed to create pipe");
@@ -344,8 +344,7 @@ static void handle_conn(int cfd)
         node->next = agents;
         agents = node;
     } else {
-        fprintf(stdout, "Agent for uid=%u is has terminated. Restarting...\n",
-                cred.uid);
+        printf("Agent for uid=%u is has terminated. Restarting...\n", cred.uid);
     }
 
     node->d.type = type != AGENT_DEFAULT ? type : default_type;
@@ -356,7 +355,6 @@ static void handle_conn(int cfd)
     if (node->d.pid)
         node->d.status = ENVOY_RUNNING;
 
-    fflush(stdout);
     close(cfd);
 }
 
@@ -388,6 +386,8 @@ static int loop(void)
                 accept_conn();
             else
                 handle_conn(evt->data.fd);
+
+            fflush(stdout);
         }
     }
 
