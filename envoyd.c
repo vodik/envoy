@@ -77,7 +77,7 @@ static void init_cgroup(void)
     FILE *fp = fopen("/sys/fs/cgroup/cpu/envoy/cgroup.procs", "w");
     if (!fp)
         err(EXIT_FAILURE, "failed to open cgroup info");
-    fprintf(fp, "%d", getpid());
+    fputs("0", fp);
     fclose(fp);
 }
 
