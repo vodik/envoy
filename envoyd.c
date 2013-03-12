@@ -289,7 +289,7 @@ static void accept_conn(void)
         struct sockaddr sa;
         struct sockaddr_un un;
     } sa;
-    socklen_t sa_len;
+    socklen_t sa_len = sizeof(struct sockaddr_un);
 
     int cfd = accept4(server_sock, &sa.sa, &sa_len, SOCK_CLOEXEC);
     if (cfd < 0)
