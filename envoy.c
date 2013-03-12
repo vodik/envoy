@@ -131,6 +131,7 @@ static int gpg_update_tty(const char *sock)
         struct sockaddr sa;
         struct sockaddr_un un;
     } sa;
+    size_t len;
     socklen_t sa_len;
 
     int fd = socket(AF_UNIX, SOCK_STREAM, 0), nbytes;
@@ -138,11 +139,12 @@ static int gpg_update_tty(const char *sock)
         err(EXIT_FAILURE, "couldn't create socket");
 
     split = strchr(sock, ':');
-    sa_len = split - sock + 2;
+    len = split - sock;
 
     sa.un = (struct sockaddr_un){ .sun_family = AF_UNIX };
-    memcpy(&sa.un.sun_path, sock, sa_len);
+    memcpy(&sa.un.sun_path, sock, len);
 
+    sa_len = len + sizeof(sa.un.sun_family);
     if (connect(fd, &sa.sa, sa_len) < 0)
         err(EXIT_FAILURE, "failed to connect");
 
