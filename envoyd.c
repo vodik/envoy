@@ -175,8 +175,9 @@ static void __attribute__((__noreturn__)) exec_agent(const struct agent_t *agent
     err(EXIT_FAILURE, "failed to start %s", agent->name);
 }
 
-static void run_agent(const struct agent_t *agent, uid_t uid, gid_t gid, struct agent_data_t *data)
+static void run_agent(struct agent_data_t *data, uid_t uid, gid_t gid)
 {
+    const struct agent_t *agent = &Agent[data->type];
     int fd[2], stat = 0;
 
     data->status = ENVOY_STARTED;
@@ -333,11 +334,6 @@ static void handle_conn(int cfd)
     if (nbytes_r < 0)
         err(EXIT_FAILURE, "couldn't read agent type to start");
 
-    if (type == AGENT_DEFAULT)
-        type = default_type;
-
-    const struct agent_t *agent = &Agent[type];
-
     if (getsockopt(cfd, SOL_SOCKET, SO_PEERCRED, &cred, &cred_len) < 0)
         err(EXIT_FAILURE, "couldn't obtain credentials from unix domain socket");
 
@@ -353,8 +349,9 @@ static void handle_conn(int cfd)
                 cred.uid);
     }
 
-    node->d.type = type;
-    run_agent(agent, cred.uid, cred.gid, &node->d);
+    node->d.type = type != AGENT_DEFAULT ? type : default_type;
+
+    run_agent(&node->d, cred.uid, cred.gid);
     send_agent(cfd, &node->d, true);
 
     if (node->d.pid)
