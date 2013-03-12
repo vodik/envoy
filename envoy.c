@@ -85,11 +85,10 @@ static int __attribute__((format (printf, 2, 3))) gpg_send_message(int fd, const
     char buf[BUFSIZ];
 
     va_start(ap, fmt);
-    nbytes = vsnprintf(buf, BUFSIZ - 1, fmt, ap);
+    nbytes = vdprintf(fd, fmt, ap);
     va_end(ap);
 
-    buf[nbytes++] = '\n';
-    if (write(fd, buf, nbytes) < 0)
+    if (nbytes < 0)
         return -1;
 
     if (read(fd, buf, BUFSIZ) < 0)
@@ -104,24 +103,24 @@ static void gpg_send_messages(int fd)
     const char *tty = ttyname(STDIN_FILENO);
     const char *term = getenv("TERM");
 
-    gpg_send_message(fd, "RESET");
+    gpg_send_message(fd, "RESET\n");
 
     if (tty)
-        gpg_send_message(fd, "OPTION ttyname=%s", tty);
+        gpg_send_message(fd, "OPTION ttyname=%s\n", tty);
 
     if (term)
-        gpg_send_message(fd, "OPTION ttytype=%s", term);
+        gpg_send_message(fd, "OPTION ttytype=%s\n", term);
 
     if (display) {
         struct passwd *pwd = getpwuid(getuid());
         if (pwd == NULL || pwd->pw_dir == NULL)
             err(EXIT_FAILURE, "failed to lookup passwd entry");
 
-        gpg_send_message(fd, "OPTION display=%s", display);
-        gpg_send_message(fd, "OPTION xauthority=%s/.Xauthority", pwd->pw_dir);
+        gpg_send_message(fd, "OPTION display=%s\n", display);
+        gpg_send_message(fd, "OPTION xauthority=%s/.Xauthority\n", pwd->pw_dir);
     }
 
-    gpg_send_message(fd, "UPDATESTARTUPTTY");
+    gpg_send_message(fd, "UPDATESTARTUPTTY\n");
 }
 
 static int gpg_update_tty(const char *sock)
