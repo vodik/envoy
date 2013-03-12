@@ -199,8 +199,6 @@ static bool read_agent(int fd, struct agent_data_t *data)
         break;
     case ENVOY_FAILED:
         errx(EXIT_FAILURE, "agent failed to start, check envoyd's log");
-    case ENVOY_BADUSER:
-        errx(EXIT_FAILURE, "connection rejected, user is unauthorized to use this agent");
     }
 
     return true;
