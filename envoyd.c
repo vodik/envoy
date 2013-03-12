@@ -261,7 +261,7 @@ static int get_socket(void)
     return fd;
 }
 
-static struct agent_info_t *agent_by_uid(struct agent_info_t *agents, uid_t uid)
+static struct agent_info_t *find_agent_info(struct agent_info_t *agents, uid_t uid)
 {
     struct agent_info_t *node;
     for (node = agents; node; node = node->next) {
@@ -288,23 +288,22 @@ static void send_message(int fd, enum status status, bool close_sock)
 
 static void accept_conn(void)
 {
+    struct ucred cred;
     union {
         struct sockaddr sa;
         struct sockaddr_un un;
     } sa;
-    socklen_t sa_len = sizeof(struct sockaddr_un);
+    static socklen_t sa_len = sizeof(struct sockaddr_un);
+    static socklen_t cred_len = sizeof(struct ucred);
 
     int cfd = accept4(server_sock, &sa.sa, &sa_len, SOCK_CLOEXEC);
     if (cfd < 0)
         err(EXIT_FAILURE, "failed to accept connection");
 
-    struct ucred cred;
-    socklen_t cred_len = sizeof(struct ucred);
-
     if (getsockopt(cfd, SOL_SOCKET, SO_PEERCRED, &cred, &cred_len) < 0)
         err(EXIT_FAILURE, "couldn't obtain credentials from unix domain socket");
 
-    struct agent_info_t *node = agent_by_uid(agents, cred.uid);
+    struct agent_info_t *node = find_agent_info(agents, cred.uid);
 
     if (!node || node->d.pid == 0 || !pid_in_cgroup(node->d.pid)) {
         struct epoll_event event = {
@@ -327,7 +326,7 @@ static void accept_conn(void)
 static void handle_conn(int cfd)
 {
     struct ucred cred;
-    socklen_t cred_len = sizeof(struct ucred);
+    static socklen_t cred_len = sizeof(struct ucred);
     enum agent type;
 
     int nbytes_r = read(cfd, &type, sizeof(enum agent));
@@ -337,7 +336,7 @@ static void handle_conn(int cfd)
     if (getsockopt(cfd, SOL_SOCKET, SO_PEERCRED, &cred, &cred_len) < 0)
         err(EXIT_FAILURE, "couldn't obtain credentials from unix domain socket");
 
-    struct agent_info_t *node = agent_by_uid(agents, cred.uid);
+    struct agent_info_t *node = find_agent_info(agents, cred.uid);
 
     if (!node) {
         node = calloc(1, sizeof(struct agent_info_t));
