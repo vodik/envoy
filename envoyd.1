@@ -1,0 +1,41 @@
+.TH envoyd "1" "January 13" "envoyd" "User Commands"
+.SH NAME
+envoyd \- process manager for envoy
+.SH SYNOPSIS
+\fBenvoyd\fP [options] [files]
+.SH DESCRIPTION
+\fBenvoyd\fP is a process manager for ssh-agent and gpg-agent. It, on
+demand, starts an agent on the behalf of the connecting user and manages
+its lifetime, caching the agents environmental variables in memory.
+
+envoyd can service multiple users at once. On an incoming connection it
+checks the uid and gid of the incoming connection and forks off an agent
+as that user.
+
+This allows for the started agent to be long-running and continue to run
+even after the user has logged out, but isolated it in its own cgroup.
+.SH OPTIONS
+.PP
+.IP "\fB\-h\fR, \fB\-\-help\fR"
+Display help message.
+.IP "\fB\-v\fR, \fB\-\-version\fR"
+Display version information.
+.IP "\fB\-t\fR \fR\fIAGENT\fR\fR, \fB\-\-agent\fR\fB=\fR\fIAGENT\fR
+Set the default agent type to start. By default this is ssh-agent, but
+this flag can be used to override this.
+.SH ENVIRONMENT
+.PP
+.IP \fBENVOY_SOCKET\fR
+Both \fBenvoyd\fP and \fBenvoy\fP use this environment variable for the
+location of the unix domain socket for communication. Prefixing the
+socket with a @ denotes an abstract namespace. The default socket is
+\fI@/vodik/envoy\fR
+.SH AUTHORS
+.nf
+Simon Gomizelj <simongmzlj@gmail.com>
+.fi
+.SH SEE ALSO
+\fBenvoy\fR(1),
+\fBssh-agent\fR(1),
+\fBssh-add\fR(1),
+\fBgpg-agent\fR(1)

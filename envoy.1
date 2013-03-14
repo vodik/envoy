@@ -1,0 +1,64 @@
+.TH envoy "1" "January 13" "envoy" "User Commands"
+.SH NAME
+envoy \- authentication agent controller
+.SH SYNOPSIS
+\fBenvoy\fP [options] [files]
+.SH DESCRIPTION
+\fBenvoy\fP is the client side to \fBenvoyd\fP(1). It talks to envoyd to
+start and get the environmental variables of the requested
+authentication agent.
+
+\fBenvoyd\fP is a process manager for ssh-agent and gpg-agent. It, on
+demand, starts an agent on the behalf of the user and manages its
+lifetime, making sure that its actually alive and gets properly
+terminated. It caches the agents environmental variables in memory.
+
+This effectively allows the user to share a single long-running
+authentication agent between all shells and sessions in a clean and
+managed fashion.
+.SS Sourcing Environmental Variables
+To connect/source the environmental variables...
+.IP
+.nf
+envoy -t ssh-agent [file ...]     # or -t gpg-agent
+source <(envoy -p)
+.fi
+.PP
+.SH OPTIONS
+.PP
+.IP "\fB\-h\fR, \fB\-\-help\fR"
+Display help message.
+.IP "\fB\-v\fR, \fB\-\-version\fR"
+Display version information.
+.IP "\fB\-a\fR, \fB\-\-add\fR"
+Add private key identities to the authentication agent using
+\fBssh-add\fR(1).
+.IP "\fB\-k\fR, \fB\-\-clear\fR"
+For gpg-agent, flush all cached passphrases and, if the program has been
+started with a configuration file, the configuration file is read again.
+Sends \fISIGHUP\fR to the running agent.
+.IP "\fB\-K\fR, \fB\-\-kill\fR"
+Terminate the running agent. Sends \fISIGTERM\fR to the running agent.
+.IP "\fB\-l\fR, \fB\-\-list\fR"
+Lists fingerprints of all identities currently represented by the agent.
+.IP "\fB\-p\fR, \fB\-\-print\fR"
+Print out the environmental variables associated with the running agent.
+.IP "\fB\-t\fR \fR\fIAGENT\fR\fR, \fB\-\-agent\fR\fB=\fR\fIAGENT\fR
+Set the agent type to launch. If this isn't set, the default agent is
+launched. \fIssh-agent\fR and \fIgpg-agent\fR are supported agents.
+.SH ENVIRONMENT
+.PP
+.IP \fBENVOY_SOCKET\fR
+Both \fBenvoyd\fP and \fBenvoy\fP use this environment variable for the
+location of the unix domain socket for communication. Prefixing the
+socket with a @ denotes an abstract namespace. The default socket is
+\fI@/vodik/envoy\fR.
+.SH AUTHORS
+.nf
+Simon Gomizelj <simongmzlj@gmail.com>
+.fi
+.SH SEE ALSO
+\fBenvoyd\fR(1),
+\fBssh-agent\fR(1),
+\fBssh-add\fR(1),
+\fBgpg-agent\fR(1)
