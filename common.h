@@ -24,6 +24,10 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 
+#ifndef ENVOY_VERSION
+#define ENVOY_VERSION "development"
+#endif
+
 enum agent {
     AGENT_DEFAULT = -1,
     AGENT_SSH_AGENT = 0,
@@ -51,7 +55,7 @@ struct agent_data_t {
     char gpg[PATH_MAX];
 };
 
-const struct agent_t Agent[LAST_AGENT];
+extern const struct agent_t Agent[LAST_AGENT];
 
 size_t init_envoy_socket(struct sockaddr_un *un);
 void unlink_envoy_socket(void);
