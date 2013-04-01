@@ -40,6 +40,7 @@ enum status {
     ENVOY_STARTED,
     ENVOY_RUNNING,
     ENVOY_FAILED,
+    ENVOY_BADUSER,
 };
 
 struct agent_t {

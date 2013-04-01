@@ -43,6 +43,7 @@ static struct agent_info_t *agents = NULL;
 static bool sd_activated = false;
 static int epoll_fd, server_sock;
 static char cgroup_tasks[PATH_MAX];
+static uid_t server_uid;
 
 static void cleanup(void)
 {
@@ -315,6 +316,12 @@ static void accept_conn(void)
     if (getsockopt(cfd, SOL_SOCKET, SO_PEERCRED, &cred, &cred_len) < 0)
         err(EXIT_FAILURE, "couldn't obtain credentials from unix domain socket");
 
+    if (server_uid != 0 && server_uid != cred.uid) {
+        fprintf(stderr, "Connection from uid=%u rejected.\n", cred.uid);
+        send_message(cfd, ENVOY_BADUSER, true);
+        return;
+    }
+
     struct agent_info_t *node = find_agent_info(agents, cred.uid);
 
     if (!node || node->d.pid == 0 || !pid_in_cgroup(node->d.pid)) {
@@ -426,11 +433,6 @@ int main(int argc, char *argv[])
         { 0, 0, 0, 0 }
     };
 
-    if (getuid() != 0) {
-        fprintf(stderr, "%s must be run as root!\n", program_invocation_short_name);
-        return 1;
-    }
-
     while (true) {
         int opt = getopt_long(argc, argv, "hvt:", opts, NULL);
         if (opt == -1)
@@ -457,6 +459,7 @@ int main(int argc, char *argv[])
     if (epoll_fd < 0)
         err(EXIT_FAILURE, "failed to start epoll");
 
+    server_uid = geteuid();
     server_sock = get_socket();
     init_cgroup();
 
