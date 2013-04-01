@@ -42,6 +42,7 @@ static enum agent default_type = AGENT_SSH_AGENT;
 static struct agent_info_t *agents = NULL;
 static bool sd_activated = false;
 static int epoll_fd, server_sock;
+static char cgroup_tasks[PATH_MAX];
 
 static void cleanup(void)
 {
@@ -70,12 +71,23 @@ static void sighandler(int signum)
 
 static void init_cgroup(void)
 {
-    if (mkdir("/sys/fs/cgroup/cpu/envoy", 0755) < 0 && errno != EEXIST)
+    char cgroup_root[PATH_MAX];
+    int uid = getuid();
+
+    if (uid > 0)
+        snprintf(cgroup_root, PATH_MAX, "/sys/fs/cgroup/cpu/%s-%d", program_invocation_short_name, uid);
+    else
+        snprintf(cgroup_root, PATH_MAX, "/sys/fs/cgroup/cpu/%s", program_invocation_short_name);
+
+    if (mkdir(cgroup_root, 0755) < 0 && errno != EEXIST)
         err(EXIT_FAILURE, "failed to create cgroup subsystem");
 
-    FILE *fp = fopen("/sys/fs/cgroup/cpu/envoy/tasks", "w");
+    snprintf(cgroup_tasks, PATH_MAX, "%s/tasks", cgroup_root);
+
+    FILE *fp = fopen(cgroup_tasks, "w");
     if (!fp)
         err(EXIT_FAILURE, "failed to open cgroup info");
+
     fputs("0", fp);
     fclose(fp);
 }
@@ -85,7 +97,7 @@ static bool pid_in_cgroup(pid_t pid)
     bool found = false;
     pid_t cgroup_pid;
 
-    FILE *fp = fopen("/sys/fs/cgroup/cpu/envoy/tasks", "r");
+    FILE *fp = fopen(cgroup_tasks, "r");
     if (!fp)
         err(EXIT_FAILURE, "failed to open cgroup info");
 
@@ -446,7 +458,6 @@ int main(int argc, char *argv[])
         err(EXIT_FAILURE, "failed to start epoll");
 
     server_sock = get_socket();
-
     init_cgroup();
 
     signal(SIGTERM, sighandler);
