@@ -24,10 +24,6 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 
-#ifndef ENVOY_VERSION
-#define ENVOY_VERSION "development"
-#endif
-
 enum agent {
     AGENT_DEFAULT = -1,
     AGENT_SSH_AGENT = 0,
