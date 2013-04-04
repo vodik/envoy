@@ -18,7 +18,6 @@
 #ifndef COMMON_H
 #define COMMON_H
 
-#define _GNU_SOURCE
 #include <limits.h>
 #include <sys/types.h>
 #include <sys/socket.h>
