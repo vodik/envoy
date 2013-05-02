@@ -1,16 +1,17 @@
 ## envoy
 
 Envoy helps you to manage ssh keys in similar fashion to [keychain], but
-done in c and taking advantage of cgroups, unix domain sockets, and
-systemd. It's a wrapper around `ssh-agent`, `ssh-add` and `gpg-agent`.
+done in c, takes advantage of cgroups and systemd.
 
-`envoyd` is a daemon that supervises the various agents. On an incoming
-connection it'll start an agent if one isn't running and return that
-status of that user's running agent. It uses cgroups internally to track
-the lifetime of the agents it manages.
+The daemon, `envoyd`, starts the agent of choice in a sanitized
+environment and caches the associated environmental variables in
+memory. The agent is started on demand and it's lifetime is tracked
+through cgroups for accuracy.
 
-The `envoy` command connects to this server and request these
-environmental variables and do various operations with them.
+The `envoy` command connects to the daemon and gets all the information
+associated with the current running agent. It can then do things like
+add new keys to the agent or output shell code to inject these variables
+into a shell.
 
   [keychain]: http://www.funtoo.org/wiki/Keychain
 
@@ -22,12 +23,12 @@ To setup envoy, first enable the socket:
 
 Then add the following to your shell's rc file.
 
-    envoy -t ssh-agent [file ...]     # or -t gpg-agent
+    envoy -t ssh-agent [key ...]     # gpg-agent also supported
     source <(envoy -p)
 
 ### Usage
 
-    usage: envoy [options] [files ...]
+    usage: envoy [options] [key ...]
     Options:
      -h, --help            display this help
      -v, --version         display version
@@ -38,31 +39,41 @@ Then add the following to your shell's rc file.
      -p, --print           print out environmental arguments
      -t, --agent=AGENT     set the prefered to start
 
-`envoy` without any command line flags acts like `envoy -a` **only** if
-it starts a new agent. Otherwise nothing happens.
+Note that when passing in keys, if they reside in `~/.ssh/`, just
+providing the filename is sufficient.
+
+### Envoy with ssh-agent
+
+When invoking `envoy` causes `ssh-agent` to start, on that first run
+any keys passed to `envoy` will be added to the agent. Without any
+arguments, it'll try to add `.ssh/id_rsa`, `.ssh/id_dsa`, and
+`.ssh/id_ecdsa` automatically.
 
 ### Using gpg-agent
 
-Envoy's gpg-agent support works slightly differently. Keys are never
-implicitly added with gpg-agent. Instead, keys have to be explicitly
-added through either `envoy -a` or `ssh-add`. gpg-agent will then track
-those identities. There's also no need for `~/.gnupg/gpg-agent.conf`,
-but it will still be read to configure gpg-agent to behave as preferred.
+Keys are never implicitly added with `gpg-agent`. Instead, keys have to
+be explicitly added through either `envoy -a` or `ssh-add`. The agent
+will then continue track those identities automatically without having
+to be specified in the future.
 
-**NOTE:** Calling envoy also updates gpg-agent with the current status,
-if available, of the tty and X. This may cause some strange behaviours
+The agent will also still respect `~/.gnupg/gpg-agent.conf`. For
+example, to disable scdaemon, put `disable-scdaemon` in that file.
+
+Note that invoking envoy also updates gpg-agent with the current status,
+if available, of the tty and X. It is the same effect of running `echo
+UPDATESTARTUPTTY | gpg-connect-agent`. This may cause some odd behaviour
 with the pinentry. The pinentry may appear in an inappropriate place if
 this data becomes stale. This is a limitation of gpg-agent itself.
 
-### Wrapping `ssh`
+### Wrappers with envoy
 
-Envoy has a simple built-in ssh wrapper. This wrapper sets up the
-environment and then passes all arguments directly to `/usr/bin/ssh`. To
-use it, do something like this:
+Envoy has two simple built-in wrappers. Supporting both `ssh` and
+`scp`, you need to set something like this up:
 
     export PATH="$HOME/bin:$PATH"
     ln -s /usr/bin/envoy ~/bin/ssh
 
-This does an excellent job of working around the gpg-agent issues above
-since it guarantees gpg-agent will have the correct information before
-running ssh.
+The `~/bin/ssh` binary will automatically connect to the preferred agent
+and then execute `/usr/bin/ssh`. This does an excellent job of working
+around the gpg-agent issues above since it guarantees gpg-agent will
+have the correct information before running ssh.

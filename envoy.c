@@ -271,7 +271,7 @@ static void __attribute__((__noreturn__)) exec_wrapper(const char *cmd, int argc
 
 static void __attribute__((__noreturn__)) usage(FILE *out)
 {
-    fprintf(out, "usage: %s [options] [files ...]\n", program_invocation_short_name);
+    fprintf(out, "usage: %s [options] [key ...]\n", program_invocation_short_name);
     fputs("Options:\n"
         " -h, --help            display this help\n"
         " -v, --version         display version\n"
