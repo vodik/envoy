@@ -259,7 +259,9 @@ static void __attribute__((__noreturn__)) exec_wrapper(const char *cmd, int argc
     if (get_agent(&data, AGENT_DEFAULT, true) == 0)
         errx(EXIT_FAILURE, "recieved no data, did the agent fail to start?");
 
-    asprintf(&args[0], "/usr/bin/%s", cmd);
+    if (asprintf(&args[0], "/usr/bin/%s", cmd) < 0)
+        err(EXIT_FAILURE, "failed to allocate memory");
+
     for (i = 0; i < argc - 1; i++)
         args[1 + i] = argv[1 + i];
     args[argc] = NULL;
