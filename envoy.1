@@ -2,25 +2,21 @@
 .SH NAME
 envoy \- authentication agent controller
 .SH SYNOPSIS
-\fBenvoy\fP [options] [files]
+\fBenvoy\fP [options] [keys]
 .SH DESCRIPTION
-\fBenvoy\fP is the client side to \fBenvoyd\fP(1). It talks to envoyd to
-start and get the environmental variables of the requested
-authentication agent.
+\fBenvoy\fP is the client side to \fBenvoyd\fP(1). It connects to the
+daemon and gets all the information associated with the current running
+agent. It can then do things like add new keys to the agent or output
+shell code to inject these variables into a shell.
 
-\fBenvoyd\fP is a process manager for ssh-agent and gpg-agent. It, on
-demand, starts an agent on the behalf of the user and manages its
-lifetime, making sure that its actually alive and gets properly
-terminated. It caches the agents environmental variables in memory.
-
-This effectively allows the user to share a single long-running
+This effectively allows a user to share a single long-running
 authentication agent between all shells and sessions in a clean and
-managed fashion.
+managed fashion that doesn't clutter user login sessions.
 .SS Sourcing Environmental Variables
 To connect/source the environmental variables...
 .IP
 .nf
-envoy -t ssh-agent [file ...]     # or -t gpg-agent
+envoy -t ssh-agent [key ...]     # gpg-agent also supported
 source <(envoy -p)
 .fi
 .PP
@@ -32,20 +28,23 @@ Display help message.
 Display version information.
 .IP "\fB\-a\fR, \fB\-\-add\fR"
 Add private key identities to the authentication agent using
-\fBssh-add\fR(1).
+\fBssh-add\fR(1). Note that when passing in keys, if they reside in
+\fI~/.ssh/\fR, then just providing the filename is sufficient.
 .IP "\fB\-k\fR, \fB\-\-clear\fR"
-For gpg-agent, flush all cached passphrases and, if the program has been
-started with a configuration file, the configuration file is read again.
-Sends \fISIGHUP\fR to the running agent.
+For gpg-agent only, flush all cached passphrases and, if the program has
+been started with a configuration file, reload it. Sends \fISIGHUP\fR to
+the running agent.
 .IP "\fB\-K\fR, \fB\-\-kill\fR"
 Terminate the running agent. Sends \fISIGTERM\fR to the running agent.
 .IP "\fB\-l\fR, \fB\-\-list\fR"
 Lists fingerprints of all identities currently represented by the agent.
 .IP "\fB\-p\fR, \fB\-\-print\fR"
 Print out the environmental variables associated with the running agent.
+Useful for injecting these variables into the shell.
 .IP "\fB\-t\fR \fR\fIAGENT\fR\fR, \fB\-\-agent\fR\fB=\fR\fIAGENT\fR
-Set the agent type to launch. If this isn't set, the default agent is
-launched. \fIssh-agent\fR and \fIgpg-agent\fR are supported agents.
+Set the agent type to launch. If this isn't set, its up to \fBenvoyd\fR
+to decide which agent is launched. \fIssh-agent\fR and \fIgpg-agent\fR
+are supported agents.
 .SH ENVIRONMENT
 .PP
 .IP \fBENVOY_SOCKET\fR

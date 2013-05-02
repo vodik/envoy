@@ -4,14 +4,22 @@ Envoy helps you to manage ssh keys in similar fashion to [keychain], but
 done in c, takes advantage of cgroups and systemd.
 
 The daemon, `envoyd`, starts the agent of choice in a sanitized
-environment and caches the associated environmental variables in
-memory. The agent is started on demand and it's lifetime is tracked
-through cgroups for accuracy.
+environment and caches the associated environmental variables in memory.
+The agent is started on demand and it's lifetime is tracked through
+cgroups for accuracy. `envoyd` is typically started as root and can thus
+serve all the users on the system at once. It checks the credentials of
+the incoming connection and starts the agent under that uid/guid. If its
+started as a user it will only be able to serve that particular user's
+requests.
 
 The `envoy` command connects to the daemon and gets all the information
 associated with the current running agent. It can then do things like
 add new keys to the agent or output shell code to inject these variables
 into a shell.
+
+This effectively allows a user to share a single long-running
+authentication agent between all shells and sessions in a clean and
+managed fashion that doesn't clutter user login sessions.
 
   [keychain]: http://www.funtoo.org/wiki/Keychain
 
@@ -26,6 +34,10 @@ Then add the following to your shell's rc file.
     envoy -t ssh-agent [key ...]     # gpg-agent also supported
     source <(envoy -p)
 
+The envoyd daemon will also run just fine under a user session, just
+note that it won't be able to serve multiple users at once in this
+configuration.
+
 ### Usage
 
     usage: envoy [options] [key ...]
@@ -39,7 +51,7 @@ Then add the following to your shell's rc file.
      -p, --print           print out environmental arguments
      -t, --agent=AGENT     set the prefered to start
 
-Note that when passing in keys, if they reside in `~/.ssh/`, just
+Note that when passing in keys, if they reside in `~/.ssh/`, then just
 providing the filename is sufficient.
 
 ### Envoy with ssh-agent
