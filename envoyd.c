@@ -46,6 +46,9 @@ static bool sd_activated = false;
 static int epoll_fd, server_sock, cgroup_fd;
 static uid_t server_uid;
 
+/* cgroup support */
+static bool (*pid_alive)(pid_t pid);
+
 static void cleanup(void)
 {
     close(server_sock);
@@ -71,17 +74,14 @@ static void sighandler(int signum)
     }
 }
 
-static void init_cgroup(void)
+static bool fallback_alive(pid_t pid)
 {
-    char *namespace;
-    asprintf(&namespace, "%s:%d", program_invocation_short_name, getuid());
-
-    cgroup_fd = cg_open_controller("cpu", program_invocation_short_name, namespace, NULL);
-    if (cgroup_fd < 0)
-        err(EXIT_FAILURE, "failed to acquire cgroup");
-    subsystem_set(cgroup_fd, "tasks", "0");
-
-    free(namespace);
+    if (kill(pid, 0) < 0) {
+        if (errno != ESRCH)
+            err(EXIT_FAILURE, "something strange happened with kill");
+        return false;
+    }
+    return true;
 }
 
 static bool pid_in_cgroup(pid_t pid)
@@ -102,6 +102,24 @@ static bool pid_in_cgroup(pid_t pid)
 
     fclose(fp);
     return found;
+}
+
+static void init_cgroup(void)
+{
+    char *namespace;
+    asprintf(&namespace, "%s:%d", program_invocation_short_name, getuid());
+
+    cgroup_fd = cg_open_controller("cpu", program_invocation_short_name, namespace, NULL);
+    if (cgroup_fd < 0) {
+        fprintf(stderr, "Failed to initialize cgroup subsystem! It's likely there's no kernel support.\n"
+                "Falling back to a naive (and less than reliable) method of process management...");
+        pid_alive = fallback_alive;
+        return;
+    }
+
+    pid_alive = pid_in_cgroup;
+    subsystem_set(cgroup_fd, "tasks", "0");
+    free(namespace);
 }
 
 static void parse_agentdata_line(char *val, struct agent_data_t *info)
@@ -315,7 +333,7 @@ static void accept_conn(void)
 
     struct agent_info_t *node = find_agent_info(agents, cred.uid);
 
-    if (!node || node->d.pid == 0 || !pid_in_cgroup(node->d.pid)) {
+    if (!node || node->d.pid == 0 || !pid_alive(node->d.pid)) {
         struct epoll_event event = {
             .data.fd = cfd,
             .events  = EPOLLIN | EPOLLET
