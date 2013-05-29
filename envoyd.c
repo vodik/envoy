@@ -172,32 +172,10 @@ static int parse_agentdata(int fd, struct agent_data_t *data)
 
 static void __attribute__((__noreturn__)) exec_agent(const struct agent_t *agent, uid_t uid, gid_t gid)
 {
-    struct passwd *pwd = getpwuid(uid);
-    char *home;
-
-    if (pwd == NULL || pwd->pw_dir == NULL)
-        err(EXIT_FAILURE, "failed to lookup passwd entry");
-
     if (setregid(gid, gid) < 0 || setreuid(uid, uid) < 0)
         err(EXIT_FAILURE, "unable to drop to uid=%u gid=%u\n", uid, gid);
 
-    asprintf(&home, "HOME=%s", pwd->pw_dir);
-
-    /* Setup the minimal environment needed for gpg-agent to run: HOME
-     * and GPG_TTY. No special work is needed for ssh-agent.
-     *
-     * Note that setting GPG_TTY to /dev/null is intentional. This is
-     * a placeholder value. Envoy will update gpg-agent with a proper
-     * value at runtime. However it seems that the environmental
-     * variable needs to be set now for the update mechanism to work.
-     */
-    char *env[] = {
-        "PATH=/usr/local/bin:/usr/bin:/bin",
-        "GPG_TTY=/dev/null",
-        home,
-        NULL
-    };
-
+    char *env[] = { "PATH=/usr/local/bin:/usr/bin:/bin", NULL };
     execve(agent->argv[0], agent->argv, env);
     err(EXIT_FAILURE, "failed to start %s", agent->name);
 }
