@@ -69,7 +69,7 @@ static int mkdir_parents(const char *path, mode_t mode)
 }
 
 /* loosely adopted from systemd shared/util.c */
-static char *vjoinpath(const char *root, va_list ap)
+static char *joinpath(const char *root, va_list ap)
 {
     size_t len;
     char *ret, *p;
@@ -134,7 +134,7 @@ static char *cg_path(const char *subsystem, va_list ap)
     char *root, *path;
 
     root = cg_get_mount(subsystem);
-    path = vjoinpath(root, ap);
+    path = joinpath(root, ap);
 
     free(root);
     return path;
