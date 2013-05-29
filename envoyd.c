@@ -83,9 +83,9 @@ static void cgroup_cleanup(uid_t uid)
     bool done = false;
     char *namespace;
 
-    asprintf(&namespace, "agent:%d", uid);
+    asprintf(&namespace, "%d.agent", uid);
 
-    int cgroup_fd = cg_open_controller("cpu", cgroup_name, namespace, NULL);
+    int cgroup_fd = cg_open_controller("cpu", "envoy", cgroup_name, namespace, NULL);
     do {
         FILE *fp = subsystem_open(cgroup_fd, "cgroup.procs", "r");
         pid_t cgroup_pid;
@@ -98,10 +98,13 @@ static void cgroup_cleanup(uid_t uid)
     } while (!done);
     close(cgroup_fd);
 
-    if (cg_destroy_controller("cpu", cgroup_name, namespace, NULL) < 0)
+    if (cg_destroy_controller("cpu", "envoy", cgroup_name, namespace, NULL) < 0)
         warn("failed to close envoy's namespace cgroup");
 
-    if (cg_destroy_controller("cpu", cgroup_name, NULL) < 0)
+    if (cg_destroy_controller("cpu", "envoy", cgroup_name, NULL) < 0)
+        warn("failed to close envoy's process cgroup");
+
+    if (cg_destroy_controller("cpu", "envoy", NULL) < 0 && errno != EBUSY)
         warn("failed to close envoy's cgroup");
 
     free(namespace);
@@ -124,9 +127,9 @@ static bool pid_in_cgroup(pid_t pid, uid_t uid)
     pid_t cgroup_pid;
 
     /* each user's agents are namespaces by uid */
-    asprintf(&namespace, "agent:%d", uid);
+    asprintf(&namespace, "%d.agent", uid);
 
-    int cgroup_fd = cg_open_controller("cpu", cgroup_name, namespace, NULL);
+    int cgroup_fd = cg_open_controller("cpu", "envoy", cgroup_name, namespace, NULL);
     FILE *fp = subsystem_open(cgroup_fd, "cgroup.procs", "r");
     if (!fp)
         err(EXIT_FAILURE, "failed to open cgroup info");
@@ -154,7 +157,7 @@ static void init_cgroup(void)
         return;
     }
 
-    asprintf(&cgroup_name, "envoy:%d", getpid());
+    asprintf(&cgroup_name, "%d.monitor", getpid());
     kill_agent = cgroup_cleanup;
     pid_alive = pid_in_cgroup;
     close(cgroup_fd);
@@ -218,9 +221,9 @@ static void __attribute__((__noreturn__)) exec_agent(const struct agent_t *agent
         err(EXIT_FAILURE, "unable to drop to uid=%u gid=%u\n", uid, gid);
 
     /* each user's agents are namespaces by uid */
-    asprintf(&namespace, "agent:%d", uid);
+    asprintf(&namespace, "%d.agent", uid);
 
-    cgroup_fd = cg_open_controller("cpu", cgroup_name, namespace, NULL);
+    cgroup_fd = cg_open_controller("cpu", "envoy", cgroup_name, namespace, NULL);
     subsystem_set(cgroup_fd, "tasks", "0");
 
     close(cgroup_fd);
