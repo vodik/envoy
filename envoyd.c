@@ -93,6 +93,7 @@ static void cgroup_cleanup(uid_t uid)
             kill(cgroup_pid, SIGKILL);
             done = false;
         }
+        fclose(fp);
     } while (!done);
     close(cgroup_fd);
 
