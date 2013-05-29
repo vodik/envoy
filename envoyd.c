@@ -173,11 +173,15 @@ static int parse_agentdata(int fd, struct agent_data_t *data)
 static void __attribute__((__noreturn__)) exec_agent(const struct agent_t *agent, uid_t uid, gid_t gid)
 {
     struct passwd *pwd = getpwuid(uid);
+    char *home;
+
     if (pwd == NULL || pwd->pw_dir == NULL)
         err(EXIT_FAILURE, "failed to lookup passwd entry");
 
     if (setregid(gid, gid) < 0 || setreuid(uid, uid) < 0)
         err(EXIT_FAILURE, "unable to drop to uid=%u gid=%u\n", uid, gid);
+
+    asprintf(&home, "HOME=%s", pwd->pw_dir);
 
     /* Setup the minimal environment needed for gpg-agent to run: HOME
      * and GPG_TTY. No special work is needed for ssh-agent.
@@ -187,13 +191,14 @@ static void __attribute__((__noreturn__)) exec_agent(const struct agent_t *agent
      * value at runtime. However it seems that the environmental
      * variable needs to be set now for the update mechanism to work.
      */
-    if (setenv("HOME", pwd->pw_dir, true))
-        err(EXIT_FAILURE, "failed to set HOME=%s\n", pwd->pw_dir);
+    char *env[] = {
+        "PATH=/usr/local/bin:/usr/bin:/bin",
+        "GPG_TTY=/dev/null",
+        home,
+        NULL
+    };
 
-    if (setenv("GPG_TTY", "/dev/null", true))
-        err(EXIT_FAILURE, "failed to set GPG_TTY\n");
-
-    execv(agent->argv[0], agent->argv);
+    execve(agent->argv[0], agent->argv, env);
     err(EXIT_FAILURE, "failed to start %s", agent->name);
 }
 
