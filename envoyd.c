@@ -44,7 +44,8 @@ static enum agent default_type = AGENT_SSH_AGENT;
 static struct agent_info_t *agents = NULL;
 static bool sd_activated = false;
 static int epoll_fd, server_sock;
-static uid_t server_uid;
+
+/* cgroup support */
 static bool (*pid_alive)(pid_t pid, uid_t uid);
 static void (*kill_agent)(uid_t uid) = NULL;
 static char *cgroup_name = NULL;
@@ -348,6 +349,7 @@ static void accept_conn(void)
     } sa;
     static socklen_t sa_len = sizeof(struct sockaddr_un);
     static socklen_t cred_len = sizeof(struct ucred);
+    uid_t server_uid = geteuid();
 
     int cfd = accept4(server_sock, &sa.sa, &sa_len, SOCK_CLOEXEC);
     if (cfd < 0)
@@ -497,7 +499,6 @@ int main(int argc, char *argv[])
     if (epoll_fd < 0)
         err(EXIT_FAILURE, "failed to start epoll");
 
-    server_uid = geteuid();
     server_sock = get_socket();
     init_cgroup();
 
