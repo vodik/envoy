@@ -219,7 +219,9 @@ static bool start_agent(int fd, struct agent_data_t *data, enum agent type)
     bool rc = read_agent(fd, data);
 
     if (data->status == ENVOY_STOPPED)
-        errx(EXIT_FAILURE, "envoyd reported agent stopped twice?");
+        errx(EXIT_FAILURE, "envoyd reported agent stopped twice");
+    if (data->pid == 0)
+        errx(EXIT_FAILURE, "envoyd did not provide a valid pid");
 
     return rc;
 }

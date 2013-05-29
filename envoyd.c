@@ -218,14 +218,14 @@ static void __attribute__((__noreturn__)) exec_agent(const struct agent_t *agent
     char *namespace;
     int cgroup_fd;
 
-    if (setregid(gid, gid) < 0 || setreuid(uid, uid) < 0)
-        err(EXIT_FAILURE, "unable to drop to uid=%u gid=%u\n", uid, gid);
-
     /* each user's agents are namespaces by uid */
     asprintf(&namespace, "%d.agent", uid);
 
     cgroup_fd = cg_open_controller("cpu", "envoy", cgroup_name, namespace, NULL);
     subsystem_set(cgroup_fd, "tasks", "0");
+
+    if (setregid(gid, gid) < 0 || setreuid(uid, uid) < 0)
+        err(EXIT_FAILURE, "unable to drop to uid=%u gid=%u\n", uid, gid);
 
     close(cgroup_fd);
     free(namespace);
@@ -236,7 +236,7 @@ static void __attribute__((__noreturn__)) exec_agent(const struct agent_t *agent
 static int run_agent(struct agent_data_t *data, uid_t uid, gid_t gid)
 {
     const struct agent_t *agent = &Agent[data->type];
-    int fd[2], stat = 0;
+    int fd[2], stat = 0, rc = 0;
 
     data->status = ENVOY_STARTED;
     data->sock[0] = '\0';
@@ -262,16 +262,11 @@ static int run_agent(struct agent_data_t *data, uid_t uid, gid_t gid)
         break;
     }
 
-    if (parse_agentdata(fd[0], data) < 0)
-        err(EXIT_FAILURE, "failed to parse %s output", agent->name);
-
-    close(fd[0]);
-    close(fd[1]);
-
     if (wait(&stat) < 1)
         err(EXIT_FAILURE, "failed to get process status");
 
     if (stat) {
+        rc = -1;
         data->pid = 0;
         data->status = ENVOY_FAILED;
 
@@ -281,10 +276,13 @@ static int run_agent(struct agent_data_t *data, uid_t uid, gid_t gid)
         if (WIFSIGNALED(stat))
             fprintf(stderr, "%s terminated with signal %d.\n",
                     agent->name, WTERMSIG(stat));
-
-        return -1;
+    } else if (parse_agentdata(fd[0], data) < 0) {
+        err(EXIT_FAILURE, "failed to parse %s output", agent->name);
     }
-    return 0;
+
+    close(fd[0]);
+    close(fd[1]);
+    return rc;
 }
 
 static int get_socket(void)
