@@ -64,6 +64,12 @@ static void cleanup(void)
             kill_agent(agents->uid);
             agents = agents->next;
         }
+
+        if (cg_destroy_controller("cpu", "envoy", cgroup_name, NULL) < 0)
+            warn("failed to close envoy's process cgroup");
+
+        if (cg_destroy_controller("cpu", "envoy", NULL) < 0 && errno != EBUSY)
+            warn("failed to close envoy's cgroup");
     }
 }
 
@@ -91,6 +97,7 @@ static void cgroup_cleanup(uid_t uid)
         pid_t cgroup_pid;
         done = true;
         while (fscanf(fp, "%d", &cgroup_pid) != EOF) {
+            printf("KILLING: %d\n", cgroup_pid);
             kill(cgroup_pid, SIGKILL);
             done = false;
         }
@@ -100,12 +107,6 @@ static void cgroup_cleanup(uid_t uid)
 
     if (cg_destroy_controller("cpu", "envoy", cgroup_name, namespace, NULL) < 0)
         warn("failed to close envoy's namespace cgroup");
-
-    if (cg_destroy_controller("cpu", "envoy", cgroup_name, NULL) < 0)
-        warn("failed to close envoy's process cgroup");
-
-    if (cg_destroy_controller("cpu", "envoy", NULL) < 0 && errno != EBUSY)
-        warn("failed to close envoy's cgroup");
 
     free(namespace);
 }
@@ -232,7 +233,7 @@ static void __attribute__((__noreturn__)) exec_agent(const struct agent_t *agent
     err(EXIT_FAILURE, "failed to start %s", agent->name);
 }
 
-static void run_agent(struct agent_data_t *data, uid_t uid, gid_t gid)
+static int run_agent(struct agent_data_t *data, uid_t uid, gid_t gid)
 {
     const struct agent_t *agent = &Agent[data->type];
     int fd[2], stat = 0;
@@ -280,7 +281,10 @@ static void run_agent(struct agent_data_t *data, uid_t uid, gid_t gid)
         if (WIFSIGNALED(stat))
             fprintf(stderr, "%s terminated with signal %d.\n",
                     agent->name, WTERMSIG(stat));
+
+        return -1;
     }
+    return 0;
 }
 
 static int get_socket(void)
