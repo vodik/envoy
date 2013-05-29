@@ -97,7 +97,6 @@ static void cgroup_cleanup(uid_t uid)
         pid_t cgroup_pid;
         done = true;
         while (fscanf(fp, "%d", &cgroup_pid) != EOF) {
-            printf("KILLING: %d\n", cgroup_pid);
             kill(cgroup_pid, SIGKILL);
             done = false;
         }
