@@ -46,17 +46,22 @@ static bool sd_activated = false;
 static int epoll_fd, server_sock;
 static uid_t server_uid;
 static bool (*pid_alive)(pid_t pid, uid_t uid);
+static void (*kill_agent)(uid_t uid) = NULL;
 
 static void cleanup(void)
 {
-    close(server_sock);
-    unlink_envoy_socket();
+    if (!sd_activated) {
+        close(server_sock);
+        unlink_envoy_socket();
+    }
 
-    while (agents) {
-        if (agents->d.pid <= 0)
-            continue;
-        kill(agents->d.pid, SIGTERM);
-        agents = agents->next;
+    if (kill_agent) {
+        while (agents) {
+            if (agents->d.pid <= 0)
+                continue;
+            kill_agent(agents->uid);
+            agents = agents->next;
+        }
     }
 }
 
@@ -66,10 +71,37 @@ static void sighandler(int signum)
     case SIGINT:
     case SIGTERM:
         close(epoll_fd);
-        if (!sd_activated)
-            cleanup();
+        cleanup();
         exit(EXIT_SUCCESS);
     }
+}
+
+static void cgroup_cleanup(uid_t uid)
+{
+    bool done = false;
+    char *namespace;
+
+    asprintf(&namespace, "agent:%d", uid);
+
+    int cgroup_fd = cg_open_controller("cpu", program_invocation_short_name, namespace, NULL);
+    do {
+        FILE *fp = subsystem_open(cgroup_fd, "cgroup.procs", "r");
+        pid_t cgroup_pid;
+        done = true;
+        while (fscanf(fp, "%d", &cgroup_pid) != EOF) {
+            kill(cgroup_pid, SIGKILL);
+            done = false;
+        }
+    } while (!done);
+    close(cgroup_fd);
+
+    if (cg_destroy_controller("cpu", program_invocation_short_name, namespace, NULL) < 0)
+        warn("failed to close envoy's namespace cgroup");
+
+    if (cg_destroy_controller("cpu", program_invocation_short_name, NULL) < 0)
+        warn("failed to close envoy's cgroup");
+
+    free(namespace);
 }
 
 static bool fallback_alive(pid_t pid, uid_t __attribute__((unused)) uid)
@@ -119,6 +151,7 @@ static void init_cgroup(void)
         return;
     }
 
+    kill_agent = cgroup_cleanup;
     pid_alive = pid_in_cgroup;
     close(cgroup_fd);
 }
