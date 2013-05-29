@@ -112,7 +112,7 @@ static void init_cgroup(void)
     cgroup_fd = cg_open_controller("cpu", program_invocation_short_name, namespace, NULL);
     if (cgroup_fd < 0) {
         fprintf(stderr, "Failed to initialize cgroup subsystem! It's likely there's no kernel support.\n"
-                "Falling back to a naive (and less than reliable) method of process management...");
+                "Falling back to a naive (and less than reliable) method of process management...\n");
         pid_alive = fallback_alive;
         return;
     }
