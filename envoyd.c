@@ -43,11 +43,9 @@ struct agent_info_t {
 static enum agent default_type = AGENT_SSH_AGENT;
 static struct agent_info_t *agents = NULL;
 static bool sd_activated = false;
-static int epoll_fd, server_sock, cgroup_fd;
+static int epoll_fd, server_sock;
 static uid_t server_uid;
-
-/* cgroup support */
-static bool (*pid_alive)(pid_t pid);
+static bool (*pid_alive)(pid_t pid, uid_t uid);
 
 static void cleanup(void)
 {
@@ -74,7 +72,7 @@ static void sighandler(int signum)
     }
 }
 
-static bool fallback_alive(pid_t pid)
+static bool fallback_alive(pid_t pid, uid_t __attribute__((unused)) uid)
 {
     if (kill(pid, 0) < 0) {
         if (errno != ESRCH)
@@ -84,11 +82,16 @@ static bool fallback_alive(pid_t pid)
     return true;
 }
 
-static bool pid_in_cgroup(pid_t pid)
+static bool pid_in_cgroup(pid_t pid, uid_t uid)
 {
+    char *namespace;
     bool found = false;
     pid_t cgroup_pid;
 
+    /* each user's agents are namespaces by uid */
+    asprintf(&namespace, "agent:%d", uid);
+
+    int cgroup_fd = cg_open_controller("cpu", program_invocation_short_name, namespace, NULL);
     FILE *fp = subsystem_open(cgroup_fd, "cgroup.procs", "r");
     if (!fp)
         err(EXIT_FAILURE, "failed to open cgroup info");
@@ -101,15 +104,14 @@ static bool pid_in_cgroup(pid_t pid)
     }
 
     fclose(fp);
+    close(cgroup_fd);
+    free(namespace);
     return found;
 }
 
 static void init_cgroup(void)
 {
-    char *namespace;
-    asprintf(&namespace, "%s:%d", program_invocation_short_name, getuid());
-
-    cgroup_fd = cg_open_controller("cpu", program_invocation_short_name, namespace, NULL);
+    int cgroup_fd = cg_open_subsystem("cpu");
     if (cgroup_fd < 0) {
         fprintf(stderr, "Failed to initialize cgroup subsystem! It's likely there's no kernel support.\n"
                 "Falling back to a naive (and less than reliable) method of process management...\n");
@@ -118,8 +120,7 @@ static void init_cgroup(void)
     }
 
     pid_alive = pid_in_cgroup;
-    subsystem_set(cgroup_fd, "tasks", "0");
-    free(namespace);
+    close(cgroup_fd);
 }
 
 static void parse_agentdata_line(char *val, struct agent_data_t *info)
@@ -172,10 +173,21 @@ static int parse_agentdata(int fd, struct agent_data_t *data)
 
 static void __attribute__((__noreturn__)) exec_agent(const struct agent_t *agent, uid_t uid, gid_t gid)
 {
+    static char *env[] = { "PATH=/usr/local/bin:/usr/bin:/bin", NULL };
+    char *namespace;
+    int cgroup_fd;
+
     if (setregid(gid, gid) < 0 || setreuid(uid, uid) < 0)
         err(EXIT_FAILURE, "unable to drop to uid=%u gid=%u\n", uid, gid);
 
-    char *env[] = { "PATH=/usr/local/bin:/usr/bin:/bin", NULL };
+    /* each user's agents are namespaces by uid */
+    asprintf(&namespace, "agent:%d", uid);
+
+    cgroup_fd = cg_open_controller("cpu", program_invocation_short_name, namespace, NULL);
+    subsystem_set(cgroup_fd, "tasks", "0");
+
+    close(cgroup_fd);
+    free(namespace);
     execve(agent->argv[0], agent->argv, env);
     err(EXIT_FAILURE, "failed to start %s", agent->name);
 }
@@ -316,7 +328,7 @@ static void accept_conn(void)
 
     struct agent_info_t *node = find_agent_info(agents, cred.uid);
 
-    if (!node || node->d.pid == 0 || !pid_alive(node->d.pid)) {
+    if (!node || node->d.pid == 0 || !pid_alive(node->d.pid, cred.uid)) {
         struct epoll_event event = {
             .data.fd = cfd,
             .events  = EPOLLIN | EPOLLET
