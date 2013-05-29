@@ -9,7 +9,7 @@ CFLAGS := -std=c99 \
 LDLIBS = -lsystemd-daemon
 
 all: envoyd envoy
-envoyd: envoyd.o common.o
+envoyd: envoyd.o common.o cgroups.o
 envoy: envoy.o common.o
 
 install: envoyd envoy

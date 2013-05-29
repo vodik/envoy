@@ -16,6 +16,7 @@
  */
 
 #include "common.h"
+#include "cgroups.h"
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -42,8 +43,7 @@ struct agent_info_t {
 static enum agent default_type = AGENT_SSH_AGENT;
 static struct agent_info_t *agents = NULL;
 static bool sd_activated = false;
-static int epoll_fd, server_sock;
-static char cgroup_tasks[PATH_MAX];
+static int epoll_fd, server_sock, cgroup_fd;
 static uid_t server_uid;
 
 static void cleanup(void)
@@ -73,25 +73,15 @@ static void sighandler(int signum)
 
 static void init_cgroup(void)
 {
-    char cgroup_root[PATH_MAX];
-    int uid = getuid();
+    char *namespace;
+    asprintf(&namespace, "%s:%d", program_invocation_short_name, getuid());
 
-    if (uid > 0)
-        snprintf(cgroup_root, PATH_MAX, "/sys/fs/cgroup/cpu/%s-%d", program_invocation_short_name, uid);
-    else
-        snprintf(cgroup_root, PATH_MAX, "/sys/fs/cgroup/cpu/%s", program_invocation_short_name);
+    cgroup_fd = cg_open_controller("cpu", program_invocation_short_name, namespace, NULL);
+    if (cgroup_fd < 0)
+        err(EXIT_FAILURE, "failed to acquire cgroup");
+    subsystem_set(cgroup_fd, "tasks", "0");
 
-    if (mkdir(cgroup_root, 0755) < 0 && errno != EEXIST)
-        err(EXIT_FAILURE, "failed to create cgroup subsystem");
-
-    snprintf(cgroup_tasks, PATH_MAX, "%s/tasks", cgroup_root);
-
-    FILE *fp = fopen(cgroup_tasks, "w");
-    if (!fp)
-        err(EXIT_FAILURE, "failed to open cgroup info");
-
-    fputs("0", fp);
-    fclose(fp);
+    free(namespace);
 }
 
 static bool pid_in_cgroup(pid_t pid)
@@ -99,7 +89,7 @@ static bool pid_in_cgroup(pid_t pid)
     bool found = false;
     pid_t cgroup_pid;
 
-    FILE *fp = fopen(cgroup_tasks, "r");
+    FILE *fp = subsystem_open(cgroup_fd, "cgroup.procs", "r");
     if (!fp)
         err(EXIT_FAILURE, "failed to open cgroup info");
 
