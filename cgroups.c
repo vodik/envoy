@@ -159,7 +159,7 @@ int cg_open_subsystem(const char *subsystem)
     if (root == NULL)
         return -1;
 
-    int dirfd = open(root, O_RDONLY, FD_CLOEXEC);
+    int dirfd = open(root, O_RDONLY | O_CLOEXEC);
     free(root);
 
     if (dirfd < 0)
@@ -180,7 +180,7 @@ int cg_open_controller(const char *subsystem, ...)
     if (rc < 0)
         return -1;
 
-    int dirfd = open(path, O_RDONLY, FD_CLOEXEC);
+    int dirfd = open(path, O_RDONLY | O_CLOEXEC);
     free(path);
 
     if (dirfd < 0)
@@ -208,7 +208,7 @@ int cg_open_subcontroller(int cg, const char *controller)
     if (mkdirat(cg, controller, 0755) < 0 && errno != EEXIST)
         return -1;
 
-    int dirfd = openat(cg, controller, O_RDONLY, FD_CLOEXEC);
+    int dirfd = openat(cg, controller, O_RDONLY | O_CLOEXEC);
     if (dirfd < 0)
         return -1;
 
@@ -217,7 +217,7 @@ int cg_open_subcontroller(int cg, const char *controller)
 
 int subsystem_set(int cg, const char *device, const char *value)
 {
-    int fd = openat(cg, device, O_WRONLY, FD_CLOEXEC);
+    int fd = openat(cg, device, O_WRONLY | O_CLOEXEC);
     if (fd < 0)
         return -1;
 
@@ -228,7 +228,7 @@ int subsystem_set(int cg, const char *device, const char *value)
 
 FILE *subsystem_open(int cg, const char *device, const char *mode)
 {
-    int fd = openat(cg, device, O_RDWR, FD_CLOEXEC);
+    int fd = openat(cg, device, O_RDWR | O_CLOEXEC);
     if (fd < 0)
         return NULL;
 
