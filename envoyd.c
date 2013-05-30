@@ -213,21 +213,31 @@ static int parse_agentdata(int fd, struct agent_data_t *data)
 
 static void __attribute__((__noreturn__)) exec_agent(const struct agent_t *agent, uid_t uid, gid_t gid)
 {
-    static char *env[] = { "PATH=/usr/local/bin:/usr/bin:/bin", NULL };
-    char *namespace;
+    char *namespace, *home;
     int cgroup_fd;
+    struct passwd *pwd;
 
     /* each user's agents are namespaces by uid */
     asprintf(&namespace, "%d.agent", uid);
-
     cgroup_fd = cg_open_controller("cpu", "envoy", cgroup_name, namespace, NULL);
     subsystem_set(cgroup_fd, "tasks", "0");
+    free(namespace);
+    close(cgroup_fd);
 
     if (setregid(gid, gid) < 0 || setreuid(uid, uid) < 0)
         err(EXIT_FAILURE, "unable to drop to uid=%u gid=%u\n", uid, gid);
 
-    close(cgroup_fd);
-    free(namespace);
+    pwd = getpwuid(uid);
+    if (pwd == NULL || pwd->pw_dir == NULL)
+        err(EXIT_FAILURE, "failed to lookup passwd entry");
+
+    /* setup the most minimal environment */
+    asprintf(&home, "HOME=%s", pwd->pw_dir);
+    char *env[] = {
+        "PATH=/usr/local/bin:/usr/bin:/bin",
+        home, NULL
+    };
+
     execve(agent->argv[0], agent->argv, env);
     err(EXIT_FAILURE, "failed to start %s", agent->name);
 }
