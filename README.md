@@ -89,3 +89,14 @@ The `~/bin/ssh` binary will automatically connect to the preferred agent
 and then execute `/usr/bin/ssh`. This does an excellent job of working
 around the gpg-agent issues above since it guarantees gpg-agent will
 have the correct information before running ssh.
+
+### Cgroups support
+
+Having been unable to find a simple cgroups library targeted at
+embedding, I wrote my own. `cgroups.c` has been borrowed from my own
+project [here][cgroups].
+
+Any bugs with the cgroups support or confusions with terminology (I'm
+pretty sure my terminology is way off) should be reported there.
+
+  [cgroups]: https://github.com/vodik/clique
