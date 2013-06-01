@@ -89,7 +89,8 @@ static void cgroup_cleanup(uid_t uid)
     bool done = false;
     char *namespace;
 
-    asprintf(&namespace, "%d.agent", uid);
+    if (asprintf(&namespace, "%d.agent", uid) < 0)
+        err(EXIT_FAILURE, "failed to allocate memory");
 
     int cgroup_fd = cg_open_controller("cpu", "envoy", cgroup_name, namespace, NULL);
     do {
@@ -127,7 +128,8 @@ static bool pid_in_cgroup(pid_t pid, uid_t uid)
     pid_t cgroup_pid;
 
     /* each user's agents are namespaces by uid */
-    asprintf(&namespace, "%d.agent", uid);
+    if (asprintf(&namespace, "%d.agent", uid) < 0)
+        err(EXIT_FAILURE, "failed to allocate memory");
 
     int cgroup_fd = cg_open_controller("cpu", "envoy", cgroup_name, namespace, NULL);
     FILE *fp = subsystem_open(cgroup_fd, "cgroup.procs", "r");
@@ -157,7 +159,9 @@ static void init_cgroup(void)
         return;
     }
 
-    asprintf(&cgroup_name, "%d.monitor", getpid());
+    if (asprintf(&cgroup_name, "%d.monitor", getpid()) < 0)
+        err(EXIT_FAILURE, "failed to allocate memory");
+
     kill_agent = cgroup_cleanup;
     pid_alive = pid_in_cgroup;
     close(cgroup_fd);
@@ -218,7 +222,9 @@ static void __attribute__((__noreturn__)) exec_agent(const struct agent_t *agent
     struct passwd *pwd;
 
     /* each user's agents are namespaces by uid */
-    asprintf(&namespace, "%d.agent", uid);
+    if (asprintf(&namespace, "%d.agent", uid) < 0)
+        err(EXIT_FAILURE, "failed to allocate memory");
+
     cgroup_fd = cg_open_controller("cpu", "envoy", cgroup_name, namespace, NULL);
     subsystem_set(cgroup_fd, "tasks", "0");
     free(namespace);
@@ -232,7 +238,9 @@ static void __attribute__((__noreturn__)) exec_agent(const struct agent_t *agent
         err(EXIT_FAILURE, "failed to lookup passwd entry");
 
     /* setup the most minimal environment */
-    asprintf(&home, "HOME=%s", pwd->pw_dir);
+    if (asprintf(&home, "HOME=%s", pwd->pw_dir) < 0)
+        err(EXIT_FAILURE, "failed to allocate memory");
+
     char *env[] = {
         "PATH=/usr/local/bin:/usr/bin:/bin",
         home, NULL
