@@ -226,7 +226,7 @@ static void __attribute__((__noreturn__)) exec_agent(const struct agent_t *agent
         err(EXIT_FAILURE, "failed to allocate memory");
 
     cgroup_fd = cg_open_controller("cpu", "envoy", cgroup_name, namespace, NULL);
-    subsystem_set(cgroup_fd, "tasks", "0");
+    subsystem_set(cgroup_fd, "cgroup.procs", "0");
     free(namespace);
     close(cgroup_fd);
 
