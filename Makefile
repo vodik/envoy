@@ -12,7 +12,7 @@ all: envoyd envoy pam_envoy.so
 envoyd: envoyd.o common.o cgroups.o
 envoy: envoy.o common.o
 
-pam_envoy.so: pam.c envoy.c common.c
+pam_envoy.so: pam_envoy.c envoy.c common.c
 	${CC} ${CFLAGS} -fPIC -DPIC -shared -rdynamic -o $@ $?
 
 install: envoyd envoy
