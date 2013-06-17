@@ -61,7 +61,7 @@ any keys passed to `envoy` will be added to the agent. Without any
 arguments, it'll try to add `.ssh/id_rsa`, `.ssh/id_dsa`, and
 `.ssh/id_ecdsa` automatically.
 
-### Using gpg-agent
+### Envoy with gpg-agent
 
 Keys are never implicitly added with `gpg-agent`. Instead, keys have to
 be explicitly added through either `envoy -a` or `ssh-add`. The agent
@@ -76,6 +76,13 @@ if available, of the tty and X. It is the same effect of running `echo
 UPDATESTARTUPTTY | gpg-connect-agent`. This may cause some odd behaviour
 with the pinentry. The pinentry may appear in an inappropriate place if
 this data becomes stale. This is a limitation of gpg-agent itself.
+
+### Envoy's pam integration
+
+Envoy provides a pam module to load the agent into memory instead of
+relying on `envoy -p`. To use it, edit `/etc/pam.d/login` and add:
+
+    session   optional    pam_envoy.so
 
 ### Wrappers with envoy
 

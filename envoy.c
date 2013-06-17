@@ -15,6 +15,7 @@
  * Copyright (C) Simon Gomizelj, 2012
  */
 
+#include "envoy.h"
 #include "common.h"
 
 #include <stdlib.h>
@@ -226,7 +227,7 @@ static bool start_agent(int fd, struct agent_data_t *data, enum agent type)
     return rc;
 }
 
-static bool get_agent(struct agent_data_t *data, enum agent id, bool start)
+bool get_agent(struct agent_data_t *data, enum agent id, bool start)
 {
     socklen_t sa_len;
     union {
