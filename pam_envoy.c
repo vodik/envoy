@@ -92,7 +92,7 @@ int pam_sm_open_session(pam_handle_t *ph, int UNUSED flags,
         return PAM_SERVICE_ERR;
     }
 
-    if (pam_get_agent(&data, pwd->pw_uid, pwd->pw_gid) == false) {
+    if (!pam_get_agent(&data, pwd->pw_uid, pwd->pw_gid)) {
         syslog(PAM_LOG_WARNING, "pam-envoy: failed to get agent for user");
         return PAM_SUCCESS;
     }

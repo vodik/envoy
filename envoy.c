@@ -258,7 +258,7 @@ static void __attribute__((__noreturn__)) exec_wrapper(const char *cmd, int argc
     char *args[argc + 1];
     int i;
 
-    if (get_agent(&data, AGENT_DEFAULT, true) == 0)
+    if (!get_agent(&data, AGENT_DEFAULT, true))
         errx(EXIT_FAILURE, "recieved no data, did the agent fail to start?");
 
     if (asprintf(&args[0], "/usr/bin/%s", cmd) < 0)
@@ -352,7 +352,7 @@ int main(int argc, char *argv[])
         }
     }
 
-    if (get_agent(&data, type, source) == 0)
+    if (!get_agent(&data, type, source))
         errx(EXIT_FAILURE, "recieved no data, did the agent fail to start?");
 
     if (data.status == ENVOY_STOPPED)
