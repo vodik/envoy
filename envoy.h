@@ -18,7 +18,7 @@
 #ifndef ENVOY_H
 #define ENVOY_H
 
-#include "common.h"
+#include "envoyd.h"
 #include <stdbool.h>
 
 bool get_agent(struct agent_data_t *data, enum agent id, bool start);

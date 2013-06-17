@@ -16,7 +16,6 @@
  */
 
 #include "envoy.h"
-#include "common.h"
 
 #include <stdlib.h>
 #include <stdio.h>

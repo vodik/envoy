@@ -15,7 +15,7 @@
  * Copyright (C) Simon Gomizelj, 2012
  */
 
-#include "common.h"
+#include "envoyd.h"
 
 #include <stdlib.h>
 #include <unistd.h>

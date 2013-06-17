@@ -15,7 +15,7 @@
  * Copyright (C) Simon Gomizelj, 2012
  */
 
-#include "common.h"
+#include "envoyd.h"
 #include "cgroups.h"
 
 #include <stdlib.h>
