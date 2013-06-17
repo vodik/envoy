@@ -230,7 +230,7 @@ static void __attribute__((__noreturn__)) exec_agent(const struct agent_t *agent
     free(namespace);
     close(cgroup_fd);
 
-    if (setregid(gid, gid) < 0 || setreuid(uid, uid) < 0)
+    if (setresgid(gid, gid, gid) < 0 || setresuid(uid, uid, uid) < 0)
         err(EXIT_FAILURE, "unable to drop to uid=%u gid=%u\n", uid, gid);
 
     pwd = getpwuid(uid);
