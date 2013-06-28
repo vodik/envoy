@@ -21,6 +21,7 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <string.h>
+#include <errno.h>
 #include <unistd.h>
 #include <pwd.h>
 #include <syslog.h>
@@ -57,14 +58,29 @@ static int __attribute__((format (printf, 2, 3))) pam_setenv(pam_handle_t *ph, c
 static bool pam_get_agent(struct agent_data_t *data, uid_t uid, gid_t gid)
 {
     if (setegid(gid) < 0 || seteuid(uid) < 0) {
-        syslog(PAM_LOG_ERR, "pam-envoy: failed to drop privileges to start agent for uid=%d", uid);
+        syslog(PAM_LOG_ERR, "pam-envoy: failed to drop privileges to start agent for uid=%d: %s",
+               uid, strerror(errno));
         return false;
     }
 
-    bool ret = get_agent(data, AGENT_DEFAULT, true);
+    int ret = envoy_agent(data, AGENT_DEFAULT, true);
+    if (ret < 0)
+        syslog(PAM_LOG_ERR, "failed to fetch agent: %s", strerror(errno));
+
+    switch (data->status) {
+    case ENVOY_STOPPED:
+    case ENVOY_STARTED:
+    case ENVOY_RUNNING:
+        break;
+    case ENVOY_FAILED:
+        syslog(PAM_LOG_ERR, "agent failed to start, check envoyd's log");
+    case ENVOY_BADUSER:
+        syslog(PAM_LOG_ERR, "connection rejected, user is unauthorized to use this agent");
+    }
 
     if (setegid(0) < 0 || seteuid(0) < 0) {
-        syslog(PAM_LOG_ERR, "pam-envoy: failed to restore privileges after starting agent");
+        syslog(PAM_LOG_ERR, "pam-envoy: failed to restore privileges after starting agent: %s",
+               strerror(errno));
     }
 
     return ret;
@@ -88,7 +104,8 @@ int pam_sm_open_session(pam_handle_t *ph, int UNUSED flags,
 
     pwd = getpwnam(user);
     if (!pwd) {
-        syslog(PAM_LOG_ERR, "pam-envoy: error looking up user information");
+        syslog(PAM_LOG_ERR, "pam-envoy: error looking up user information: %s",
+               strerror(errno));
         return PAM_SERVICE_ERR;
     }
 

@@ -57,7 +57,7 @@ extern const struct agent_t Agent[LAST_AGENT];
 size_t init_envoy_socket(struct sockaddr_un *un);
 void unlink_envoy_socket(void);
 
-bool get_agent(struct agent_data_t *data, enum agent id, bool start);
+int envoy_agent(struct agent_data_t *data, enum agent id, bool start);
 enum agent lookup_agent(const char *string);
 
 #endif

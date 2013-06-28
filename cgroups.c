@@ -176,8 +176,8 @@ int cg_open_controller(const char *subsystem, ...)
     path = cg_path(subsystem, ap);
     va_end(ap);
 
-    int rc = mkdir_parents(path, 0755);
-    if (rc < 0)
+    int ret = mkdir_parents(path, 0755);
+    if (ret < 0)
         return -1;
 
     int dirfd = open(path, O_RDONLY | O_CLOEXEC);
@@ -197,10 +197,10 @@ int cg_destroy_controller(const char *subsystem, ...)
     path = cg_path(subsystem, ap);
     va_end(ap);
 
-    int rc = rmdir(path);
+    int ret = rmdir(path);
 
     free(path);
-    return rc;
+    return ret;
 }
 
 int cg_open_subcontroller(int cg, const char *controller)
