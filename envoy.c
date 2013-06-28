@@ -274,7 +274,7 @@ int main(int argc, char *argv[])
             verb = ACTION_PRINT;
             break;
         case 't':
-            type = find_agent(optarg);
+            type = lookup_agent(optarg);
             if (type == LAST_AGENT)
                 errx(EXIT_FAILURE, "unknown agent: %s", optarg);
             break;

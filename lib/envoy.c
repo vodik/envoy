@@ -25,6 +25,48 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 
+const struct agent_t Agent[LAST_AGENT] = {
+    [AGENT_SSH_AGENT] = {
+        .name = "ssh-agent",
+        .argv = (char *const []){ "/usr/bin/ssh-agent", NULL }
+    },
+    [AGENT_GPG_AGENT] = {
+        .name = "gpg-agent",
+        .argv = (char *const []){ "/usr/bin/gpg-agent", "--daemon", "--enable-ssh-support", NULL }
+    }
+};
+
+static const char *get_socket_path(void)
+{
+    const char *socket = getenv("ENVOY_SOCKET");
+    return socket ? socket : "@/vodik/envoy";
+}
+
+size_t init_envoy_socket(struct sockaddr_un *un)
+{
+    const char *socket = get_socket_path();
+    off_t off = 0;
+    size_t len;
+
+    *un = (struct sockaddr_un){ .sun_family = AF_UNIX };
+
+    if (socket[0] == '@')
+        off = 1;
+
+    len = strlen(socket);
+    memcpy(&un->sun_path[off], &socket[off], len - off);
+
+    return len + sizeof(un->sun_family);
+}
+
+void unlink_envoy_socket(void)
+{
+    const char *socket = get_socket_path();
+    if (socket[0] != '@')
+        unlink(socket);
+}
+
+
 static bool read_agent(int fd, struct agent_data_t *data)
 {
     int nbytes_r;
@@ -92,4 +134,15 @@ bool get_agent(struct agent_data_t *data, enum agent id, bool start)
 
     close(fd);
     return rc;
+}
+
+enum agent lookup_agent(const char *string)
+{
+    size_t i;
+
+    for (i = 0; i < LAST_AGENT; i++)
+        if (strcmp(Agent[i].name, string) == 0)
+            break;
+
+    return i;
 }

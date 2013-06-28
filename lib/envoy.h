@@ -15,12 +15,51 @@
  * Copyright (C) Simon Gomizelj, 2012
  */
 
-#ifndef ENVOY_H
-#define ENVOY_H
+#ifndef LIBENVOY_H
+#define LIBENVOY_H
 
-#include "../envoyd.h"
 #include <stdbool.h>
+#include <limits.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <sys/un.h>
+
+enum agent {
+    AGENT_DEFAULT = -1,
+    AGENT_SSH_AGENT = 0,
+    AGENT_GPG_AGENT,
+    LAST_AGENT
+};
+
+enum status {
+    ENVOY_STOPPED = 0,
+    ENVOY_STARTED,
+    ENVOY_RUNNING,
+    ENVOY_FAILED,
+    ENVOY_BADUSER,
+};
+
+struct agent_t {
+    const char *name;
+    char *const *argv;
+};
+
+struct agent_data_t {
+    enum agent type;
+    enum status status;
+    pid_t pid;
+    char sock[PATH_MAX];
+    char gpg[PATH_MAX];
+};
+
+extern const struct agent_t Agent[LAST_AGENT];
+
+size_t init_envoy_socket(struct sockaddr_un *un);
+void unlink_envoy_socket(void);
 
 bool get_agent(struct agent_data_t *data, enum agent id, bool start);
+enum agent lookup_agent(const char *string);
 
 #endif
+
+// vim: et:sts=4:sw=4:cino=(0

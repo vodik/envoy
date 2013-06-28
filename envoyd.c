@@ -15,9 +15,6 @@
  * Copyright (C) Simon Gomizelj, 2012
  */
 
-#include "envoyd.h"
-#include "cgroups.h"
-
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdbool.h>
@@ -33,6 +30,9 @@
 #include <sys/un.h>
 #include <sys/wait.h>
 #include <systemd/sd-daemon.h>
+
+#include "lib/envoy.h"
+#include "cgroups.h"
 
 struct agent_info_t {
     uid_t uid;
@@ -345,7 +345,7 @@ static int get_socket(void)
     return fd;
 }
 
-static struct agent_info_t *find_agent_info(struct agent_info_t *agents, uid_t uid)
+static struct agent_info_t *lookup_agent_info(struct agent_info_t *agents, uid_t uid)
 {
     struct agent_info_t *node;
     for (node = agents; node; node = node->next) {
@@ -394,7 +394,7 @@ static void accept_conn(void)
         return;
     }
 
-    struct agent_info_t *node = find_agent_info(agents, cred.uid);
+    struct agent_info_t *node = lookup_agent_info(agents, cred.uid);
 
     if (!node || node->d.pid == 0 || !pid_alive(node->d.pid, cred.uid)) {
         struct epoll_event event = {
@@ -427,7 +427,7 @@ static void handle_conn(int cfd)
     if (getsockopt(cfd, SOL_SOCKET, SO_PEERCRED, &cred, &cred_len) < 0)
         err(EXIT_FAILURE, "couldn't obtain credentials from unix domain socket");
 
-    struct agent_info_t *node = find_agent_info(agents, cred.uid);
+    struct agent_info_t *node = lookup_agent_info(agents, cred.uid);
 
     if (!node) {
         node = calloc(1, sizeof(struct agent_info_t));
@@ -516,7 +516,7 @@ int main(int argc, char *argv[])
             printf("%s %s\n", program_invocation_short_name, ENVOY_VERSION);
             return 0;
         case 't':
-            default_type = find_agent(optarg);
+            default_type = lookup_agent(optarg);
             if (default_type == LAST_AGENT)
                 errx(EXIT_FAILURE, "unknown agent: %s", optarg);
             break;
