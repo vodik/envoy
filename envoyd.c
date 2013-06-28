@@ -218,7 +218,7 @@ static int parse_agentdata(int fd, struct agent_data_t *data)
 
 static void __attribute__((__noreturn__)) exec_agent(const struct agent_t *agent, uid_t uid, gid_t gid)
 {
-    char *namespace, *home;
+    char *namespace, *env_home = NULL, *env_gnupghome = NULL;
     int cgroup_fd;
     struct passwd *pwd;
 
@@ -239,13 +239,18 @@ static void __attribute__((__noreturn__)) exec_agent(const struct agent_t *agent
         err(EXIT_FAILURE, "failed to lookup passwd entry");
 
     /* setup the most minimal environment */
-    if (asprintf(&home, "HOME=%s", pwd->pw_dir) < 0)
+    if (asprintf(&env_home, "HOME=%s", pwd->pw_dir) < 0)
         err(EXIT_FAILURE, "failed to allocate memory");
+
+    if (gnupghome) {
+        if (asprintf(&env_gnupghome, "GNUPGHOME=%s", gnupghome) < 0)
+            err(EXIT_FAILURE, "failed to allocate memory");
+    }
 
     char *const env[] = {
         "PATH=/usr/local/bin:/usr/bin:/bin",
-        home,
-        gnupghome,
+        env_home,
+        env_gnupghome,
         NULL
     };
 
