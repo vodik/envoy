@@ -15,8 +15,6 @@
  * Copyright (C) Simon Gomizelj, 2012
  */
 
-#include "envoy.h"
-
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdbool.h>
@@ -29,6 +27,8 @@
 #include <sys/wait.h>
 #include <sys/socket.h>
 #include <sys/un.h>
+
+#include "lib/envoy.h"
 
 enum action {
     ACTION_PRINT,
@@ -180,75 +180,6 @@ static void source_env(struct agent_data_t *data)
         gpg_update_tty(data->gpg);
 
     setenv("SSH_AUTH_SOCK", data->sock, true);
-}
-
-static bool read_agent(int fd, struct agent_data_t *data)
-{
-    int nbytes_r;
-
-    while (true) {
-        nbytes_r = read(fd, data, sizeof(*data));
-        if (nbytes_r < 0) {
-            if (errno != EAGAIN) {
-                warn("failed to receive data from server");
-                break;
-            }
-        } else
-            break;
-    }
-
-    switch (data->status) {
-    case ENVOY_STOPPED:
-    case ENVOY_STARTED:
-    case ENVOY_RUNNING:
-        break;
-    case ENVOY_FAILED:
-        errx(EXIT_FAILURE, "agent failed to start, check envoyd's log");
-    case ENVOY_BADUSER:
-        errx(EXIT_FAILURE, "connection rejected, user is unauthorized to use this agent");
-    }
-
-    return true;
-}
-
-static bool start_agent(int fd, struct agent_data_t *data, enum agent type)
-{
-    if (write(fd, &type, sizeof(enum agent)) < 0)
-        err(EXIT_FAILURE, "failed to write agent type");
-
-    bool rc = read_agent(fd, data);
-
-    if (data->status == ENVOY_STOPPED)
-        errx(EXIT_FAILURE, "envoyd reported agent stopped twice");
-    if (data->pid == 0)
-        errx(EXIT_FAILURE, "envoyd did not provide a valid pid");
-
-    return rc;
-}
-
-bool get_agent(struct agent_data_t *data, enum agent id, bool start)
-{
-    socklen_t sa_len;
-    union {
-        struct sockaddr sa;
-        struct sockaddr_un un;
-    } sa;
-
-    int fd = socket(AF_UNIX, SOCK_STREAM | SOCK_NONBLOCK, 0);
-    if (fd < 0)
-        err(EXIT_FAILURE, "couldn't create socket");
-
-    sa_len = init_envoy_socket(&sa.un);
-    if (connect(fd, &sa.sa, sa_len) < 0)
-        err(EXIT_FAILURE, "failed to connect to agent");
-
-    bool rc = read_agent(fd, data);
-
-    if (rc && start && data->status == ENVOY_STOPPED)
-        rc = start_agent(fd, data, id);
-
-    close(fd);
-    return rc;
 }
 
 static void __attribute__((__noreturn__)) exec_wrapper(const char *cmd, int argc, char *argv[])

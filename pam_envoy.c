@@ -16,7 +16,6 @@
  */
 
 #define PAM_SM_SESSION
-#include "envoy.h"
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -31,10 +30,11 @@
 #include <security/pam_appl.h>
 #include <security/pam_modules.h>
 
+#include "lib/envoy.h"
+
+#define UNUSED           __attribute__((unused))
 #define PAM_LOG_ERR      LOG_AUTHPRIV | LOG_ERR
 #define PAM_LOG_WARNING  LOG_AUTHPRIV | LOG_WARNING
-
-#define UNUSED __attribute__((unused))
 
 static int __attribute__((format (printf, 2, 3))) pam_setenv(pam_handle_t *ph, const char *fmt, ...)
 {

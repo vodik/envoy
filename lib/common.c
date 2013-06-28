@@ -15,12 +15,12 @@
  * Copyright (C) Simon Gomizelj, 2012
  */
 
-#include "envoyd.h"
-
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/socket.h>
 #include <sys/un.h>
+
+#include "../envoyd.h"
 
 const struct agent_t Agent[LAST_AGENT] = {
     [AGENT_SSH_AGENT] = {
