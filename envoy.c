@@ -240,7 +240,8 @@ int main(int argc, char *argv[])
     };
 
     if (strcmp(program_invocation_short_name, "ssh") == 0 ||
-        strcmp(program_invocation_short_name, "scp") == 0) {
+        strcmp(program_invocation_short_name, "scp") == 0 ||
+        strcmp(program_invocation_short_name, "gpg") == 0) {
         exec_wrapper(program_invocation_short_name, argc, argv);
     }
 
