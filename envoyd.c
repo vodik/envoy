@@ -44,6 +44,7 @@ static enum agent default_type = AGENT_SSH_AGENT;
 static struct agent_info_t *agents = NULL;
 static bool sd_activated = false;
 static int epoll_fd, server_sock;
+static char *gnupghome = NULL;
 
 /* cgroup support */
 static bool (*pid_alive)(pid_t pid, uid_t uid);
@@ -241,9 +242,11 @@ static void __attribute__((__noreturn__)) exec_agent(const struct agent_t *agent
     if (asprintf(&home, "HOME=%s", pwd->pw_dir) < 0)
         err(EXIT_FAILURE, "failed to allocate memory");
 
-    char *env[] = {
+    char *const env[] = {
         "PATH=/usr/local/bin:/usr/bin:/bin",
-        home, NULL
+        home,
+        gnupghome,
+        NULL
     };
 
     execve(agent->argv[0], agent->argv, env);
@@ -526,6 +529,9 @@ int main(int argc, char *argv[])
 
     signal(SIGTERM, sighandler);
     signal(SIGINT,  sighandler);
+
+    /* Read $GNUPGHOME to pass to gpg-agent */
+    gnupghome = getenv("GNUPGHOME");
 
     return loop();
 }
