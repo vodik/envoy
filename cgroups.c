@@ -59,7 +59,6 @@ static int mkdir_parents(const char *path, mode_t mode)
         free(t);
 
         if (r < 0 && errno != EEXIST) {
-            printf("ERROR!\n");
             return -errno;
         }
 

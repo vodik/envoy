@@ -152,7 +152,7 @@ static bool pid_in_cgroup(pid_t pid, uid_t uid)
 
 static void init_cgroup(void)
 {
-    int cgroup_fd = cg_open_subsystem("cpu");
+    int cgroup_fd = cg_open_controller("cpu", "envoy", NULL);
     if (cgroup_fd < 0) {
         fprintf(stderr, "Failed to initialize cgroup subsystem! It's likely there's no kernel support.\n"
                 "Falling back to a naive (and less than reliable) method of process management...\n");
