@@ -9,11 +9,17 @@ CFLAGS := -std=c99 \
 LDLIBS = -lsystemd-daemon
 
 all: envoyd envoy pam_envoy.so
+lib/envoy.o: lib/envoy.c
+pam_envoy.o: pam_envoy.c
 envoyd: envoyd.o lib/envoy.o cgroups.o
 envoy: envoy.o lib/envoy.o
+pam_envoy.so: pam_envoy.o lib/envoy.o
 
-pam_envoy.so: pam_envoy.c lib/envoy.c
-	${CC} ${CFLAGS} -fPIC -DPIC -shared -rdynamic -o $@ $?
+lib/envoy.o pam_envoy.o:
+	${CC} ${CFLAGS} -fPIC -o $@ -c $<
+
+pam_envoy.so:
+	${LD} -x --shared -o $@ $?
 
 install: envoyd envoy pam_envoy.so
 	install -Dm755 envoyd ${DESTDIR}/usr/bin/envoyd
