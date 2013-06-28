@@ -55,12 +55,12 @@ static int __attribute__((format (printf, 2, 3))) pam_setenv(pam_handle_t *ph, c
     return 0;
 }
 
-static bool pam_get_agent(struct agent_data_t *data, uid_t uid, gid_t gid)
+static int pam_get_agent(struct agent_data_t *data, uid_t uid, gid_t gid)
 {
     if (setegid(gid) < 0 || seteuid(uid) < 0) {
         syslog(PAM_LOG_ERR, "pam-envoy: failed to drop privileges to start agent for uid=%d: %s",
                uid, strerror(errno));
-        return false;
+        return -1;
     }
 
     int ret = envoy_agent(data, AGENT_DEFAULT, true);
@@ -81,6 +81,7 @@ static bool pam_get_agent(struct agent_data_t *data, uid_t uid, gid_t gid)
     if (setegid(0) < 0 || seteuid(0) < 0) {
         syslog(PAM_LOG_ERR, "pam-envoy: failed to restore privileges after starting agent: %s",
                strerror(errno));
+        return -1;
     }
 
     return ret;
@@ -109,7 +110,7 @@ PAM_EXTERN int pam_sm_open_session(pam_handle_t *ph, int UNUSED flags,
         return PAM_SERVICE_ERR;
     }
 
-    if (!pam_get_agent(&data, pwd->pw_uid, pwd->pw_gid)) {
+    if (pam_get_agent(&data, pwd->pw_uid, pwd->pw_gid) < 0) {
         syslog(PAM_LOG_WARNING, "pam-envoy: failed to get agent for user");
         return PAM_SUCCESS;
     }
