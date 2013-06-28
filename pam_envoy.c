@@ -55,7 +55,7 @@ static int __attribute__((format (printf, 2, 3))) pam_setenv(pam_handle_t *ph, c
     return 0;
 }
 
-static int pam_get_agent(struct agent_data_t *data, uid_t uid, gid_t gid)
+static int pam_get_agent(struct agent_data_t *data, enum agent id, uid_t uid, gid_t gid)
 {
     if (setegid(gid) < 0 || seteuid(uid) < 0) {
         syslog(PAM_LOG_ERR, "pam-envoy: failed to drop privileges to start agent for uid=%d: %s",
@@ -63,7 +63,7 @@ static int pam_get_agent(struct agent_data_t *data, uid_t uid, gid_t gid)
         return -1;
     }
 
-    int ret = envoy_agent(data, AGENT_DEFAULT, true);
+    int ret = envoy_agent(data, id, true);
     if (ret < 0)
         syslog(PAM_LOG_ERR, "failed to fetch agent: %s", strerror(errno));
 
@@ -89,11 +89,12 @@ static int pam_get_agent(struct agent_data_t *data, uid_t uid, gid_t gid)
 
 /* PAM entry point for session creation */
 PAM_EXTERN int pam_sm_open_session(pam_handle_t *ph, int UNUSED flags,
-                                   int UNUSED argc, const char UNUSED **argv)
+                                   int argc, const char **argv)
 {
     struct agent_data_t data;
     const struct passwd *pwd;
     const char *user;
+    enum agent id = AGENT_DEFAULT;
     int ret;
 
     ret = pam_get_user(ph, &user, NULL);
@@ -110,7 +111,14 @@ PAM_EXTERN int pam_sm_open_session(pam_handle_t *ph, int UNUSED flags,
         return PAM_SERVICE_ERR;
     }
 
-    if (pam_get_agent(&data, pwd->pw_uid, pwd->pw_gid) < 0) {
+    if (argc > 1) {
+        syslog(PAM_LOG_WARNING, "pam-envoy: too many arguments");
+        return PAM_SUCCESS;
+    } else if (argc == 1) {
+        id = lookup_agent(argv[0]);
+    }
+
+    if (pam_get_agent(&data, id, pwd->pw_uid, pwd->pw_gid) < 0) {
         syslog(PAM_LOG_WARNING, "pam-envoy: failed to get agent for user");
         return PAM_SUCCESS;
     }

@@ -84,6 +84,11 @@ relying on `envoy -p`. To use it, edit `/etc/pam.d/login` and add:
 
     session   optional    pam_envoy.so
 
+Its also possible provide an optional argument to choose which agent
+type to start:
+
+    session   optional    pam_envoy.so    gpg-agent
+
 ### Wrappers with envoy
 
 Envoy has two simple built-in wrappers. Supporting both `ssh` and
