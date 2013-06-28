@@ -1,3 +1,4 @@
 envoy
 envoyd
+pam_envoy.so
 *.o
