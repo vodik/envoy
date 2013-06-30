@@ -168,6 +168,37 @@ static void init_cgroup(void)
     close(cgroup_fd);
 }
 
+static int safe_atoi(const char *p, size_t len)
+{
+    int value = 0;
+
+    for (; len && *p; ++p, --len) {
+        value *= 10;
+        value += *p - '0';
+    }
+
+    return value;
+}
+
+static pid_t gpg_info_extract_pid(const char *gpg)
+{
+    const char *div, *end;
+
+    div = strchr(gpg, ':');
+    if (div == NULL) {
+        fprintf(stderr, "GPG_AGENT_INFO=%s doesn't contain the agent's pid\n", gpg);
+        return 0;
+    }
+
+    end = strchr(++div, ':');
+    if (div == NULL) {
+        fprintf(stderr, "GPG_AGENT_INFO=%s doesn't contain protocol version\n", gpg);
+        return 0;
+    }
+
+    return safe_atoi(div, end - div);
+}
+
 static void parse_agentdata_line(char *val, struct agent_data_t *info)
 {
     char *eol, *var;
@@ -211,6 +242,10 @@ static int parse_agentdata(int fd, struct agent_data_t *data)
         parse_agentdata_line(l, data);
 
         l = nl + 1;
+    }
+
+    if (data->pid == 0 && data->gpg) {
+        data->pid = gpg_info_extract_pid(data->gpg);
     }
 
     return 0;
