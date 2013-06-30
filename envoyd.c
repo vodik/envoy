@@ -32,7 +32,7 @@
 #include <systemd/sd-daemon.h>
 
 #include "lib/envoy.h"
-#include "cgroups.h"
+#include "clique/cgroups.h"
 
 struct agent_info_t {
     uid_t uid;
@@ -227,6 +227,8 @@ static void __attribute__((__noreturn__)) exec_agent(const struct agent_t *agent
         err(EXIT_FAILURE, "failed to allocate memory");
 
     cgroup_fd = cg_open_controller("cpu", "envoy", cgroup_name, namespace, NULL);
+    fchown(cgroup_fd, uid, gid);
+
     subsystem_set(cgroup_fd, "cgroup.procs", "0");
     free(namespace);
     close(cgroup_fd);

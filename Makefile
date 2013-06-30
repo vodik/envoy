@@ -11,7 +11,7 @@ LDLIBS = -lsystemd-daemon
 all: envoyd envoy pam_envoy.so
 lib/envoy.o: lib/envoy.c
 pam_envoy.o: pam_envoy.c
-envoyd: envoyd.o lib/envoy.o cgroups.o
+envoyd: envoyd.o lib/envoy.o clique/cgroups.o
 envoy: envoy.o lib/envoy.o
 pam_envoy.so: pam_envoy.o lib/envoy.o
 
