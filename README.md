@@ -77,6 +77,11 @@ UPDATESTARTUPTTY | gpg-connect-agent`. This may cause some odd behaviour
 with the pinentry. The pinentry may appear in an inappropriate place if
 this data becomes stale. This is a limitation of gpg-agent itself.
 
+**NOTE:** gpg-agent support for [ecdsa][ecdsa] keys requires gnupg be
+build from git at the moment.
+
+  [ecdsa]: https://en.wikipedia.org/wiki/Elliptic_Curve_DSA
+
 ### Envoy's pam integration
 
 Envoy provides a pam module to load the agent into memory instead of
