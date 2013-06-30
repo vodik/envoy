@@ -60,9 +60,8 @@ static void cleanup(void)
 
     if (kill_agent) {
         while (agents) {
-            if (agents->d.pid <= 0)
-                continue;
-            kill_agent(agents->uid);
+            if (agents->d.pid > 0)
+                kill_agent(agents->uid);
             agents = agents->next;
         }
 
