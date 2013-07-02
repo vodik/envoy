@@ -55,7 +55,7 @@ static int __attribute__((format (printf, 2, 3))) pam_setenv(pam_handle_t *ph, c
     return 0;
 }
 
-static int set_privlages(bool drop, uid_t *uid, gid_t *gid)
+static int set_privileges(bool drop, uid_t *uid, gid_t *gid)
 {
     uid_t tmp_uid = geteuid();
     gid_t tmp_gid = getegid();
@@ -79,7 +79,7 @@ static int set_privlages(bool drop, uid_t *uid, gid_t *gid)
 static int pam_get_agent(struct agent_data_t *data, enum agent id, uid_t uid, gid_t gid)
 {
     int ret;
-    bool dropped = set_privlages(true, &uid, &gid);
+    bool dropped = set_privileges(true, &uid, &gid);
 
     ret = envoy_agent(data, id, true);
     if (ret < 0)
@@ -97,7 +97,7 @@ static int pam_get_agent(struct agent_data_t *data, enum agent id, uid_t uid, gi
     }
 
     if (dropped) {
-        set_privlages(false, &uid, &gid);
+        set_privileges(false, &uid, &gid);
     }
 
     return ret;
