@@ -55,15 +55,33 @@ static int __attribute__((format (printf, 2, 3))) pam_setenv(pam_handle_t *ph, c
     return 0;
 }
 
-static int pam_get_agent(struct agent_data_t *data, enum agent id, uid_t uid, gid_t gid)
+static int set_privlages(bool drop, uid_t *uid, gid_t *gid)
 {
-    if (setegid(gid) < 0 || seteuid(uid) < 0) {
-        syslog(PAM_LOG_ERR, "pam-envoy: failed to drop privileges to start agent for uid=%d: %s",
-               uid, strerror(errno));
-        return -1;
+    uid_t tmp_uid = geteuid();
+    gid_t tmp_gid = getegid();
+
+    if (drop && tmp_uid == *uid)
+        return false;
+
+    if (setegid(*gid) < 0 || seteuid(*uid) < 0) {
+        if (drop) {
+            syslog(PAM_LOG_ERR, "pam-envoy: failed to set privileges to uid=%d gid=%d: %s",
+                   *uid, *gid, strerror(errno));
+        }
+        return false;
     }
 
-    int ret = envoy_agent(data, id, true);
+    *uid = tmp_uid;
+    *gid = tmp_gid;
+    return true;
+}
+
+static int pam_get_agent(struct agent_data_t *data, enum agent id, uid_t uid, gid_t gid)
+{
+    int ret;
+    bool dropped = set_privlages(true, &uid, &gid);
+
+    ret = envoy_agent(data, id, true);
     if (ret < 0)
         syslog(PAM_LOG_ERR, "failed to fetch agent: %s", strerror(errno));
 
@@ -78,10 +96,8 @@ static int pam_get_agent(struct agent_data_t *data, enum agent id, uid_t uid, gi
         syslog(PAM_LOG_ERR, "connection rejected, user is unauthorized to use this agent");
     }
 
-    if (setegid(0) < 0 || seteuid(0) < 0) {
-        syslog(PAM_LOG_ERR, "pam-envoy: failed to restore privileges after starting agent: %s",
-               strerror(errno));
-        return -1;
+    if (dropped) {
+        set_privlages(false, &uid, &gid);
     }
 
     return ret;
