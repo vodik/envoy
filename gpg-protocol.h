@@ -18,8 +18,17 @@
 #ifndef GPG_PROTOCOL_H
 #define GPG_PROTOCOL_H
 
+struct fingerprint_t {
+    char *fingerprint;
+    struct fingerprint_t *next;
+};
+
+
 int gpg_agent_connection(const char *sock);
 int gpg_update_tty(int fd);
+int gpg_keyinfo(int fd);
+
+void free_fingerprints(struct fingerprint_t *frpt);
 
 #endif
 

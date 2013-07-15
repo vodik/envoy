@@ -120,4 +120,27 @@ int gpg_update_tty(int fd)
     return 0;
 }
 
+
+int gpg_keyinfo(int fd)
+{
+    static const char message[] = "KEYINFO --list\n";
+    int nbytes;
+
+    nbytes = write(fd, message, sizeof(message));
+    if (nbytes < 0)
+        return -1;
+
+    char buf[BUFSIZ];
+    ssize_t nbytes_r = read(fd, buf, BUFSIZ);
+    if (nbytes_r < 0)
+        return -1;
+
+    return gpg_check_return(fd) == 0 ? nbytes : -1;
+}
+
+void free_fingerprints(struct fingerprint_t *frpt)
+{
+    free(frpt);
+}
+
 // vim: et:sts=4:sw=4:cino=(0
