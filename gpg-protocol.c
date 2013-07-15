@@ -30,28 +30,36 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 
+static int gpg_check_return(int fd)
+{
+    char buf[BUFSIZ];
+    ssize_t nbytes_r = read(fd, buf, BUFSIZ);
+    if (nbytes_r <= 0)
+        return -1;
+
+    buf[nbytes_r - 1] = '\0';
+    if (strncmp(buf, "OK", 2) == 0)
+       return 0;
+
+    warnx("gpg protocol error: %s", buf);
+    return -1;
+}
+
 static int __attribute__((format (printf, 2, 3))) gpg_send_message(int fd, const char *fmt, ...)
 {
     va_list ap;
     int nbytes;
-    char buf[BUFSIZ];
 
     va_start(ap, fmt);
     nbytes = vdprintf(fd, fmt, ap);
     va_end(ap);
 
-    if (nbytes < 0)
-        return -1;
-
-    if (read(fd, buf, BUFSIZ) < 0)
-        return -1;
-
-    return !strncmp(buf, "OK\n", 3);
+    return gpg_check_return(fd) == 0 ? nbytes : -1;
 }
 
 int gpg_agent_connection(const char *sock)
 {
-    char buf[BUFSIZ], *split;
+    char *split;
     union {
         struct sockaddr sa;
         struct sockaddr_un un;
@@ -59,7 +67,7 @@ int gpg_agent_connection(const char *sock)
     size_t len;
     socklen_t sa_len;
 
-    int fd = socket(AF_UNIX, SOCK_STREAM, 0), nbytes;
+    int fd = socket(AF_UNIX, SOCK_STREAM, 0);
     if (fd < 0) {
         warn("couldn't create socket");
         return -1;
@@ -77,11 +85,7 @@ int gpg_agent_connection(const char *sock)
         return -1;
     }
 
-    nbytes = read(fd, buf, BUFSIZ);
-    if (nbytes < 0)
-        err(EXIT_FAILURE, "failed to read from gpg-agent socket");
-
-    if (strncmp(buf, "OK", 2) != 0) {
+    if (gpg_check_return(fd) < 0) {
         warnx("incorrect response from gpg-agent");
         return -1;
     }
