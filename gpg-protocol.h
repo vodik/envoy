@@ -28,6 +28,8 @@ int gpg_agent_connection(const char *sock);
 int gpg_update_tty(int fd);
 struct fingerprint_t *gpg_keyinfo(int fd);
 
+int gpg_preset_passphrase(int fd, const char *fingerprint, int timeout, const char *password);
+
 void free_fingerprints(struct fingerprint_t *frpt);
 
 #endif

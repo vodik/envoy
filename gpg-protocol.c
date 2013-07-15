@@ -48,13 +48,13 @@ static int gpg_check_return(int fd)
 static int __attribute__((format (printf, 2, 3))) gpg_send_message(int fd, const char *fmt, ...)
 {
     va_list ap;
-    int nbytes;
+    int nbytes_r;
 
     va_start(ap, fmt);
-    nbytes = vdprintf(fd, fmt, ap);
+    nbytes_r = vdprintf(fd, fmt, ap);
     va_end(ap);
 
-    return gpg_check_return(fd) == 0 ? nbytes : -1;
+    return gpg_check_return(fd) == 0 ? nbytes_r : -1;
 }
 
 int gpg_agent_connection(const char *sock)
@@ -120,7 +120,6 @@ int gpg_update_tty(int fd)
     return 0;
 }
 
-
 struct fingerprint_t *gpg_keyinfo(int fd)
 {
     static const char message[] = "KEYINFO --list\n";
@@ -153,6 +152,31 @@ struct fingerprint_t *gpg_keyinfo(int fd)
     }
 
     return frpt;
+}
+
+int gpg_preset_passphrase(int fd, const char *fingerprint, int timeout, const char *password)
+{
+    size_t nbytes_r;
+
+    if (password) {
+        static const char *hex_digits = "0123456789abcdef";
+        char *bin_password;
+        size_t i, size = strlen(password);
+
+        bin_password = malloc(2 * size + 1);
+
+        for(i = 0; i < size; i++) {
+            bin_password[2 * i] = hex_digits[password[i] >> 4];
+            bin_password[2 * i + 1] = hex_digits[password[i] & 0x0f];
+        }
+
+        bin_password[2 * size] = '\0';
+        nbytes_r = dprintf(fd, "PRESET_PASSPHRASE %s %d %s\n", fingerprint, timeout, bin_password);
+    } else {
+        nbytes_r = dprintf(fd, "PRESET_PASSPHRASE %s %d\n", fingerprint, timeout);
+    }
+
+    return gpg_check_return(fd) == 0 ? nbytes_r : -1;
 }
 
 void free_fingerprints(struct fingerprint_t *frpt)
