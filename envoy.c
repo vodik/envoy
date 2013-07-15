@@ -29,6 +29,7 @@
 #include <sys/un.h>
 
 #include "lib/envoy.h"
+#include "gpg-protocol.h"
 
 enum action {
     ACTION_PRINT,
@@ -98,93 +99,6 @@ static void __attribute__((__noreturn__)) add_keys(char **keys, int count)
     err(EXIT_FAILURE, "failed to launch ssh-add");
 }
 
-static int __attribute__((format (printf, 2, 3))) gpg_send_message(int fd, const char *fmt, ...)
-{
-    va_list ap;
-    int nbytes;
-    char buf[BUFSIZ];
-
-    va_start(ap, fmt);
-    nbytes = vdprintf(fd, fmt, ap);
-    va_end(ap);
-
-    if (nbytes < 0)
-        return -1;
-
-    if (read(fd, buf, BUFSIZ) < 0)
-        return -1;
-
-    return !strncmp(buf, "OK\n", 3);
-}
-
-static void gpg_send_messages(int fd)
-{
-    const char *display = getenv("DISPLAY");
-    const char *tty = ttyname(STDIN_FILENO);
-    const char *term = getenv("TERM");
-
-    gpg_send_message(fd, "RESET\n");
-
-    if (tty)
-        gpg_send_message(fd, "OPTION ttyname=%s\n", tty);
-
-    if (term)
-        gpg_send_message(fd, "OPTION ttytype=%s\n", term);
-
-    if (display) {
-        struct passwd *pwd = getpwuid(getuid());
-        if (pwd == NULL || pwd->pw_dir == NULL)
-            err(EXIT_FAILURE, "failed to lookup passwd entry");
-
-        gpg_send_message(fd, "OPTION display=%s\n", display);
-        gpg_send_message(fd, "OPTION xauthority=%s/.Xauthority\n", pwd->pw_dir);
-    }
-
-    gpg_send_message(fd, "UPDATESTARTUPTTY\n");
-}
-
-static int gpg_update_tty(const char *sock)
-{
-    char buf[BUFSIZ], *split;
-    union {
-        struct sockaddr sa;
-        struct sockaddr_un un;
-    } sa;
-    size_t len;
-    socklen_t sa_len;
-
-    int fd = socket(AF_UNIX, SOCK_STREAM, 0), nbytes;
-    if (fd < 0) {
-        warn("couldn't create socket");
-        return -1;
-    }
-
-    split = strchr(sock, ':');
-    len = split - sock;
-
-    sa.un = (struct sockaddr_un){ .sun_family = AF_UNIX };
-    memcpy(&sa.un.sun_path, sock, len);
-
-    sa_len = len + sizeof(sa.un.sun_family);
-    if (connect(fd, &sa.sa, sa_len) < 0) {
-        warn("failed to connect to gpg-agent");
-        return -1;
-    }
-
-    nbytes = read(fd, buf, BUFSIZ);
-    if (nbytes < 0)
-        err(EXIT_FAILURE, "failed to read from gpg-agent socket");
-
-    if (strncmp(buf, "OK", 2) != 0) {
-        warnx("incorrect response from gpg-agent");
-        return -1;
-    }
-
-    gpg_send_messages(fd);
-    close(fd);
-    return 0;
-}
-
 static void print_env(struct agent_data_t *data)
 {
     if (data->type == AGENT_GPG_AGENT)
@@ -196,8 +110,11 @@ static void print_env(struct agent_data_t *data)
 
 static void source_env(struct agent_data_t *data)
 {
-    if (data->type == AGENT_GPG_AGENT)
-        gpg_update_tty(data->gpg);
+    if (data->type == AGENT_GPG_AGENT) {
+        int agent_fd = gpg_agent_connection(data->gpg);
+        gpg_update_tty(agent_fd);
+        close(agent_fd);
+    }
 
     setenv("SSH_AUTH_SOCK", data->sock, true);
 }
