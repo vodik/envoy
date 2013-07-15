@@ -154,7 +154,7 @@ struct fingerprint_t *gpg_keyinfo(int fd)
     struct fingerprint_t *fpt = NULL;
     int cs;
 
-    ssize_t nbytes_r = write(fd, message, sizeof(message));
+    ssize_t nbytes_r = write(fd, message, sizeof(message) - 1);
     if (nbytes_r < 0)
         return NULL;
 
@@ -188,7 +188,7 @@ int gpg_preset_passphrase(int fd, const char *fingerprint, int timeout, const ch
     size_t nbytes_r;
 
     if (password) {
-        static const char *hex_digits = "0123456789abcdef";
+        static const char *hex_digits = "0123456789ABCDEF";
         char *bin_password;
         size_t i, size = strlen(password);
 
