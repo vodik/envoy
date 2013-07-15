@@ -121,26 +121,49 @@ int gpg_update_tty(int fd)
 }
 
 
-int gpg_keyinfo(int fd)
+struct fingerprint_t *gpg_keyinfo(int fd)
 {
     static const char message[] = "KEYINFO --list\n";
-    int nbytes;
+    struct fingerprint_t *frpt = NULL;
 
-    nbytes = write(fd, message, sizeof(message));
-    if (nbytes < 0)
-        return -1;
-
-    char buf[BUFSIZ];
-    ssize_t nbytes_r = read(fd, buf, BUFSIZ);
+    int nbytes_r = write(fd, message, sizeof(message));
     if (nbytes_r < 0)
-        return -1;
+        return NULL;
 
-    return gpg_check_return(fd) == 0 ? nbytes : -1;
+    for (;;) {
+        char buf[BUFSIZ];
+
+        nbytes_r = read(fd, buf, BUFSIZ);
+        if (nbytes_r < 0)
+            return NULL;
+
+        buf[nbytes_r - 1] = '\0';
+        if (strncmp(buf, "OK", 2) == 0)
+            return frpt;
+        else if (strncmp(buf, "ERR", 3) == 0) {
+            free_fingerprints(frpt);
+            warnx("gpg protocol error: %s", buf);
+            return NULL;
+        }
+
+        struct fingerprint_t *node = calloc(1, sizeof(struct fingerprint_t));
+        node->fingerprint = strndup(buf + 10, 40);
+        node->next = frpt;
+        frpt = node;
+    }
+
+    return frpt;
 }
 
 void free_fingerprints(struct fingerprint_t *frpt)
 {
-    free(frpt);
+    while (frpt) {
+        struct fingerprint_t *node = frpt;
+        frpt = frpt->next;
+
+        free(node->fingerprint);
+        free(node);
+    }
 }
 
 // vim: et:sts=4:sw=4:cino=(0
