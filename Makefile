@@ -15,6 +15,9 @@ envoyd: envoyd.o lib/envoy.o clique/cgroups.o
 envoy: envoy.o lib/envoy.o gpg-protocol.o
 pam_envoy.so: pam_envoy.o lib/envoy.o
 
+gpg-protocol.c: gpg-protocol.rl
+	ragel -C $< -o $@
+
 lib/envoy.o pam_envoy.o:
 	${CC} ${CFLAGS} -fPIC -o $@ -c $<
 

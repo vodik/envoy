@@ -37,11 +37,10 @@ static int gpg_check_return(int fd)
     if (nbytes_r <= 0)
         return -1;
 
-    buf[nbytes_r - 1] = '\0';
     if (strncmp(buf, "OK", 2) == 0)
-       return 0;
+        return 0;
 
-    warnx("gpg protocol error: %s", buf);
+    fprintf(stderr, "%s: gpg protocol error: %s", program_invocation_short_name, buf);
     return -1;
 }
 
@@ -120,38 +119,68 @@ int gpg_update_tty(int fd)
     return 0;
 }
 
+%%{
+    machine keyinfo;
+
+    action clear  { buflen = 0; }
+    action append { buffer[buflen++] = fc; }
+    action term   {
+        struct fingerprint_t *node = calloc(1, sizeof(struct fingerprint_t));
+        node->fingerprint = strndup(buffer, buflen);
+        node->next = fpt;
+        fpt = node;
+    }
+
+    fingerprint = xdigit+ >clear $append %term;
+
+    action done { return fpt; }
+    action error {
+        fprintf(stderr, "%s: gpg protocol error: %s", program_invocation_short_name, fpc);
+        return fpt;
+    }
+
+    newline = '\n';
+    status = ( 'OK' >done | 'ERR' >error ) [^\n]* newline;
+    entry = 'S KEYINFO ' fingerprint ' D - - 1 P -' newline;
+
+    main := ( entry | status )*;
+}%%
+
+%%write data;
+
 struct fingerprint_t *gpg_keyinfo(int fd)
 {
     static const char message[] = "KEYINFO --list\n";
-    struct fingerprint_t *frpt = NULL;
+    struct fingerprint_t *fpt = NULL;
+    int cs;
 
-    int nbytes_r = write(fd, message, sizeof(message));
+    ssize_t nbytes_r = write(fd, message, sizeof(message));
     if (nbytes_r < 0)
         return NULL;
 
+    %%write init;
+
     for (;;) {
         char buf[BUFSIZ];
+
+        size_t buflen = 0;
+        char buffer[40];
 
         nbytes_r = read(fd, buf, BUFSIZ);
         if (nbytes_r < 0)
             return NULL;
 
-        buf[nbytes_r - 1] = '\0';
-        if (strncmp(buf, "OK", 2) == 0)
-            return frpt;
-        else if (strncmp(buf, "ERR", 3) == 0) {
-            free_fingerprints(frpt);
-            warnx("gpg protocol error: %s", buf);
-            return NULL;
-        }
+        char *p = buf, *pe = &buf[nbytes_r];
 
-        struct fingerprint_t *node = calloc(1, sizeof(struct fingerprint_t));
-        node->fingerprint = strndup(buf + 10, 40);
-        node->next = frpt;
-        frpt = node;
+        %%write exec;
+
+        if (cs == keyinfo_error) {
+            warnx("gpg protocol parser error");
+            break;
+        }
     }
 
-    return frpt;
+    return fpt;
 }
 
 int gpg_preset_passphrase(int fd, const char *fingerprint, int timeout, const char *password)
@@ -179,11 +208,11 @@ int gpg_preset_passphrase(int fd, const char *fingerprint, int timeout, const ch
     return gpg_check_return(fd) == 0 ? nbytes_r : -1;
 }
 
-void free_fingerprints(struct fingerprint_t *frpt)
+void free_fingerprints(struct fingerprint_t *fpt)
 {
-    while (frpt) {
-        struct fingerprint_t *node = frpt;
-        frpt = frpt->next;
+    while (fpt) {
+        struct fingerprint_t *node = fpt;
+        fpt = fpt->next;
 
         free(node->fingerprint);
         free(node);
