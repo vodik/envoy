@@ -122,11 +122,11 @@ int gpg_update_tty(int fd)
 %%{
     machine keyinfo;
 
-    action clear  { buflen = 0; }
-    action append { buffer[buflen++] = fc; }
+    action clear  { keylen = 0; }
+    action append { keygrip[keylen++] = fc; }
     action term   {
         struct fingerprint_t *node = calloc(1, sizeof(struct fingerprint_t));
-        node->fingerprint = strndup(buffer, buflen);
+        node->fingerprint = strndup(keygrip, keylen);
         node->next = fpt;
         fpt = node;
     }
@@ -169,10 +169,8 @@ struct fingerprint_t *gpg_keyinfo(int fd)
     %%write init;
 
     for (;;) {
-        char buf[BUFSIZ];
-
-        size_t buflen = 0;
-        char buffer[40];
+        size_t keylen = 0;
+        char buf[BUFSIZ], keygrip[40];
 
         nbytes_r = read(fd, buf, BUFSIZ);
         if (nbytes_r < 0)
