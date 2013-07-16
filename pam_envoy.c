@@ -134,7 +134,7 @@ PAM_EXTERN int pam_sm_open_session(pam_handle_t *ph, int UNUSED flags,
     const struct passwd *pwd;
     const char *user;
     enum agent id = AGENT_DEFAULT;
-    int i, ret;
+    int ret;
 
     ret = pam_get_user(ph, &user, NULL);
     if (ret != PAM_SUCCESS) {
@@ -151,7 +151,7 @@ PAM_EXTERN int pam_sm_open_session(pam_handle_t *ph, int UNUSED flags,
     }
 
     if (argc > 1) {
-        syslog(PAM_LOG_WARNING, "pam-envoy: too many arguments");
+        syslog(PAM_LOG_WARN, "pam-envoy: too many arguments");
         return PAM_SUCCESS;
     } else if (argc == 1) {
         id = lookup_agent(argv[0]);
