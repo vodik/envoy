@@ -13,15 +13,17 @@ lib/envoy.o: lib/envoy.c
 pam_envoy.o: pam_envoy.c
 envoyd: envoyd.o lib/envoy.o clique/cgroups.o
 envoy: envoy.o lib/envoy.o gpg-protocol.o
-pam_envoy.so: pam_envoy.o lib/envoy.o
 
 gpg-protocol.c: gpg-protocol.rl
 	ragel -C $< -o $@
 
+gpg-protocol.o: gpg-protocol.c
+	${CC} ${CFLAGS} -fPIC -o $@ -c $<
+
 lib/envoy.o pam_envoy.o:
 	${CC} ${CFLAGS} -fPIC -o $@ -c $<
 
-pam_envoy.so:
+pam_envoy.so: pam_envoy.o lib/envoy.o gpg-protocol.o
 	${LD} -x --shared -o $@ $?
 
 install: envoyd envoy pam_envoy.so

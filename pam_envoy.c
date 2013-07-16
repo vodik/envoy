@@ -16,6 +16,7 @@
  */
 
 #define PAM_SM_SESSION
+#define PAM_SM_AUTH
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -32,10 +33,11 @@
 #include <security/pam_modules.h>
 
 #include "lib/envoy.h"
+#include "gpg-protocol.h"
 
 #define UNUSED           __attribute__((unused))
 #define PAM_LOG_ERR      LOG_AUTHPRIV | LOG_ERR
-#define PAM_LOG_WARNING  LOG_AUTHPRIV | LOG_WARNING
+#define PAM_LOG_WARN     LOG_AUTHPRIV | LOG_WARNING
 
 static int __attribute__((format (printf, 2, 3))) pam_setenv(pam_handle_t *ph, const char *fmt, ...)
 {
@@ -103,6 +105,27 @@ static int pam_get_agent(struct agent_data_t *data, enum agent id, uid_t uid, gi
     return ret;
 }
 
+static void cleanup_free_password(pam_handle_t UNUSED *ph, void *data, int UNUSED pam_end_status)
+{
+    volatile char *vp;
+    size_t len;
+
+    if (!data)
+        return;
+
+    /* Defeats some optimizations */
+    len = strlen(data);
+    memset(data, 0xAA, len);
+    memset(data, 0xBB, len);
+
+    /* Defeats others */
+    vp = (volatile char*)data;
+    while (*vp)
+        *(vp++) = 0xAA;
+
+    free(data);
+}
+
 /* PAM entry point for session creation */
 PAM_EXTERN int pam_sm_open_session(pam_handle_t *ph, int UNUSED flags,
                                    int argc, const char **argv)
@@ -111,7 +134,7 @@ PAM_EXTERN int pam_sm_open_session(pam_handle_t *ph, int UNUSED flags,
     const struct passwd *pwd;
     const char *user;
     enum agent id = AGENT_DEFAULT;
-    int ret;
+    int i, ret;
 
     ret = pam_get_user(ph, &user, NULL);
     if (ret != PAM_SUCCESS) {
@@ -135,11 +158,29 @@ PAM_EXTERN int pam_sm_open_session(pam_handle_t *ph, int UNUSED flags,
     }
 
     if (pam_get_agent(&data, id, pwd->pw_uid, pwd->pw_gid) < 0) {
-        syslog(PAM_LOG_WARNING, "pam-envoy: failed to get agent for user");
+        syslog(PAM_LOG_WARN, "pam-envoy: failed to get agent for user");
         return PAM_SUCCESS;
     }
 
     if (data.type == AGENT_GPG_AGENT) {
+        char *password = NULL;
+
+        if (pam_get_data (ph, "gkr_system_authtok", (const void**)&password) != PAM_SUCCESS) {
+            password = NULL;
+        }
+
+        struct gpg_t *agent = gpg_agent_connection(data.gpg);
+        gpg_update_tty(agent);
+
+        if (password) {
+            const struct fingerprint_t *fpt = gpg_keyinfo(agent);
+            for (; fpt; fpt = fpt->next) {
+                if (gpg_preset_passphrase(agent, fpt->fingerprint, -1, password) < 0)
+                    syslog(PAM_LOG_ERR, "failed to unlock '%s'", fpt->fingerprint);
+            }
+        }
+
+        gpg_close(agent);
         pam_setenv(ph, "GPG_AGENT_INFO=%s", data.gpg);
     }
 
@@ -160,7 +201,43 @@ PAM_EXTERN int pam_sm_close_session(pam_handle_t UNUSED *ph, int UNUSED flags,
 PAM_EXTERN int pam_sm_authenticate(pam_handle_t UNUSED *ph, int UNUSED flags,
                                    int UNUSED argc, const char UNUSED **argv)
 {
-    return PAM_IGNORE;
+    struct passwd *pwd;
+    const char *user, *password;
+    int ret;
+
+
+    ret = pam_get_user(ph, &user, NULL);
+    if (ret != PAM_SUCCESS) {
+        syslog(PAM_LOG_ERR, "pam-envoy: couldn't get the user name: %s",
+               pam_strerror(ph, ret));
+        return PAM_SERVICE_ERR;
+    }
+
+    pwd = getpwnam(user);
+    if (!pwd) {
+        syslog(PAM_LOG_ERR, "pam-envoy: error looking up user information: %s",
+               strerror(errno));
+        return PAM_SERVICE_ERR;
+    }
+
+    /* Look up the password */
+    ret = pam_get_item(ph, PAM_AUTHTOK, (const void**)&password);
+    if (ret != PAM_SUCCESS || password == NULL) {
+        if (ret == PAM_SUCCESS)
+            syslog(PAM_LOG_WARN, "pam-envoy: no password is available for user");
+        else
+            syslog(PAM_LOG_WARN, "pam-envoy: no password is available for user: %s",
+                   pam_strerror(ph, ret));
+        return PAM_SUCCESS;
+    }
+
+    if (pam_set_data(ph, "gkr_system_authtok", strdup(password),
+                     cleanup_free_password) != PAM_SUCCESS) {
+        syslog(PAM_LOG_ERR, "pam-envoy: error storing authtok");
+        return PAM_AUTHTOK_RECOVER_ERR;
+    }
+
+    return PAM_SUCCESS;
 }
 
 /* PAM entry point for setting user credentials (that is, to actually
