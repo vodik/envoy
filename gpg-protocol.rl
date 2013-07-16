@@ -37,6 +37,7 @@ static int gpg_check_return(int fd)
     if (nbytes_r <= 0)
         return -1;
 
+    buf[nbytes_r] = 0;
     if (strncmp(buf, "OK", 2) == 0)
         return 0;
 
@@ -160,6 +161,8 @@ struct fingerprint_t *gpg_keyinfo(int fd)
 {
     static const char message[] = "KEYINFO --list\n";
     struct fingerprint_t *fpt = NULL;
+    char keygrip[40];
+    size_t keylen = 0;
     int cs;
 
     ssize_t nbytes_r = write(fd, message, sizeof(message) - 1);
@@ -169,13 +172,13 @@ struct fingerprint_t *gpg_keyinfo(int fd)
     %%write init;
 
     for (;;) {
-        size_t keylen = 0;
-        char buf[BUFSIZ], keygrip[40];
+        char buf[BUFSIZ];
 
         nbytes_r = read(fd, buf, BUFSIZ);
         if (nbytes_r < 0)
             return NULL;
 
+        buf[nbytes_r] = 0;
         char *p = buf, *pe = &buf[nbytes_r];
 
         %%write exec;
