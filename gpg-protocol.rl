@@ -131,8 +131,6 @@ int gpg_update_tty(int fd)
         fpt = node;
     }
 
-    fingerprint = xdigit+ >clear $append %term;
-
     action done { return fpt; }
     action error {
         fprintf(stderr, "%s: gpg protocol error: %s", program_invocation_short_name, fpc);
@@ -140,8 +138,18 @@ int gpg_update_tty(int fd)
     }
 
     newline = '\n';
-    status = ( 'OK' >done | 'ERR' >error ) [^\n]* newline;
-    entry = 'S KEYINFO ' fingerprint ' D - - ' ( '1' | '-' ) ' P -' newline;
+    status = ( 'OK' >done | 'ERR' >error [^\n]* ) newline;
+
+    keygrip = xdigit+ >clear $append;
+    type = [DT\-];
+    serialno = alpha+ | '-';
+    idstr = '-';
+    fpr = alpha+ | '-';
+
+    # FIXME: documentation on the output of KEYINFO --list isn't the best
+    entry = 'S KEYINFO' space keygrip space type space serialno space idstr space
+                              [1\-]   space 'P'  space fpr
+                              newline @term;
 
     main := ( entry | status )*;
 }%%
