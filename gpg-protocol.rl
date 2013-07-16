@@ -30,34 +30,83 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 
-static int gpg_check_return(int fd)
-{
+struct gpg_t {
+    int fd;
     char buf[BUFSIZ];
-    ssize_t nbytes_r = read(fd, buf, BUFSIZ);
-    if (nbytes_r <= 0)
+
+    /* ragel parser state */
+    int cs;
+    char *p;
+    char *pe;
+};
+
+static int gpg_buffer_refill(struct gpg_t *gpg)
+{
+    ssize_t nbytes_r = read(gpg->fd, gpg->buf, BUFSIZ);
+    if (nbytes_r < 0)
         return -1;
 
-    buf[nbytes_r] = 0;
-    if (strncmp(buf, "OK", 2) == 0)
-        return 0;
-
-    fprintf(stderr, "%s: gpg protocol error: %s", program_invocation_short_name, buf);
-    return -1;
+    gpg->buf[nbytes_r] = 0;
+    gpg->p = gpg->buf;
+    gpg->pe = gpg->buf + nbytes_r;
+    return nbytes_r;
 }
 
-static int __attribute__((format (printf, 2, 3))) gpg_send_message(int fd, const char *fmt, ...)
+%%{
+    machine status;
+
+    action error {
+        fprintf(stderr, "%s: gpg protocol error: %s", program_invocation_short_name, fpc);
+        rc = -1;
+    }
+    action return { return rc; }
+
+    newline = '\n';
+    main := ( 'OK' | 'ERR' >error ) [^\n]* newline %return;
+}%%
+
+%%write data;
+
+static int gpg_check_return(struct gpg_t *gpg)
+{
+    %%write init;
+    int rc = 0;
+
+    for (;;) {
+        if (gpg->p == NULL || gpg->p == gpg->pe) {
+            if (gpg_buffer_refill(gpg) <= 0)
+                break;
+        }
+
+        char *eof = gpg->pe;
+
+        %%access gpg->;
+        %%variable p  gpg->p;
+        %%variable pe gpg->pe;
+        %%write exec;
+
+        if (gpg->cs == status_error) {
+            warnx("error parsing gpg protocol");
+            break;
+        }
+    }
+
+    return rc;
+}
+
+static int __attribute__((format (printf, 2, 3))) gpg_send_message(struct gpg_t *gpg, const char *fmt, ...)
 {
     va_list ap;
     int nbytes_r;
 
     va_start(ap, fmt);
-    nbytes_r = vdprintf(fd, fmt, ap);
+    nbytes_r = vdprintf(gpg->fd, fmt, ap);
     va_end(ap);
 
-    return gpg_check_return(fd) == 0 ? nbytes_r : -1;
+    return gpg_check_return(gpg) == 0 ? nbytes_r : -1;
 }
 
-int gpg_agent_connection(const char *sock)
+struct gpg_t *gpg_agent_connection(const char *sock)
 {
     char *split;
     union {
@@ -70,7 +119,7 @@ int gpg_agent_connection(const char *sock)
     int fd = socket(AF_UNIX, SOCK_STREAM, 0);
     if (fd < 0) {
         warn("couldn't create socket");
-        return -1;
+        return NULL;
     }
 
     split = strchr(sock, ':');
@@ -82,41 +131,45 @@ int gpg_agent_connection(const char *sock)
     sa_len = len + sizeof(sa.un.sun_family);
     if (connect(fd, &sa.sa, sa_len) < 0) {
         warn("failed to connect to gpg-agent");
-        return -1;
+        return NULL;
     }
 
-    if (gpg_check_return(fd) < 0) {
+    struct gpg_t *gpg = malloc(sizeof(struct gpg_t));
+    *gpg = (struct gpg_t) { .fd = fd };
+
+    if (gpg_check_return(gpg) < 0) {
         warnx("incorrect response from gpg-agent");
-        return -1;
+        gpg_close(gpg);
+        return NULL;
     }
 
-    return fd;
+    return gpg;
 }
 
-int gpg_update_tty(int fd)
+int gpg_update_tty(struct gpg_t *gpg)
 {
     const char *display = getenv("DISPLAY");
     const char *tty = ttyname(STDIN_FILENO);
     const char *term = getenv("TERM");
 
-    gpg_send_message(fd, "RESET\n");
+    gpg_send_message(gpg, "RESET\n");
 
     if (tty)
-        gpg_send_message(fd, "OPTION ttyname=%s\n", tty);
+        gpg_send_message(gpg, "OPTION ttyname=%s\n", tty);
 
     if (term)
-        gpg_send_message(fd, "OPTION ttytype=%s\n", term);
+        gpg_send_message(gpg, "OPTION ttytype=%s\n", term);
 
     if (display) {
         struct passwd *pwd = getpwuid(getuid());
         if (pwd == NULL || pwd->pw_dir == NULL)
             err(EXIT_FAILURE, "failed to lookup passwd entry");
 
-        gpg_send_message(fd, "OPTION display=%s\n", display);
-        gpg_send_message(fd, "OPTION xauthority=%s/.Xauthority\n", pwd->pw_dir);
+        gpg_send_message(gpg, "OPTION display=%s\n", display);
+        gpg_send_message(gpg, "OPTION xauthority=%s/.Xauthority\n", pwd->pw_dir);
     }
 
-    gpg_send_message(fd, "UPDATESTARTUPTTY\n");
+    gpg_send_message(gpg, "UPDATESTARTUPTTY\n");
     return 0;
 }
 
@@ -132,14 +185,11 @@ int gpg_update_tty(int fd)
         fpt = node;
     }
 
-    action done { return fpt; }
-    action error {
-        fprintf(stderr, "%s: gpg protocol error: %s", program_invocation_short_name, fpc);
-        return fpt;
-    }
+    action error { fprintf(stderr, "%s: gpg protocol error: %s", program_invocation_short_name, fpc); }
+    action return { return fpt; }
 
     newline = '\n';
-    status = ( 'OK' >done | 'ERR' >error [^\n]* ) newline;
+    status = ( 'OK' | 'ERR' >error [^\n]* ) newline %return;
 
     keygrip = xdigit+ >clear $append;
     type = [DT\-];
@@ -157,33 +207,33 @@ int gpg_update_tty(int fd)
 
 %%write data;
 
-struct fingerprint_t *gpg_keyinfo(int fd)
+struct fingerprint_t *gpg_keyinfo(struct gpg_t *gpg)
 {
     static const char message[] = "KEYINFO --list\n";
     struct fingerprint_t *fpt = NULL;
     char keygrip[40];
     size_t keylen = 0;
-    int cs;
 
-    ssize_t nbytes_r = write(fd, message, sizeof(message) - 1);
-    if (nbytes_r < 0)
+    ssize_t nbytes_w = write(gpg->fd, message, sizeof(message) - 1);
+    if (nbytes_w < 0)
         return NULL;
 
     %%write init;
 
     for (;;) {
-        char buf[BUFSIZ];
+        if (gpg->p == NULL || gpg->p == gpg->pe) {
+            if (gpg_buffer_refill(gpg) <= 0)
+                break;
+        }
 
-        nbytes_r = read(fd, buf, BUFSIZ);
-        if (nbytes_r < 0)
-            return NULL;
+        char *eof = gpg->pe;
 
-        buf[nbytes_r] = 0;
-        char *p = buf, *pe = &buf[nbytes_r];
-
+        %%access gpg->;
+        %%variable p  gpg->p;
+        %%variable pe gpg->pe;
         %%write exec;
 
-        if (cs == keyinfo_error) {
+        if (gpg->cs == keyinfo_error) {
             warnx("error parsing gpg protocol");
             break;
         }
@@ -192,14 +242,14 @@ struct fingerprint_t *gpg_keyinfo(int fd)
     return fpt;
 }
 
-int gpg_preset_passphrase(int fd, const char *fingerprint, int timeout, const char *password)
+int gpg_preset_passphrase(struct gpg_t *gpg, const char *fingerprint, int timeout, const char *password)
 {
     static const char *hex_digits = "0123456789ABCDEF";
     size_t nbytes_r;
 
     if (!password) {
-        nbytes_r = dprintf(fd, "PRESET_PASSPHRASE %s %d\n", fingerprint, timeout);
-        return gpg_check_return(fd) == 0 ? nbytes_r : -1;
+        nbytes_r = dprintf(gpg->fd, "PRESET_PASSPHRASE %s %d\n", fingerprint, timeout);
+        return gpg_check_return(gpg) == 0 ? nbytes_r : -1;
     }
 
     size_t i, size = strlen(password);
@@ -211,10 +261,10 @@ int gpg_preset_passphrase(int fd, const char *fingerprint, int timeout, const ch
     }
 
     bin_password[2 * size] = '\0';
-    nbytes_r = dprintf(fd, "PRESET_PASSPHRASE %s %d %s\n", fingerprint, timeout, bin_password);
+    nbytes_r = dprintf(gpg->fd, "PRESET_PASSPHRASE %s %d %s\n", fingerprint, timeout, bin_password);
 
     free(bin_password);
-    return gpg_check_return(fd) == 0 ? nbytes_r : -1;
+    return gpg_check_return(gpg) == 0 ? nbytes_r : -1;
 }
 
 void free_fingerprints(struct fingerprint_t *fpt)
@@ -226,6 +276,12 @@ void free_fingerprints(struct fingerprint_t *fpt)
         free(node->fingerprint);
         free(node);
     }
+}
+
+void gpg_close(struct gpg_t *gpg)
+{
+    close(gpg->fd);
+    free(gpg);
 }
 
 // vim: et:sts=4:sw=4:cino=(0

@@ -18,17 +18,19 @@
 #ifndef GPG_PROTOCOL_H
 #define GPG_PROTOCOL_H
 
+struct gpg_t;
+
 struct fingerprint_t {
     char *fingerprint;
     struct fingerprint_t *next;
 };
 
+struct gpg_t *gpg_agent_connection(const char *sock);
+void gpg_close(struct gpg_t *gpg);
 
-int gpg_agent_connection(const char *sock);
-int gpg_update_tty(int fd);
-struct fingerprint_t *gpg_keyinfo(int fd);
-
-int gpg_preset_passphrase(int fd, const char *fingerprint, int timeout, const char *password);
+int gpg_update_tty(struct gpg_t *gpg);
+int gpg_preset_passphrase(struct gpg_t *gpg, const char *fingerprint, int timeout, const char *password);
+struct fingerprint_t *gpg_keyinfo(struct gpg_t *gpg);
 
 void free_fingerprints(struct fingerprint_t *frpt);
 

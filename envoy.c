@@ -111,9 +111,9 @@ static void print_env(struct agent_data_t *data)
 static void source_env(struct agent_data_t *data)
 {
     if (data->type == AGENT_GPG_AGENT) {
-        int agent_fd = gpg_agent_connection(data->gpg);
-        gpg_update_tty(agent_fd);
-        close(agent_fd);
+        struct gpg_t *agent = gpg_agent_connection(data->gpg);
+        gpg_update_tty(agent);
+        gpg_close(agent);
     }
 
     setenv("SSH_AUTH_SOCK", data->sock, true);
