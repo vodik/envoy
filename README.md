@@ -102,6 +102,10 @@ this, add:
     auth      optional    pam_envoy.so
     session   optional    pam_envoy.so
 
+Note that this replies on gpg-agent's passphrase presetting support. To
+enable this, ensure `allow-preset-passphrase` is also in
+`~/.gnupg/gpg-agent.conf`.
+
 ### Wrappers with envoy
 
 Envoy has two simple built-in wrappers. Supporting both `ssh` and
