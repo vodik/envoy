@@ -24,7 +24,7 @@ lib/envoy.o pam_envoy.o:
 	${CC} ${CFLAGS} -fPIC -o $@ -c $<
 
 pam_envoy.so: pam_envoy.o lib/envoy.o gpg-protocol.o
-	${LD} -x --shared -o $@ $?
+	${CC} ${LDFLAGS} -shared -DPIC -o $@ $?
 
 install: envoyd envoy pam_envoy.so
 	install -Dm755 envoyd ${DESTDIR}/usr/bin/envoyd
@@ -38,4 +38,4 @@ install: envoyd envoy pam_envoy.so
 clean:
 	${RM} envoyd envoy pam_envoy.so *.o
 
-.PHONY: clean install uninstall
+.PHONY: all clean install uninstall
