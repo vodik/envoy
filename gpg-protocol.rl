@@ -141,7 +141,7 @@ int gpg_update_tty(int fd)
 
     newline = '\n';
     status = ( 'OK' >done | 'ERR' >error ) [^\n]* newline;
-    entry = 'S KEYINFO ' fingerprint ' D - - 1 P -' newline;
+    entry = 'S KEYINFO ' fingerprint ' D - - ' ( '1' | '-' ) ' P -' newline;
 
     main := ( entry | status )*;
 }%%
@@ -175,7 +175,7 @@ struct fingerprint_t *gpg_keyinfo(int fd)
         %%write exec;
 
         if (cs == keyinfo_error) {
-            warnx("gpg protocol parser error");
+            warnx("error parsing gpg protocol");
             break;
         }
     }
