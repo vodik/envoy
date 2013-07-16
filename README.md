@@ -84,8 +84,9 @@ build from git at the moment.
 
 ### Envoy's pam integration
 
-Envoy provides a pam module to load the agent into memory instead of
-relying on `envoy -p`. To use it, edit `/etc/pam.d/login` and add:
+Envoy provides a pam module to load the agent into the environment at
+login instead of relying on `envoy -p`. To use it, edit
+`/etc/pam.d/login` and add:
 
     session   optional    pam_envoy.so
 
@@ -93,6 +94,13 @@ Its also possible provide an optional argument to choose which agent
 type to start:
 
     session   optional    pam_envoy.so    gpg-agent
+
+Envoy can also optionally unlock gpg-agent's keyring automatically with
+your password, but in order to do so it needs an auth token. To enable
+this, add:
+
+    auth      optional    pam_envoy.so
+    session   optional    pam_envoy.so
 
 ### Wrappers with envoy
 
