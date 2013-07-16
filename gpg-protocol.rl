@@ -185,26 +185,26 @@ struct fingerprint_t *gpg_keyinfo(int fd)
 
 int gpg_preset_passphrase(int fd, const char *fingerprint, int timeout, const char *password)
 {
+    static const char *hex_digits = "0123456789ABCDEF";
     size_t nbytes_r;
 
-    if (password) {
-        static const char *hex_digits = "0123456789ABCDEF";
-        char *bin_password;
-        size_t i, size = strlen(password);
-
-        bin_password = malloc(2 * size + 1);
-
-        for(i = 0; i < size; i++) {
-            bin_password[2 * i] = hex_digits[password[i] >> 4];
-            bin_password[2 * i + 1] = hex_digits[password[i] & 0x0f];
-        }
-
-        bin_password[2 * size] = '\0';
-        nbytes_r = dprintf(fd, "PRESET_PASSPHRASE %s %d %s\n", fingerprint, timeout, bin_password);
-    } else {
+    if (!password) {
         nbytes_r = dprintf(fd, "PRESET_PASSPHRASE %s %d\n", fingerprint, timeout);
+        return gpg_check_return(fd) == 0 ? nbytes_r : -1;
     }
 
+    size_t i, size = strlen(password);
+    char *bin_password = malloc(2 * size + 1);
+
+    for(i = 0; i < size; i++) {
+        bin_password[2 * i] = hex_digits[password[i] >> 4];
+        bin_password[2 * i + 1] = hex_digits[password[i] & 0x0f];
+    }
+
+    bin_password[2 * size] = '\0';
+    nbytes_r = dprintf(fd, "PRESET_PASSPHRASE %s %d %s\n", fingerprint, timeout, bin_password);
+
+    free(bin_password);
     return gpg_check_return(fd) == 0 ? nbytes_r : -1;
 }
 
