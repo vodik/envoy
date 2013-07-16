@@ -81,7 +81,7 @@ static int gpg_check_return(struct gpg_t *gpg)
         char *eof = gpg->pe;
 
         %%access gpg->;
-        %%variable p  gpg->p;
+        %%variable p gpg->p;
         %%variable pe gpg->pe;
         %%write exec;
 
@@ -176,12 +176,14 @@ int gpg_update_tty(struct gpg_t *gpg)
 %%{
     machine keyinfo;
 
-    action clear  { keylen = 0; }
+    action clear { keylen = 0; }
     action append { keygrip[keylen++] = fc; }
-    action term   {
-        struct fingerprint_t *node = calloc(1, sizeof(struct fingerprint_t));
-        node->fingerprint = strndup(keygrip, keylen);
-        node->next = fpt;
+    action term {
+        struct fingerprint_t *node = malloc(sizeof(struct fingerprint_t));
+        *node = (struct fingerprint_t){
+            .fingerprint = strndup(keygrip, keylen),
+            .next = fpt
+        };
         fpt = node;
     }
 
@@ -229,7 +231,7 @@ struct fingerprint_t *gpg_keyinfo(struct gpg_t *gpg)
         char *eof = gpg->pe;
 
         %%access gpg->;
-        %%variable p  gpg->p;
+        %%variable p gpg->p;
         %%variable pe gpg->pe;
         %%write exec;
 
