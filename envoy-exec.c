@@ -86,9 +86,10 @@ static void __attribute__((__noreturn__)) exec_wrapper(const char *cmd, int argc
     safe_execv(args[0], args);
 
     char *path = getenv("PATH");
-    char *segment, *saveptr = NULL;
+    if (!path)
+        err(EXIT_FAILURE, "command %s not found", cmd);
 
-    segment = strtok_r(path, ":", &saveptr);
+    char *saveptr, *segment = strtok_r(path, ":", &saveptr);
     for (; segment; segment = strtok_r(NULL, ":", &saveptr)) {
         char *full_path;
 
