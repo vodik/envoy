@@ -13,20 +13,20 @@ all: envoyd envoy envoy-exec envoy-unlocker pam_envoy.so
 lib/envoy.o: lib/envoy.c
 pam_envoy.o: pam_envoy.c
 envoyd: envoyd.o lib/envoy.o clique/cgroups.o
-envoy: envoy.o lib/envoy.o gpg-protocol.o
-envoy-exec: envoy-exec.o lib/envoy.o gpg-protocol.o
-envoy-unlocker: envoy-unlocker.o lib/envoy.o gpg-protocol.o
+envoy: envoy.o lib/envoy.o lib/gpg-protocol.o
+envoy-exec: envoy-exec.o lib/envoy.o lib/gpg-protocol.o
+envoy-unlocker: envoy-unlocker.o lib/envoy.o lib/gpg-protocol.o
 
-gpg-protocol.c: gpg-protocol.rl
+lib/gpg-protocol.c: lib/gpg-protocol.rl
 	ragel -C $< -o $@
 
-gpg-protocol.o: gpg-protocol.c
+lib/gpg-protocol.o: lib/gpg-protocol.c
 	${CC} ${CFLAGS} -fPIC -o $@ -c $<
 
 lib/envoy.o pam_envoy.o:
 	${CC} ${CFLAGS} -fPIC -o $@ -c $<
 
-pam_envoy.so: pam_envoy.o lib/envoy.o gpg-protocol.o
+pam_envoy.so: pam_envoy.o lib/envoy.o lib/gpg-protocol.o
 	${CC} ${LDFLAGS} -shared -DPIC -o $@ $?
 
 install: envoyd envoy pam_envoy.so

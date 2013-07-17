@@ -29,7 +29,7 @@
 #include <sys/un.h>
 
 #include "lib/envoy.h"
-#include "gpg-protocol.h"
+#include "lib/gpg-protocol.h"
 
 enum action {
     ACTION_PRINT,
@@ -223,7 +223,7 @@ int main(int argc, char *argv[])
         kill(data.pid, SIGTERM);
         break;
     case ACTION_LIST:
-        execl("/usr/bin/ssh-add", "ssh-add", "-l", NULL);
+        execlp("ssh-add", "ssh-add", "-l", NULL);
         err(EXIT_FAILURE, "failed to launch ssh-add");
     default:
         break;

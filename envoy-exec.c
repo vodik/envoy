@@ -22,7 +22,7 @@
 #include <unistd.h>
 
 #include "lib/envoy.h"
-#include "gpg-protocol.h"
+#include "lib/gpg-protocol.h"
 
 static const char *exe_path;
 

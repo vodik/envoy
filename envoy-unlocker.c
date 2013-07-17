@@ -9,7 +9,7 @@
 #include <termios.h>
 
 #include "lib/envoy.h"
-#include "gpg-protocol.h"
+#include "lib/gpg-protocol.h"
 
 bool termios_dirty = false;
 struct termios old_termios;
