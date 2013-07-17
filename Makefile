@@ -32,6 +32,8 @@ pam_envoy.so: pam_envoy.o lib/envoy.o gpg-protocol.o
 install: envoyd envoy pam_envoy.so
 	install -Dm755 envoyd ${DESTDIR}/usr/bin/envoyd
 	install -Dm755 envoy ${DESTDIR}/usr/bin/envoy
+	install -Dm755 envoy-exec ${DESTDIR}/usr/bin/envoy-exec
+	install -Dm755 envoy-unlocker ${DESTDIR}/usr/bin/envoy-unlocker
 	install -Dm755 pam_envoy.so ${DESTDIR}/usr/lib/security/pam_envoy.so
 	install -Dm644 man/envoyd.1 ${DESTDIR}/usr/share/man/man1/envoyd.1
 	install -Dm644 man/envoy.1 ${DESTDIR}/usr/share/man/man1/envoy.1
