@@ -108,16 +108,19 @@ enable this, ensure `allow-preset-passphrase` is also in
 
 ### Wrappers with envoy
 
-Envoy has two simple built-in wrappers. Supporting both `ssh` and
-`scp`, you need to set something like this up:
+Envoy has support for wrapping commands through `envoy-exec`. The
+utility will connect to the daemon, setup the environment, and launch
+the provided command. For example:
+
+    envoy-exec ssh gitgithub.com
+
+It is also possible to symlink `envoy-exec` to another name to provide
+a terser wrapper.
 
     export PATH="$HOME/bin:$PATH"
-    ln -s /usr/bin/envoy ~/bin/ssh
+    ln -s /usr/bin/envoy-exec ~/bin/ssh
 
-The `~/bin/ssh` binary will automatically connect to the preferred agent
-and then execute `/usr/bin/ssh`. This does an excellent job of working
-around the gpg-agent issues above since it guarantees gpg-agent will
-have the correct information before running ssh.
+This will make `ssh` behave as if its been invoked as `envoy-exec ssh`.
 
 ### Cgroups support
 
