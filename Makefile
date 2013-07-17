@@ -8,11 +8,12 @@ CFLAGS := -std=c99 \
 
 LDLIBS = -lsystemd-daemon
 
-all: envoyd envoy pam_envoy.so
+all: envoyd envoy envoy-unlocker pam_envoy.so
 lib/envoy.o: lib/envoy.c
 pam_envoy.o: pam_envoy.c
 envoyd: envoyd.o lib/envoy.o clique/cgroups.o
 envoy: envoy.o lib/envoy.o gpg-protocol.o
+envoy-unlocker: envoy-unlocker.o lib/envoy.o gpg-protocol.o
 
 gpg-protocol.c: gpg-protocol.rl
 	ragel -C $< -o $@
