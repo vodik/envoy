@@ -103,6 +103,8 @@ static void __attribute__((__noreturn__)) exec_wrapper(const char *cmd, int argc
 int main(int argc, char *argv[])
 {
     exe_path = realpath("/proc/self/exe", NULL);
+    if (!exe_path)
+        err(EXIT_FAILURE, "failed to resolve /proc/self/exe");
 
     if (strcmp(program_invocation_short_name, "envoy-exec") != 0) {
         exec_wrapper(program_invocation_short_name, argc, argv);
