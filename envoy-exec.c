@@ -112,7 +112,7 @@ int main(int argc, char *argv[])
     }
 
     if (argc == 1) {
-        fprintf(stderr, "usage: %s [options] [key ...]\n", program_invocation_short_name);
+        fprintf(stderr, "usage: %s command\n", program_invocation_short_name);
         return 1;
     }
 
