@@ -112,7 +112,7 @@ Envoy has support for wrapping commands through `envoy-exec`. The
 utility will connect to the daemon, setup the environment, and launch
 the provided command. For example:
 
-    envoy-exec ssh gitgithub.com
+    envoy-exec ssh git@github.com
 
 It is also possible to symlink `envoy-exec` to another name to provide
 a terser wrapper.
