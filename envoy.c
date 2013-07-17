@@ -119,28 +119,6 @@ static void source_env(struct agent_data_t *data)
     setenv("SSH_AUTH_SOCK", data->sock, true);
 }
 
-static void __attribute__((__noreturn__)) exec_wrapper(const char *cmd, int argc, char *argv[])
-{
-    /* command + NULL + argv */
-    struct agent_data_t data;
-    char *args[argc + 1];
-    int i;
-
-    if (get_agent(&data, AGENT_DEFAULT, true) < 0)
-        errx(EXIT_FAILURE, "recieved no data, did the agent fail to start?");
-
-    if (asprintf(&args[0], "/usr/bin/%s", cmd) < 0)
-        err(EXIT_FAILURE, "failed to allocate memory");
-
-    for (i = 0; i < argc - 1; i++)
-        args[1 + i] = argv[1 + i];
-    args[argc] = NULL;
-
-    source_env(&data);
-    execv(args[0], args);
-    err(EXIT_FAILURE, "failed to launch ssh");
-}
-
 static void __attribute__((__noreturn__)) usage(FILE *out)
 {
     fprintf(out, "usage: %s [options] [key ...]\n", program_invocation_short_name);
@@ -175,12 +153,6 @@ int main(int argc, char *argv[])
         { "agent",   required_argument, 0, 't' },
         { 0, 0, 0, 0 }
     };
-
-    if (strcmp(program_invocation_short_name, "ssh") == 0 ||
-        strcmp(program_invocation_short_name, "scp") == 0 ||
-        strcmp(program_invocation_short_name, "gpg") == 0) {
-        exec_wrapper(program_invocation_short_name, argc, argv);
-    }
 
     while (true) {
         int opt = getopt_long(argc, argv, "hvakKlpt:", opts, NULL);
