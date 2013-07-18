@@ -105,27 +105,6 @@ static int pam_get_agent(struct agent_data_t *data, enum agent id, uid_t uid, gi
     return ret;
 }
 
-static void cleanup_free_password(pam_handle_t UNUSED *ph, void *data, int UNUSED pam_end_status)
-{
-    volatile char *vp;
-    size_t len;
-
-    if (!data)
-        return;
-
-    /* Defeats some optimizations */
-    len = strlen(data);
-    memset(data, 0xAA, len);
-    memset(data, 0xBB, len);
-
-    /* Defeats others */
-    vp = (volatile char*)data;
-    while (*vp)
-        *(vp++) = 0xAA;
-
-    free(data);
-}
-
 /* PAM entry point for session creation */
 PAM_EXTERN int pam_sm_open_session(pam_handle_t *ph, int UNUSED flags,
                                    int argc, const char **argv)
@@ -162,25 +141,11 @@ PAM_EXTERN int pam_sm_open_session(pam_handle_t *ph, int UNUSED flags,
         return PAM_SUCCESS;
     }
 
-    if (data.type == AGENT_GPG_AGENT) {
-        char *password = NULL;
-
-        if (pam_get_data (ph, "gkr_system_authtok", (const void**)&password) != PAM_SUCCESS) {
-            password = NULL;
-        }
-
+    if (data.status == ENVOY_RUNNING && data.type == AGENT_GPG_AGENT) {
         struct gpg_t *agent = gpg_agent_connection(data.gpg);
         gpg_update_tty(agent);
-
-        if (password) {
-            const struct fingerprint_t *fpt = gpg_keyinfo(agent);
-            for (; fpt; fpt = fpt->next) {
-                if (gpg_preset_passphrase(agent, fpt->fingerprint, -1, password) < 0)
-                    syslog(PAM_LOG_ERR, "failed to unlock '%s'", fpt->fingerprint);
-            }
-        }
-
         gpg_close(agent);
+
         pam_setenv(ph, "GPG_AGENT_INFO=%s", data.gpg);
     }
 
@@ -201,10 +166,11 @@ PAM_EXTERN int pam_sm_close_session(pam_handle_t UNUSED *ph, int UNUSED flags,
 PAM_EXTERN int pam_sm_authenticate(pam_handle_t UNUSED *ph, int UNUSED flags,
                                    int UNUSED argc, const char UNUSED **argv)
 {
-    struct passwd *pwd;
+    struct agent_data_t data;
+    const struct passwd *pwd;
     const char *user, *password;
+    enum agent id = AGENT_DEFAULT;
     int ret;
-
 
     ret = pam_get_user(ph, &user, NULL);
     if (ret != PAM_SUCCESS) {
@@ -231,10 +197,23 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t UNUSED *ph, int UNUSED flags,
         return PAM_SUCCESS;
     }
 
-    if (pam_set_data(ph, "gkr_system_authtok", strdup(password),
-                     cleanup_free_password) != PAM_SUCCESS) {
-        syslog(PAM_LOG_ERR, "pam-envoy: error storing authtok");
-        return PAM_AUTHTOK_RECOVER_ERR;
+    if (pam_get_agent(&data, id, pwd->pw_uid, pwd->pw_gid) < 0) {
+        syslog(PAM_LOG_WARN, "pam-envoy: failed to get agent for user");
+        return PAM_SUCCESS;
+    }
+
+    if (data.status == ENVOY_RUNNING && data.type == AGENT_GPG_AGENT) {
+        struct gpg_t *agent = gpg_agent_connection(data.gpg);
+
+        if (password) {
+            const struct fingerprint_t *fpt = gpg_keyinfo(agent);
+            for (; fpt; fpt = fpt->next) {
+                if (gpg_preset_passphrase(agent, fpt->fingerprint, -1, password) < 0)
+                    syslog(PAM_LOG_ERR, "failed to unlock '%s'", fpt->fingerprint);
+            }
+        }
+
+        gpg_close(agent);
     }
 
     return PAM_SUCCESS;
