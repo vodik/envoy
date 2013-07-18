@@ -62,6 +62,7 @@ static void source_env(struct agent_data_t *data)
 static inline int safe_execv(const char *path, char *const argv[])
 {
     char *real = realpath(path, NULL);
+
     if (real && strcmp(real, exe_path) == 0)
         return 0;
 
@@ -83,19 +84,21 @@ static void __attribute__((__noreturn__)) exec_wrapper(const char *cmd, int argc
     args[argc] = NULL;
 
     source_env(&data);
-    safe_execv(args[0], args);
+    if (cmd[0] == '/' || cmd[0] == '.') {
+        safe_execv(args[0], args);
+    } else {
+        char *path = getenv("PATH");
+        if (!path)
+            err(EXIT_FAILURE, "command %s not found", cmd);
 
-    char *path = getenv("PATH");
-    if (!path)
-        err(EXIT_FAILURE, "command %s not found", cmd);
+        char *saveptr, *segment = strtok_r(path, ":", &saveptr);
+        for (; segment; segment = strtok_r(NULL, ":", &saveptr)) {
+            char *full_path;
 
-    char *saveptr, *segment = strtok_r(path, ":", &saveptr);
-    for (; segment; segment = strtok_r(NULL, ":", &saveptr)) {
-        char *full_path;
-
-        asprintf(&full_path, "%s/%s", segment, cmd);
-        safe_execv(full_path, args);
-        free(full_path);
+            asprintf(&full_path, "%s/%s", segment, cmd);
+            safe_execv(full_path, args);
+            free(full_path);
+        }
     }
 
     err(EXIT_FAILURE, "command %s not found", cmd);
@@ -107,9 +110,8 @@ int main(int argc, char *argv[])
     if (!exe_path)
         err(EXIT_FAILURE, "failed to resolve /proc/self/exe");
 
-    if (strcmp(program_invocation_short_name, "envoy-exec") != 0) {
+    if (strcmp(program_invocation_short_name, "envoy-exec") != 0)
         exec_wrapper(program_invocation_short_name, argc, argv);
-    }
 
     if (argc == 1) {
         fprintf(stderr, "usage: %s command\n", program_invocation_short_name);
