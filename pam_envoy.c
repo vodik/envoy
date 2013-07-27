@@ -80,7 +80,7 @@ static int set_privileges(bool drop, uid_t *uid, gid_t *gid)
 
 static int pam_get_agent(struct agent_data_t *data, enum agent id, uid_t uid, gid_t gid)
 {
-    int ret;
+    int ret = -1;
     bool dropped = set_privileges(true, &uid, &gid);
 
     ret = envoy_agent(data, id, true);
@@ -89,8 +89,10 @@ static int pam_get_agent(struct agent_data_t *data, enum agent id, uid_t uid, gi
 
     switch (data->status) {
     case ENVOY_STOPPED:
+        break;
     case ENVOY_STARTED:
     case ENVOY_RUNNING:
+        ret = 0;
         break;
     case ENVOY_FAILED:
         syslog(PAM_LOG_ERR, "agent failed to start, check envoyd's log");
@@ -141,7 +143,7 @@ PAM_EXTERN int pam_sm_open_session(pam_handle_t *ph, int UNUSED flags,
         return PAM_SUCCESS;
     }
 
-    if (data.status == ENVOY_RUNNING && data.type == AGENT_GPG_AGENT) {
+    if (data.type == AGENT_GPG_AGENT) {
         struct gpg_t *agent = gpg_agent_connection(data.gpg);
         gpg_update_tty(agent);
         gpg_close(agent);
