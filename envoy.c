@@ -189,6 +189,7 @@ static void __attribute__((__noreturn__)) usage(FILE *out)
         " -k, --clear           force identities to expire (gpg-agent only)\n"
         " -K, --kill            kill the running agent\n"
         " -l, --list            list fingerprints of all loaded identities\n"
+        " -u, --unlock=[PASS]   unlock the agent's keyring (gpg-agent only)\n"
         " -p, --print           print out environmental arguments\n"
         " -t, --agent=AGENT     set the prefered to start\n", out);
 
@@ -210,14 +211,14 @@ int main(int argc, char *argv[])
         { "clear",   no_argument, 0, 'k' },
         { "kill",    no_argument, 0, 'K' },
         { "list",    no_argument, 0, 'l' },
-        { "print",   no_argument, 0, 'p' },
         { "unlock",  optional_argument, 0, 'u' },
+        { "print",   no_argument, 0, 'p' },
         { "agent",   required_argument, 0, 't' },
         { 0, 0, 0, 0 }
     };
 
     while (true) {
-        int opt = getopt_long(argc, argv, "hvakKlpu::t:", opts, NULL);
+        int opt = getopt_long(argc, argv, "hvakKlu::pt:", opts, NULL);
         if (opt == -1)
             break;
 

@@ -38,10 +38,15 @@ the running agent.
 Terminate the running agent. Sends \fISIGTERM\fR to the running agent.
 .IP "\fB\-l\fR, \fB\-\-list\fR"
 Lists fingerprints of all identities currently represented by the agent.
+.IP "\fB\-u\fR[\fIPASSWORD\fR], \fB\-\-unlock\fR\fB=\fR[\fIPASSWORD\fR]
+For gpg-agent only, unlock the agent's keyrings. The password will be
+prompted for if its not optionally provided. This requires that
+\fIallow-preset-passphrase\fR is set in your \fIgpg-agent.conf\fR to
+work.
 .IP "\fB\-p\fR, \fB\-\-print\fR"
 Print out the environmental variables associated with the running agent.
 Useful for injecting these variables into the shell.
-.IP "\fB\-t\fR \fR\fIAGENT\fR\fR, \fB\-\-agent\fR\fB=\fR\fIAGENT\fR
+.IP "\fB\-t\fR \fIAGENT\fR, \fB\-\-agent\fR\fB=\fR\fIAGENT\fR
 Set the agent type to launch. If this isn't set, its up to \fBenvoyd\fR
 to decide which agent is launched. \fIssh-agent\fR and \fIgpg-agent\fR
 are supported agents.
