@@ -1,0 +1,31 @@
+.TH envoy-exec "1" "July 27" "envoy" "User Commands"
+.SH NAME
+envoy-exec \- application wrapping tool
+.SH SYNOPSIS
+\fBenvoy-exec\fP command
+.SH DESCRIPTION
+\fBenvoy-exec\fP connects to the daemon, gets all the information
+associated with the current running agent, updates it with fresh
+environmental information and then invokes the provided command. This
+ensures that the command runs as seamlessly as possible with the agent
+without having to worry about the system's or shell's environment.
+.SS Symlinking Against envoy-exec
+It is also possible to symlink \fBenvoy-exec\fP to another name to
+provide a terser wrapper for that command.
+.IP
+.nf
+export PATH="$HOME/bin:$PATH"
+ln -s /usr/bin/envoy-exec ~/bin/ssh
+.fi
+.PP
+This will make ssh behave as if its been invoked as \fIenvoy-exec ssh\fP.
+.SH AUTHORS
+.nf
+Simon Gomizelj <simongmzlj@gmail.com>
+.fi
+.SH SEE ALSO
+\fBenvoyd\fR(1),
+\fBenvoy\fR(1),
+\fBssh-agent\fR(1),
+\fBssh-add\fR(1),
+\fBgpg-agent\fR(1)
