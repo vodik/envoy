@@ -24,12 +24,15 @@
 #include <errno.h>
 #include <pwd.h>
 #include <unistd.h>
+#include <termios.h>
 #include <sys/wait.h>
 #include <sys/socket.h>
 #include <sys/un.h>
 
 #include "lib/envoy.h"
 #include "lib/gpg-protocol.h"
+
+static struct termios old_termios;
 
 enum action {
     ACTION_PRINT,
@@ -38,8 +41,45 @@ enum action {
     ACTION_CLEAR,
     ACTION_KILL,
     ACTION_LIST,
+    ACTION_UNLOCK,
     ACTION_INVALID
 };
+
+static void term_cleanup(void)
+{
+    tcsetattr(STDIN_FILENO, TCSAFLUSH, &old_termios);
+}
+
+static ssize_t read_password(char **password)
+{
+    struct termios new_termios;
+    size_t len = 0;
+    ssize_t nbytes_r;
+
+    fputs("Password: ", stdout);
+    fflush(stdout);
+
+    if (tcgetattr(fileno(stdin), &old_termios) < 0)
+        err(EXIT_FAILURE, "failed to get terminal attributes");
+
+    atexit(term_cleanup);
+
+    new_termios = old_termios;
+    new_termios.c_lflag &= ~ECHO;
+
+    if (tcsetattr(fileno(stdin), TCSAFLUSH, &new_termios) < 0)
+        err(EXIT_FAILURE, "failed to set terminal attributes");
+
+    nbytes_r = getline(password, &len, stdin);
+    if (nbytes_r < 0)
+        err(EXIT_FAILURE, "failed to read password");
+
+    (*password)[--nbytes_r] = 0;
+    tcsetattr(fileno(stdin), TCSAFLUSH, &old_termios);
+
+    putchar('\n');
+    return nbytes_r;
+}
 
 static int get_agent(struct agent_data_t *data, enum agent id, bool start)
 {
@@ -119,6 +159,26 @@ static void source_env(struct agent_data_t *data)
     setenv("SSH_AUTH_SOCK", data->sock, true);
 }
 
+static int unlock(const struct agent_data_t *data, const char *password)
+{
+    struct gpg_t *agent = gpg_agent_connection(data->gpg);
+    if (!agent)
+        err(EXIT_FAILURE, "failed to open connection to gpg-agent");
+
+    const struct fingerprint_t *fgpt = gpg_keyinfo(agent);
+    for (; fgpt; fgpt = fgpt->next) {
+        printf("unlocking %s...\n", fgpt->fingerprint);
+
+        if (gpg_preset_passphrase(agent, fgpt->fingerprint, -1, password) < 0) {
+            fprintf(stderr, "failed to unlock!\n");
+            return 1;
+        }
+    }
+
+    gpg_close(agent);
+    return 0;
+}
+
 static void __attribute__((__noreturn__)) usage(FILE *out)
 {
     fprintf(out, "usage: %s [options] [key ...]\n", program_invocation_short_name);
@@ -139,6 +199,7 @@ int main(int argc, char *argv[])
 {
     bool source = true;
     struct agent_data_t data;
+    char *password = NULL;
     enum action verb = ACTION_NONE;
     enum agent type = AGENT_DEFAULT;
 
@@ -150,12 +211,13 @@ int main(int argc, char *argv[])
         { "kill",    no_argument, 0, 'K' },
         { "list",    no_argument, 0, 'l' },
         { "print",   no_argument, 0, 'p' },
+        { "unlock",  optional_argument, 0, 'u' },
         { "agent",   required_argument, 0, 't' },
         { 0, 0, 0, 0 }
     };
 
     while (true) {
-        int opt = getopt_long(argc, argv, "hvakKlpt:", opts, NULL);
+        int opt = getopt_long(argc, argv, "hvakKlpu::t:", opts, NULL);
         if (opt == -1)
             break;
 
@@ -179,6 +241,10 @@ int main(int argc, char *argv[])
             break;
         case 'l':
             verb = ACTION_LIST;
+            break;
+        case 'u':
+            verb = ACTION_UNLOCK;
+            password = optarg;
             break;
         case 'p':
             verb = ACTION_PRINT;
@@ -225,6 +291,11 @@ int main(int argc, char *argv[])
     case ACTION_LIST:
         execlp("ssh-add", "ssh-add", "-l", NULL);
         err(EXIT_FAILURE, "failed to launch ssh-add");
+    case ACTION_UNLOCK:
+        if (password == NULL)
+            read_password(&password);
+        unlock(&data, password);
+        break;
     default:
         break;
     }

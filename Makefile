@@ -8,14 +8,13 @@ CFLAGS := -std=c99 \
 
 LDLIBS = -lsystemd-daemon
 
-all: envoyd envoy envoy-exec envoy-unlocker pam_envoy.so
+all: envoyd envoy envoy-exec pam_envoy.so
 
 lib/envoy.o: lib/envoy.c
 pam_envoy.o: pam_envoy.c
 envoyd: envoyd.o lib/envoy.o clique/cgroups.o
 envoy: envoy.o lib/envoy.o lib/gpg-protocol.o
 envoy-exec: envoy-exec.o lib/envoy.o lib/gpg-protocol.o
-envoy-unlocker: envoy-unlocker.o lib/envoy.o lib/gpg-protocol.o
 
 lib/gpg-protocol.c: lib/gpg-protocol.rl
 	ragel -C $< -o $@
@@ -33,7 +32,6 @@ install: envoyd envoy pam_envoy.so
 	install -Dm755 envoyd ${DESTDIR}/usr/bin/envoyd
 	install -Dm755 envoy ${DESTDIR}/usr/bin/envoy
 	install -Dm755 envoy-exec ${DESTDIR}/usr/bin/envoy-exec
-	install -Dm755 envoy-unlocker ${DESTDIR}/usr/bin/envoy-unlocker
 	install -Dm755 pam_envoy.so ${DESTDIR}/usr/lib/security/pam_envoy.so
 	install -Dm644 man/envoyd.1 ${DESTDIR}/usr/share/man/man1/envoyd.1
 	install -Dm644 man/envoy.1 ${DESTDIR}/usr/share/man/man1/envoy.1
