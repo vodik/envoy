@@ -167,10 +167,8 @@ static int unlock(const struct agent_data_t *data, const char *password)
 
     const struct fingerprint_t *fgpt = gpg_keyinfo(agent);
     for (; fgpt; fgpt = fgpt->next) {
-        printf("unlocking %s...\n", fgpt->fingerprint);
-
         if (gpg_preset_passphrase(agent, fgpt->fingerprint, -1, password) < 0) {
-            fprintf(stderr, "failed to unlock!\n");
+            warnx("failed to unlock %s", fgpt->fingerprint);
             return 1;
         }
     }
@@ -293,7 +291,7 @@ int main(int argc, char *argv[])
         execlp("ssh-add", "ssh-add", "-l", NULL);
         err(EXIT_FAILURE, "failed to launch ssh-add");
     case ACTION_UNLOCK:
-        if (password == NULL)
+        if (!password)
             read_password(&password);
         unlock(&data, password);
         break;
