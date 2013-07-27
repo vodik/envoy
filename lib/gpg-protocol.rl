@@ -69,8 +69,9 @@ static int gpg_buffer_refill(struct gpg_t *gpg)
 
 static int gpg_check_return(struct gpg_t *gpg)
 {
-    %%write init;
     int rc = 0;
+
+    %%write init;
 
     for (;;) {
         if (gpg->p == NULL || gpg->p == gpg->pe) {
