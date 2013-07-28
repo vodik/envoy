@@ -523,7 +523,7 @@ static void __attribute__((__noreturn__)) usage(FILE *out)
     fputs("Options:\n"
         " -h, --help            display this help and exit\n"
         " -v, --version         display version\n"
-        " -a, --agent=AGENT     set the agent to start\n", out);
+        " -t, --agent=AGENT     set the agent to start\n", out);
 
     exit(out == stderr ? EXIT_FAILURE : EXIT_SUCCESS);
 }
