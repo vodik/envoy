@@ -72,7 +72,7 @@ static ssize_t read_password(char **password)
 
     nbytes_r = getline(password, &len, stdin);
     if (nbytes_r < 0)
-        err(EXIT_FAILURE, "failed to read password");
+        errx(EXIT_FAILURE, "failed to read password");
 
     (*password)[--nbytes_r] = 0;
     tcsetattr(fileno(stdin), TCSAFLUSH, &old_termios);
@@ -293,7 +293,8 @@ int main(int argc, char *argv[])
     case ACTION_UNLOCK:
         if (!password)
             read_password(&password);
-        unlock(&data, password);
+        if (password && password[0] != '\0')
+            unlock(&data, password);
         break;
     default:
         break;
