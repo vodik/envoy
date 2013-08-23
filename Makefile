@@ -4,15 +4,16 @@ CFLAGS := -std=c99 \
 	-Wall -Wextra -pedantic \
 	-D_GNU_SOURCE \
 	-DENVOY_VERSION=\"${VERSION}\" \
+	-I/usr/include/dbus-1.0 -I/usr/lib/dbus-1.0/include \
 	${CFLAGS}
 
-LDLIBS = -lsystemd-daemon
+LDLIBS = -lsystemd-daemon -ldbus-1
 
 all: envoyd envoy envoy-exec pam_envoy.so
 
 lib/envoy.o: lib/envoy.c
 pam_envoy.o: pam_envoy.c
-envoyd: envoyd.o lib/envoy.o clique/cgroups.o
+envoyd: envoyd.o lib/envoy.o clique/dbus-lib.o clique/dbus-util.o clique/dbus-systemd.o
 envoy: envoy.o lib/envoy.o lib/gpg-protocol.o
 envoy-exec: envoy-exec.o lib/envoy.o lib/gpg-protocol.o
 

@@ -50,6 +50,7 @@ struct agent_data_t {
     pid_t pid;
     char sock[PATH_MAX];
     char gpg[PATH_MAX];
+    char unit_path[PATH_MAX];
 };
 
 extern const struct agent_t Agent[LAST_AGENT];

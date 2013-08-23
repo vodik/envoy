@@ -32,7 +32,8 @@
 #include <systemd/sd-daemon.h>
 
 #include "lib/envoy.h"
-#include "clique/cgroups.h"
+#include "clique/dbus-util.h"
+#include "clique/dbus-systemd.h"
 
 struct agent_info_t {
     uid_t uid;
@@ -40,37 +41,36 @@ struct agent_info_t {
     struct agent_info_t *next;
 };
 
+static dbus_bus *bus = NULL;
 static enum agent default_type = AGENT_SSH_AGENT;
 static struct agent_info_t *agents = NULL;
 static bool sd_activated = false;
 static int epoll_fd, server_sock;
 static char *gnupghome = NULL;
 
-/* cgroup support */
-static bool (*pid_alive)(pid_t pid, uid_t uid);
-static void (*kill_agent)(uid_t uid) = NULL;
-static char *cgroup_name = NULL;
+static void kill_agents(int signal)
+{
+    while (agents) {
+        if (agents->d.unit_path[0]) {
+            unit_kill(bus, agents->d.unit_path, signal);
+        } else {
+            kill(agents->d.pid, signal);
+        }
+
+        agents = agents->next;
+    }
+}
 
 static void cleanup(void)
 {
+    close(epoll_fd);
+
     if (!sd_activated) {
         close(server_sock);
         unlink_envoy_socket();
     }
 
-    if (kill_agent) {
-        while (agents) {
-            if (agents->d.pid > 0)
-                kill_agent(agents->uid);
-            agents = agents->next;
-        }
-
-        if (cg_destroy_controller("cpu", "envoy", cgroup_name, NULL) < 0)
-            warn("failed to close envoy's process cgroup");
-
-        if (cg_destroy_controller("cpu", "envoy", NULL) < 0 && errno != EBUSY)
-            warn("failed to close envoy's cgroup");
-    }
+    kill_agents(SIGTERM);
 }
 
 static void sighandler(int signum)
@@ -78,93 +78,28 @@ static void sighandler(int signum)
     switch (signum) {
     case SIGINT:
     case SIGTERM:
-        close(epoll_fd);
         cleanup();
         exit(EXIT_SUCCESS);
     }
 }
 
-static void cgroup_cleanup(uid_t uid)
+static bool unit_running(struct agent_data_t *data)
 {
-    bool done = false;
-    char *namespace;
+    bool running = true;
 
-    if (asprintf(&namespace, "%d.agent", uid) < 0)
-        err(EXIT_FAILURE, "failed to allocate memory");
+    if (data->unit_path[0]) {
+        char *state;
+        query_property(bus, data->unit_path, "org.freedesktop.systemd1.Unit",
+                       "SubState", "s", &state);
 
-    int cgroup_fd = cg_open_controller("cpu", "envoy", cgroup_name, namespace, NULL);
-    do {
-        FILE *fp = subsystem_open(cgroup_fd, "cgroup.procs", "r");
-        pid_t cgroup_pid;
-        done = true;
-        while (fscanf(fp, "%d", &cgroup_pid) != EOF) {
-            kill(cgroup_pid, SIGKILL);
-            done = false;
-        }
-        fclose(fp);
-    } while (!done);
-    close(cgroup_fd);
-
-    if (cg_destroy_controller("cpu", "envoy", cgroup_name, namespace, NULL) < 0)
-        warn("failed to close envoy's namespace cgroup");
-
-    free(namespace);
-}
-
-static bool fallback_alive(pid_t pid, uid_t __attribute__((unused)) uid)
-{
-    if (kill(pid, 0) < 0) {
+        running = strcmp(state, "running") == 0;
+    } else if (kill(data->pid, 0) < 0) {
         if (errno != ESRCH)
             err(EXIT_FAILURE, "something strange happened with kill");
-        return false;
-    }
-    return true;
-}
-
-static bool pid_in_cgroup(pid_t pid, uid_t uid)
-{
-    char *namespace;
-    bool found = false;
-    pid_t cgroup_pid;
-
-    /* each user's agents are namespaces by uid */
-    if (asprintf(&namespace, "%d.agent", uid) < 0)
-        err(EXIT_FAILURE, "failed to allocate memory");
-
-    int cgroup_fd = cg_open_controller("cpu", "envoy", cgroup_name, namespace, NULL);
-    FILE *fp = subsystem_open(cgroup_fd, "cgroup.procs", "r");
-    if (!fp)
-        err(EXIT_FAILURE, "failed to open cgroup info");
-
-    while (fscanf(fp, "%d", &cgroup_pid) != EOF) {
-        if (cgroup_pid == pid) {
-            found = true;
-            break;
-        }
+        running = false;
     }
 
-    fclose(fp);
-    close(cgroup_fd);
-    free(namespace);
-    return found;
-}
-
-static void init_cgroup(void)
-{
-    int cgroup_fd = cg_open_controller("cpu", "envoy", NULL);
-    if (cgroup_fd < 0) {
-        fprintf(stderr, "Failed to initialize cgroup subsystem! It's likely there's no kernel support.\n"
-                "Falling back to a naive (and less than reliable) method of process management...\n");
-        pid_alive = fallback_alive;
-        return;
-    }
-
-    if (asprintf(&cgroup_name, "%d.monitor", getpid()) < 0)
-        err(EXIT_FAILURE, "failed to allocate memory");
-
-    kill_agent = cgroup_cleanup;
-    pid_alive = pid_in_cgroup;
-    close(cgroup_fd);
+    return running;
 }
 
 static int safe_atoi(const char *p, size_t len)
@@ -252,18 +187,21 @@ static int parse_agentdata(int fd, struct agent_data_t *data)
 
 static void __attribute__((__noreturn__)) exec_agent(const struct agent_t *agent, uid_t uid, gid_t gid)
 {
-    char *namespace, *env_home = NULL, *env_gnupghome = NULL;
-    int cgroup_fd;
+    char *env_home = NULL, *env_gnupghome = NULL, *scope, *slice;
     struct passwd *pwd;
 
-    /* each user's agents are namespaces by uid */
-    if (asprintf(&namespace, "%d.agent", uid) < 0)
-        err(EXIT_FAILURE, "failed to allocate memory");
+    asprintf(&scope, "envoy-%s-1.scope", agent->name);
+    asprintf(&slice, "user-%d.slice", uid);
 
-    cgroup_fd = cg_open_controller("cpu", "envoy", cgroup_name, namespace, NULL);
-    subsystem_set(cgroup_fd, "cgroup.procs", "0");
-    free(namespace);
-    close(cgroup_fd);
+    dbus_bus *bus;
+    dbus_open(DBUS_BUS_SYSTEM, &bus);
+    int rc = start_transient_scope(bus, scope, slice,
+                                   "Agent for envoy",
+                                   0, NULL);
+    if (rc < 0) {
+        err(EXIT_FAILURE, "failed to start transient scope for agent: %s", bus->error);
+    }
+    dbus_close(bus);
 
     if (setresgid(gid, gid, gid) < 0 || setresuid(uid, uid, uid) < 0)
         err(EXIT_FAILURE, "unable to drop to uid=%u gid=%u\n", uid, gid);
@@ -300,6 +238,7 @@ static int run_agent(struct agent_data_t *data, uid_t uid, gid_t gid)
     data->status = ENVOY_STARTED;
     data->sock[0] = '\0';
     data->gpg[0] = '\0';
+    data->unit_path[0] = '\0';
 
     printf("Starting %s for uid=%u gid=%u.\n", agent->name, uid, gid);
     fflush(stdout);
@@ -307,7 +246,8 @@ static int run_agent(struct agent_data_t *data, uid_t uid, gid_t gid)
     if (pipe(fd) < 0)
         err(EXIT_FAILURE, "failed to create pipe");
 
-    switch (fork()) {
+    pid_t pid = fork();
+    switch (pid) {
     case -1:
         err(EXIT_FAILURE, "failed to fork");
         break;
@@ -338,6 +278,24 @@ static int run_agent(struct agent_data_t *data, uid_t uid, gid_t gid)
                     agent->name, WTERMSIG(stat));
     } else if (parse_agentdata(fd[0], data) < 0) {
         err(EXIT_FAILURE, "failed to parse %s output", agent->name);
+    } else {
+        char *scope, *slice, *path;
+
+        asprintf(&scope, "envoy-@%s-1.scope", agent->name);
+        asprintf(&slice, "user-%d.slice", uid);
+
+        rc = get_unit(bus, scope, &path);
+        if (rc < 0) {
+            fprintf(stderr, "failed to find unit for %s: %s\n"
+                    "falling back to a naive (and less reliable) "
+                    "method of process management...\n",
+                    agent->name, bus->error);
+        } else {
+            strcpy(data->unit_path, path);
+            free(path);
+        }
+
+        printf("PATH: %s\n", data->unit_path[0] ? data->unit_path : "<unset>");
     }
 
     close(fd[0]);
@@ -431,7 +389,7 @@ static void accept_conn(void)
 
     struct agent_info_t *node = lookup_agent_info(agents, cred.uid);
 
-    if (!node || node->d.pid == 0 || !pid_alive(node->d.pid, cred.uid)) {
+    if (!node || node->d.pid == 0 || !unit_running(&node->d)) {
         struct epoll_event event = {
             .data.fd = cfd,
             .events  = EPOLLIN | EPOLLET
@@ -563,8 +521,8 @@ int main(int argc, char *argv[])
     if (epoll_fd < 0)
         err(EXIT_FAILURE, "failed to start epoll");
 
+    dbus_open(DBUS_BUS_SYSTEM, &bus);
     server_sock = get_socket();
-    init_cgroup();
 
     signal(SIGTERM, sighandler);
     signal(SIGINT,  sighandler);
