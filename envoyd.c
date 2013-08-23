@@ -187,17 +187,15 @@ static int parse_agentdata(int fd, struct agent_data_t *data)
 
 static void __attribute__((__noreturn__)) exec_agent(const struct agent_t *agent, uid_t uid, gid_t gid)
 {
+    dbus_bus *bus;
     char *env_home = NULL, *env_gnupghome = NULL, *scope, *slice;
     struct passwd *pwd;
 
     asprintf(&scope, "envoy-%s.scope", agent->name);
     asprintf(&slice, "user-%d.slice", uid);
 
-    dbus_bus *bus;
     dbus_open(DBUS_BUS_SYSTEM, &bus);
-    int rc = start_transient_scope(bus, scope, slice,
-                                   "Agent for envoy",
-                                   0, NULL);
+    int rc = start_transient_scope(bus, scope, slice, "Agent for envoy", 0, NULL);
     if (rc < 0) {
         err(EXIT_FAILURE, "failed to start transient scope for agent: %s", bus->error);
     }
@@ -286,7 +284,7 @@ static int run_agent(struct agent_data_t *data, uid_t uid, gid_t gid)
 
         rc = get_unit(bus, scope, &path);
         if (rc < 0) {
-            fprintf(stderr, "Failed to find unit for %s: %s.\n"
+            fprintf(stderr, "Failed to find unit for %s: %s\n"
                     "Falling back to a naive (and less reliable) "
                     "method of process management...\n",
                     agent->name, bus->error);
