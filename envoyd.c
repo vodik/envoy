@@ -190,7 +190,7 @@ static void __attribute__((__noreturn__)) exec_agent(const struct agent_t *agent
     char *env_home = NULL, *env_gnupghome = NULL, *scope, *slice;
     struct passwd *pwd;
 
-    asprintf(&scope, "envoy-%s-1.scope", agent->name);
+    asprintf(&scope, "envoy-%s.scope", agent->name);
     asprintf(&slice, "user-%d.slice", uid);
 
     dbus_bus *bus;
@@ -281,7 +281,7 @@ static int run_agent(struct agent_data_t *data, uid_t uid, gid_t gid)
     } else {
         char *scope, *slice, *path;
 
-        asprintf(&scope, "envoy-@%s-1.scope", agent->name);
+        asprintf(&scope, "envoy-%s.scope", agent->name);
         asprintf(&slice, "user-%d.slice", uid);
 
         rc = get_unit(bus, scope, &path);
