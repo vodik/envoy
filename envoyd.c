@@ -286,16 +286,14 @@ static int run_agent(struct agent_data_t *data, uid_t uid, gid_t gid)
 
         rc = get_unit(bus, scope, &path);
         if (rc < 0) {
-            fprintf(stderr, "failed to find unit for %s: %s\n"
-                    "falling back to a naive (and less reliable) "
+            fprintf(stderr, "Failed to find unit for %s: %s.\n"
+                    "Falling back to a naive (and less reliable) "
                     "method of process management...\n",
                     agent->name, bus->error);
         } else {
             strcpy(data->unit_path, path);
             free(path);
         }
-
-        printf("PATH: %s\n", data->unit_path[0] ? data->unit_path : "<unset>");
     }
 
     close(fd[0]);
