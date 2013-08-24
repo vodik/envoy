@@ -188,21 +188,24 @@ static int parse_agentdata(int fd, struct agent_data_t *data)
 static void __attribute__((__noreturn__)) exec_agent(const struct agent_t *agent, uid_t uid, gid_t gid)
 {
     dbus_bus *bus;
-    char *env_home = NULL, *env_gnupghome = NULL, *slice = NULL;
+    char *env_home = NULL, *env_gnupghome = NULL, *scope, *slice = NULL;
     struct passwd *pwd;
 
-    if (getuid() == 0) {
+    if (getuid() == 0 && uid != 0) {
         asprintf(&slice, "user-%d.slice", uid);
     }
 
-    dbus_open(DBUS_AUTO, &bus);
+    asprintf(&scope, "envoy-monitor-%d.scope", uid);
 
-    int rc = start_transient_scope(bus, "envoy-monitor.scope", slice,
+    dbus_open(DBUS_AUTO, &bus);
+    int rc = start_transient_scope(bus, scope, slice,
                                    "Envoy agent monitor", 0, NULL);
     if (rc < 0) {
         err(EXIT_FAILURE, "failed to start transient scope for agent: %s", bus->error);
     }
     dbus_close(bus);
+
+    free(scope);
 
     if (setresgid(gid, gid, gid) < 0 || setresuid(uid, uid, uid) < 0)
         err(EXIT_FAILURE, "unable to drop to uid=%u gid=%u\n", uid, gid);
@@ -280,9 +283,10 @@ static int run_agent(struct agent_data_t *data, uid_t uid, gid_t gid)
     } else if (parse_agentdata(fd[0], data) < 0) {
         err(EXIT_FAILURE, "failed to parse %s output", agent->name);
     } else {
-        char *path;
+        char *scope, *path;
 
-        rc = get_unit(bus, "envoy-monitor.scope", &path);
+        asprintf(&scope, "envoy-monitor-%d.scope", uid);
+        rc = get_unit(bus, scope, &path);
         if (rc < 0) {
             fprintf(stderr, "Failed to find unit for %s: %s\n"
                     "Falling back to a naive (and less reliable) "
@@ -292,6 +296,8 @@ static int run_agent(struct agent_data_t *data, uid_t uid, gid_t gid)
             strcpy(data->unit_path, path);
             free(path);
         }
+
+        free(scope);
     }
 
     close(fd[0]);
