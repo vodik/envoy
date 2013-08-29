@@ -180,6 +180,7 @@ int gpg_update_tty(struct gpg_t *gpg)
     action clear { keylen = 0; }
     action append { keygrip[keylen++] = fc; }
     action term {
+        keygrip[keylen] = '\0';
         struct fingerprint_t *node = malloc(sizeof(struct fingerprint_t));
         *node = (struct fingerprint_t){
             .fingerprint = strndup(keygrip, keylen),
@@ -194,16 +195,43 @@ int gpg_update_tty(struct gpg_t *gpg)
     newline = '\n';
     status = ( 'OK' | 'ERR' >error [^\n]* ) newline %return;
 
+    # KEYGRIP is the keygrip
     keygrip = xdigit+ >clear $append;
-    type = [DT\-];
-    serialno = alpha+ | '-';
-    idstr = '-';
-    fpr = alpha+ | '-';
 
-    # FIXME: documentation on the output of KEYINFO --list isn't the best
-    entry = 'S KEYINFO' space keygrip space type space serialno space idstr space
-                              [1\-]   space 'P'  space fpr
-                              newline @term;
+    # TYPE describes the type of the key:
+    #     'D' - Regular key stored on disk,
+    #     'T' - Key is stored on a smartcard (token),
+    #     'X' - Unknown type,
+    #     '-' - Key is missing.
+    type = [DTX\-];
+
+    # SERIALNO is an ASCII string with the serial number of the
+    #          smartcard.  If the serial number is not known a single
+    #          dash '-' is used instead.
+    serialno = alpha+ | '-';
+
+    # IDSTR is the IDSTR used to distinguish keys on a smartcard.  If it
+    #       is not known a dash is used instead.
+    idstr = [^\ ]+ | '-';
+
+    # FPR returns the formatted ssh-style fingerprint of the key.  It is only
+    #     printed if the option --ssh-fpr has been used.  It defaults to '-'.
+    fpr = '-';
+
+    # TTL is the TTL in seconds for that key or '-' if n/a.
+    ttl = digit+ | '-';
+
+    # FLAGS is a word consisting of one-letter flags:
+    #       'D' - The key has been disabled,
+    #       'S' - The key is listed in sshcontrol (requires --with-ssh),
+    #       'c' - Use of the key needs to be confirmed,
+    #       '-' - No flags given.
+    flags = [DSc\-];
+
+    # KEYINFO <keygrip> <type> <serialno> <idstr> - - <fpr> <ttl> <flags>
+    entry = 'S KEYINFO' space keygrip space type  space serialno space idstr space
+                              '-'     space '-'   space fpr      space ttl   space
+                              flags   newline @term;
 
     main := ( entry | status )*;
 }%%
