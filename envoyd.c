@@ -285,7 +285,7 @@ static int run_agent(struct agent_data_t *data, uid_t uid, gid_t gid)
         char *scope, *path;
 
         asprintf(&scope, "envoy-monitor-%d.scope", uid);
-        rc = get_unit(bus, scope, &path);
+        rc = get_unit_by_pid(bus, data->pid, &path);
         if (rc < 0) {
             fprintf(stderr, "Failed to find unit for %s: %s\n"
                     "Falling back to a naive (and less reliable) "
