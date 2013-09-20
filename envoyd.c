@@ -32,8 +32,8 @@
 #include <systemd/sd-daemon.h>
 
 #include "lib/envoy.h"
-#include "clique/dbus-util.h"
-#include "clique/dbus-systemd.h"
+#include "clique/systemd-unit.h"
+#include "clique/systemd-scope.h"
 
 struct agent_info_t {
     uid_t uid;
@@ -89,9 +89,7 @@ static bool unit_running(struct agent_data_t *data)
 
     if (data->unit_path[0]) {
         char *state;
-        query_property(bus, data->unit_path, "org.freedesktop.systemd1.Unit",
-                       "SubState", "s", &state);
-
+        get_unit_state(bus, data->unit_path, &state);
         running = strcmp(state, "running") == 0;
     } else if (kill(data->pid, 0) < 0) {
         if (errno != ESRCH)
@@ -188,6 +186,7 @@ static int parse_agentdata(int fd, struct agent_data_t *data)
 static void __attribute__((__noreturn__)) exec_agent(const struct agent_t *agent, uid_t uid, gid_t gid)
 {
     dbus_bus *bus;
+    dbus_message *m;
     char *env_home = NULL, *env_gnupghome = NULL, *scope, *slice = NULL;
     struct passwd *pwd;
 
@@ -198,8 +197,8 @@ static void __attribute__((__noreturn__)) exec_agent(const struct agent_t *agent
     asprintf(&scope, "envoy-monitor-%d.scope", uid);
 
     dbus_open(DBUS_AUTO, &bus);
-    int rc = start_transient_scope(bus, scope, slice,
-                                   "Envoy agent monitor", 0, NULL);
+    scope_init(&m, scope, slice, "Envoy agent monitor", 0);
+    int rc = scope_commit(bus, m, NULL);
     if (rc < 0) {
         err(EXIT_FAILURE, "failed to start transient scope for agent: %s", bus->error);
     }

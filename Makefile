@@ -13,7 +13,9 @@ all: envoyd envoy envoy-exec pam_envoy.so
 
 lib/envoy.o: lib/envoy.c
 pam_envoy.o: pam_envoy.c
-envoyd: envoyd.o lib/envoy.o clique/dbus-lib.o clique/dbus-util.o clique/dbus-systemd.o
+envoyd: envoyd.o lib/envoy.o \
+	clique/systemd-scope.o clique/systemd-unit.o \
+	clique/dbus/dbus-shim.o clique/dbus/dbus-util.o
 envoy: envoy.o lib/envoy.o lib/gpg-protocol.o
 envoy-exec: envoy-exec.o lib/envoy.o lib/gpg-protocol.o
 
