@@ -223,7 +223,7 @@ static void __attribute__((__noreturn__)) exec_agent(const struct agent_t *agent
     }
 
     char *const env[] = {
-        "PATH=/usr/local/bin:/usr/bin:/bin",
+        "PATH=/usr/bin",
         env_home,
         env_gnupghome,
         NULL
