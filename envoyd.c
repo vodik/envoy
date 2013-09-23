@@ -46,7 +46,17 @@ static enum agent default_type = AGENT_SSH_AGENT;
 static struct agent_info_t *agents = NULL;
 static bool sd_activated = false;
 static int epoll_fd, server_sock;
-static char *gnupghome = NULL;
+
+static union agent_environ_t {
+    struct {
+        char *path;
+        char *home;
+        char *gnupghome;
+    } arg;
+    char *const env[4];
+} agent_env = {
+    .env = { 0 }
+};
 
 static void kill_agents(int signal)
 {
@@ -110,6 +120,28 @@ static int safe_atoi(const char *p, size_t len)
     }
 
     return value;
+}
+
+static void init_agent_environ(void)
+{
+    extern char **environ;
+    char *path = NULL, *gnupghome = NULL;
+    int i;
+
+    for (i = 0; environ[i]; ++i) {
+        if (memcmp(environ[i], "PATH", 4) == 0)
+            path = environ[i];
+        if (memcmp(environ[i], "GNUPGHOME", 9) == 0)
+            gnupghome = environ[i];
+    }
+
+    agent_env.arg.path = path ? path : "PATH=/usr/local/bin:/usr/bin/:/bin";
+
+    if (getuid() != 0) {
+        agent_env.arg.gnupghome = gnupghome;
+    } else {
+        fprintf(stderr, "warning: running as root and GNUPGHOME is set; ignoring.\n");
+    }
 }
 
 static pid_t gpg_info_extract_pid(const char *gpg)
@@ -187,7 +219,7 @@ static void __attribute__((__noreturn__)) exec_agent(const struct agent_t *agent
 {
     dbus_bus *bus;
     dbus_message *m;
-    char *env_home = NULL, *env_gnupghome = NULL, *scope, *slice = NULL;
+    char *scope, *slice = NULL;
     struct passwd *pwd;
 
     if (getuid() == 0 && uid != 0) {
@@ -214,22 +246,10 @@ static void __attribute__((__noreturn__)) exec_agent(const struct agent_t *agent
         err(EXIT_FAILURE, "failed to lookup passwd entry");
 
     /* setup the most minimal environment */
-    if (asprintf(&env_home, "HOME=%s", pwd->pw_dir) < 0)
+    if (asprintf(&agent_env.arg.home, "HOME=%s", pwd->pw_dir) < 0)
         err(EXIT_FAILURE, "failed to allocate memory");
 
-    if (gnupghome) {
-        if (asprintf(&env_gnupghome, "GNUPGHOME=%s", gnupghome) < 0)
-            err(EXIT_FAILURE, "failed to allocate memory");
-    }
-
-    char *const env[] = {
-        "PATH=/usr/local/bin:/usr/bin:/bin",
-        env_home,
-        env_gnupghome,
-        NULL
-    };
-
-    execve(agent->argv[0], agent->argv, env);
+    execve(agent->argv[0], agent->argv, agent_env.env);
     err(EXIT_FAILURE, "failed to start %s", agent->name);
 }
 
@@ -524,12 +544,10 @@ int main(int argc, char *argv[])
 
     dbus_open(DBUS_AUTO, &bus);
     server_sock = get_socket();
+    init_agent_environ();
 
     signal(SIGTERM, sighandler);
     signal(SIGINT,  sighandler);
-
-    /* Read $GNUPGHOME to pass to gpg-agent */
-    gnupghome = getenv("GNUPGHOME");
 
     return loop();
 }
