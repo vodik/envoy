@@ -129,9 +129,9 @@ static void init_agent_environ(void)
     int i;
 
     for (i = 0; environ[i]; ++i) {
-        if (strncmp(environ[i], "PATH", 4) == 0)
+        if (strncmp(environ[i], "PATH=", 5) == 0)
             path = environ[i];
-        if (strncmp(environ[i], "GNUPGHOME", 9) == 0)
+        if (strncmp(environ[i], "GNUPGHOME=", 10) == 0)
             gnupghome = environ[i];
     }
 
