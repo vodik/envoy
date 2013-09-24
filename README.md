@@ -27,7 +27,7 @@ managed fashion that doesn't clutter user login sessions.
 
 To setup envoy, first enable the socket:
 
-    # systemctl enable envoy.socket
+    # systemctl enable envoy@ssh-agent.socket
 
 Then add the following to your shell's rc file.
 

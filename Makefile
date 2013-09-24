@@ -1,6 +1,6 @@
 VERSION = $(shell git describe --tags)
 
-CFLAGS := -std=c99 \
+CFLAGS := -std=c11 \
 	-Wall -Wextra -pedantic \
 	-D_GNU_SOURCE \
 	-DENVOY_VERSION=\"${VERSION}\" \
@@ -39,8 +39,8 @@ install: envoyd envoy pam_envoy.so
 	install -Dm644 man/envoyd.1 ${DESTDIR}/usr/share/man/man1/envoyd.1
 	install -Dm644 man/envoy.1 ${DESTDIR}/usr/share/man/man1/envoy.1
 	install -Dm644 man/envoy-exec.1 ${DESTDIR}/usr/share/man/man1/envoy-exec.1
-	install -Dm644 systemd/envoy.service ${DESTDIR}/usr/lib/systemd/system/envoy.service
-	install -Dm644 systemd/envoy.socket ${DESTDIR}/usr/lib/systemd/system/envoy.socket
+	install -Dm644 systemd/envoy@.service ${DESTDIR}/usr/lib/systemd/system/envoy@.service
+	install -Dm644 systemd/envoy@.socket ${DESTDIR}/usr/lib/systemd/system/envoy@.socket
 
 clean:
 	${RM} envoyd envoy pam_envoy.so *.o
