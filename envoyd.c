@@ -137,6 +137,9 @@ static void init_agent_environ(void)
 
     agent_env.arg.path = path ? path : "PATH=/usr/local/bin:/usr/bin/:/bin";
 
+    if (!gnupghome)
+        return;
+
     if (getuid() != 0) {
         agent_env.arg.gnupghome = gnupghome;
     } else {
