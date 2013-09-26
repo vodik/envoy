@@ -45,6 +45,7 @@ static dbus_bus *bus = NULL;
 static enum agent default_type = AGENT_SSH_AGENT;
 static struct agent_info_t *agents = NULL;
 static bool sd_activated = false;
+static bool multiuser_mode;
 static int epoll_fd, server_sock;
 
 static union agent_environ_t {
@@ -150,11 +151,10 @@ static void init_agent_environ(void)
     if (!gnupghome)
         return;
 
-    if (getuid() != 0) {
+    if (!multiuser_mode)
         agent_env.arg.gnupghome = gnupghome;
-    } else {
+    else
         fprintf(stderr, "warning: running as root and GNUPGHOME is set; ignoring.\n");
-    }
 }
 
 static pid_t gpg_info_extract_pid(const char *gpg)
@@ -235,7 +235,7 @@ static void __attribute__((__noreturn__)) exec_agent(const struct agent_t *agent
     char *scope, *slice = NULL;
     struct passwd *pwd;
 
-    if (getuid() == 0 && uid != 0)
+    if (multiuser_mode && uid != 0)
         safe_asprintf(&slice, "user-%d.slice", uid);
     safe_asprintf(&scope, "envoy-monitor-%d.scope", uid);
 
@@ -361,7 +361,7 @@ static int get_socket(void)
             err(EXIT_FAILURE, "failed to bind");
 
         if (sa.un.sun_path[0] != '@')
-            chmod(sa.un.sun_path, 0777);
+            chmod(sa.un.sun_path, multiuser_mode ? 0777 : 0700);
 
         if (listen(fd, SOMAXCONN) < 0)
             err(EXIT_FAILURE, "failed to listen");
@@ -552,6 +552,8 @@ int main(int argc, char *argv[])
     epoll_fd = epoll_create1(EPOLL_CLOEXEC);
     if (epoll_fd < 0)
         err(EXIT_FAILURE, "failed to start epoll");
+
+    multiuser_mode = (getuid() == 0) ? true : false;
 
     dbus_open(DBUS_AUTO, &bus);
     server_sock = get_socket();
