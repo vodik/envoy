@@ -58,6 +58,16 @@ static union agent_environ_t {
     .env = { 0 }
 };
 
+static inline void __attribute__((format (printf, 2, 3))) safe_asprintf(char **strp, const char *fmt, ...)
+{
+    va_list ap;
+
+    va_start(ap, fmt);
+    if (vasprintf(strp, fmt, ap) < 0)
+        err(EXIT_FAILURE, "failed to allocate memory");
+    va_end(ap);
+}
+
 static void kill_agents(int signal)
 {
     while (agents) {
@@ -225,11 +235,9 @@ static void __attribute__((__noreturn__)) exec_agent(const struct agent_t *agent
     char *scope, *slice = NULL;
     struct passwd *pwd;
 
-    if (getuid() == 0 && uid != 0) {
-        asprintf(&slice, "user-%d.slice", uid);
-    }
-
-    asprintf(&scope, "envoy-monitor-%d.scope", uid);
+    if (getuid() == 0 && uid != 0)
+        safe_asprintf(&slice, "user-%d.slice", uid);
+    safe_asprintf(&scope, "envoy-monitor-%d.scope", uid);
 
     dbus_open(DBUS_AUTO, &bus);
     scope_init(&m, scope, slice, "Envoy agent monitor", 0);
@@ -249,8 +257,7 @@ static void __attribute__((__noreturn__)) exec_agent(const struct agent_t *agent
         err(EXIT_FAILURE, "failed to lookup passwd entry");
 
     /* setup the most minimal environment */
-    if (asprintf(&agent_env.arg.home, "HOME=%s", pwd->pw_dir) < 0)
-        err(EXIT_FAILURE, "failed to allocate memory");
+    safe_asprintf(&agent_env.arg.home, "HOME=%s", pwd->pw_dir);
 
     execve(agent->argv[0], agent->argv, agent_env.env);
     err(EXIT_FAILURE, "failed to start %s", agent->name);
@@ -307,7 +314,8 @@ static int run_agent(struct agent_data_t *data, uid_t uid, gid_t gid)
     } else {
         char *scope, *path;
 
-        asprintf(&scope, "envoy-monitor-%d.scope", uid);
+        safe_asprintf(&scope, "envoy-monitor-%d.scope", uid);
+
         rc = get_unit_by_pid(bus, data->pid, &path);
         if (rc < 0) {
             fprintf(stderr, "Failed to find unit for %s: %s\n"
