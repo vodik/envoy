@@ -60,6 +60,7 @@ void unlink_envoy_socket(void);
 
 int envoy_agent(struct agent_data_t *data, enum agent id, bool start);
 enum agent lookup_agent(const char *string);
+void safe_asprintf(char **strp, const char *fmt, ...) __attribute__((format (printf, 2, 3)));
 
 #endif
 

@@ -95,7 +95,7 @@ static void __attribute__((__noreturn__)) exec_wrapper(const char *cmd, int argc
         for (; segment; segment = strtok_r(NULL, ":", &saveptr)) {
             char *full_path;
 
-            asprintf(&full_path, "%s/%s", segment, cmd);
+            safe_asprintf(&full_path, "%s/%s", segment, cmd);
             safe_execv(full_path, args);
             free(full_path);
         }

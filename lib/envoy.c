@@ -18,8 +18,11 @@
 #include "envoy.h"
 
 #include <stdlib.h>
+#include <stdio.h>
 #include <stdbool.h>
+#include <stdarg.h>
 #include <errno.h>
+#include <err.h>
 #include <unistd.h>
 #include <sys/socket.h>
 #include <sys/un.h>
@@ -121,4 +124,14 @@ enum agent lookup_agent(const char *string)
             break;
 
     return i;
+}
+
+void safe_asprintf(char **strp, const char *fmt, ...)
+{
+    va_list ap;
+
+    va_start(ap, fmt);
+    if (vasprintf(strp, fmt, ap) < 0)
+        err(EXIT_FAILURE, "failed to allocate memory");
+    va_end(ap);
 }

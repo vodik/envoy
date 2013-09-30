@@ -110,9 +110,7 @@ static char *get_key_path(const char *home, const char *fragment)
         return strdup(fragment);
 
     /* assume it's a key in $HOME/.ssh */
-    if (asprintf(&out, "%s/.ssh/%s", home, fragment) < 0)
-        err(EXIT_FAILURE, "failed to allocate memory");
-
+    safe_asprintf(&out, "%s/.ssh/%s", home, fragment);
     return out;
 }
 
