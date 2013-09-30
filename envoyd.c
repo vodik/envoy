@@ -220,7 +220,6 @@ static int parse_agentdata(int fd, struct agent_data_t *data)
 
 static void __attribute__((__noreturn__)) exec_agent(const struct agent_t *agent, uid_t uid, gid_t gid)
 {
-    dbus_bus *bus;
     dbus_message *m;
     char *scope, *slice = NULL;
     struct passwd *pwd;
@@ -229,6 +228,7 @@ static void __attribute__((__noreturn__)) exec_agent(const struct agent_t *agent
         safe_asprintf(&slice, "user-%d.slice", uid);
     safe_asprintf(&scope, "envoy-monitor-%d.scope", uid);
 
+    /* bus is set to CLOEXEC, so we need to open it again */
     dbus_open(DBUS_AUTO, &bus);
     scope_init(&m, scope, slice, "Envoy agent monitor", 0);
     int rc = scope_commit(bus, m, NULL);
@@ -360,10 +360,10 @@ static int get_socket(void)
     return fd;
 }
 
-static struct agent_info_t *lookup_agent_info(struct agent_info_t *agents, uid_t uid)
+static struct agent_info_t *lookup_agent_info(struct agent_info_t *list, uid_t uid)
 {
     struct agent_info_t *node;
-    for (node = agents; node; node = node->next) {
+    for (node = list; node; node = node->next) {
         if (node->uid == uid)
             return node;
     }
