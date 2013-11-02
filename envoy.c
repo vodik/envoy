@@ -157,11 +157,14 @@ static void source_env(struct agent_data_t *data)
     setenv("SSH_AUTH_SOCK", data->sock, true);
 }
 
-static int unlock(const struct agent_data_t *data, const char *password)
+static int unlock(const struct agent_data_t *data, char *password)
 {
     struct gpg_t *agent = gpg_agent_connection(data->gpg);
     if (!agent)
         err(EXIT_FAILURE, "failed to open connection to gpg-agent");
+
+    if (!password)
+        read_password(&password);
 
     const struct fingerprint_t *fgpt = gpg_keyinfo(agent);
     for (; fgpt; fgpt = fgpt->next) {
@@ -289,10 +292,7 @@ int main(int argc, char *argv[])
         execlp("ssh-add", "ssh-add", "-l", NULL);
         err(EXIT_FAILURE, "failed to launch ssh-add");
     case ACTION_UNLOCK:
-        if (!password)
-            read_password(&password);
-        if (password && password[0] != '\0')
-            unlock(&data, password);
+        unlock(&data, password);
         break;
     default:
         break;
