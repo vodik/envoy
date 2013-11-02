@@ -21,6 +21,7 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <stdarg.h>
+#include <string.h>
 #include <getopt.h>
 #include <err.h>
 #include <errno.h>
@@ -71,6 +72,9 @@ static int gpg_check_return(struct gpg_t *gpg)
 {
     int rc = 0;
 
+    %%access gpg->;
+    %%variable p gpg->p;
+    %%variable pe gpg->pe;
     %%write init;
 
     for (;;) {
@@ -80,10 +84,6 @@ static int gpg_check_return(struct gpg_t *gpg)
         }
 
         char *eof = gpg->pe;
-
-        %%access gpg->;
-        %%variable p gpg->p;
-        %%variable pe gpg->pe;
         %%write exec;
 
         if (gpg->cs == status_error) {
@@ -249,6 +249,9 @@ struct fingerprint_t *gpg_keyinfo(struct gpg_t *gpg)
     if (nbytes_w < 0)
         return NULL;
 
+    %%access gpg->;
+    %%variable p gpg->p;
+    %%variable pe gpg->pe;
     %%write init;
 
     for (;;) {
@@ -258,10 +261,6 @@ struct fingerprint_t *gpg_keyinfo(struct gpg_t *gpg)
         }
 
         char *eof = gpg->pe;
-
-        %%access gpg->;
-        %%variable p gpg->p;
-        %%variable pe gpg->pe;
         %%write exec;
 
         if (gpg->cs == keyinfo_error) {
