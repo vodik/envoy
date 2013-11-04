@@ -45,7 +45,7 @@ static int gpg_buffer_refill(struct gpg_t *gpg)
 {
     ssize_t nbytes_r = read(gpg->fd, gpg->buf, BUFSIZ);
     if (nbytes_r < 0)
-        return -1;
+        return -errno;
 
     gpg->buf[nbytes_r] = 0;
     gpg->p = gpg->buf;
@@ -58,7 +58,7 @@ static int gpg_buffer_refill(struct gpg_t *gpg)
 
     action error {
         fprintf(stderr, "%s: gpg protocol error: %s", program_invocation_short_name, fpc);
-        rc = -1;
+        rc = -EIO;
     }
     action return { return rc; }
 
@@ -98,13 +98,14 @@ static int gpg_check_return(struct gpg_t *gpg)
 static int __attribute__((format (printf, 2, 3))) gpg_send_message(struct gpg_t *gpg, const char *fmt, ...)
 {
     va_list ap;
-    int nbytes_r;
+    int nbytes_r, rc;
 
     va_start(ap, fmt);
     nbytes_r = vdprintf(gpg->fd, fmt, ap);
     va_end(ap);
 
-    return gpg_check_return(gpg) == 0 ? nbytes_r : -1;
+    rc = gpg_check_return(gpg);
+    return rc == 0 ? nbytes_r : rc;
 }
 
 struct gpg_t *gpg_agent_connection(const char *sock)
@@ -276,28 +277,30 @@ int gpg_preset_passphrase(struct gpg_t *gpg, const char *fingerprint, int timeou
 {
     static const char *hex_digits = "0123456789ABCDEF";
     ssize_t nbytes_r;
+    int rc;
 
     if (!fingerprint)
-        return -1;
+        return -EINVAL;
 
     if (!password) {
         nbytes_r = dprintf(gpg->fd, "PRESET_PASSPHRASE %s %d\n", fingerprint, timeout);
-        return gpg_check_return(gpg) == 0 ? nbytes_r : -1;
+    } else {
+        size_t i, size = strlen(password);
+        char *bin_password = malloc(2 * size + 1);
+
+        for(i = 0; i < size; i++) {
+            bin_password[2 * i] = hex_digits[password[i] >> 4];
+            bin_password[2 * i + 1] = hex_digits[password[i] & 0x0f];
+        }
+
+        bin_password[2 * size] = '\0';
+        nbytes_r = dprintf(gpg->fd, "PRESET_PASSPHRASE %s %d %s\n", fingerprint, timeout, bin_password);
+
+        free(bin_password);
     }
 
-    size_t i, size = strlen(password);
-    char *bin_password = malloc(2 * size + 1);
-
-    for(i = 0; i < size; i++) {
-        bin_password[2 * i] = hex_digits[password[i] >> 4];
-        bin_password[2 * i + 1] = hex_digits[password[i] & 0x0f];
-    }
-
-    bin_password[2 * size] = '\0';
-    nbytes_r = dprintf(gpg->fd, "PRESET_PASSPHRASE %s %d %s\n", fingerprint, timeout, bin_password);
-
-    free(bin_password);
-    return gpg_check_return(gpg) == 0 ? nbytes_r : -1;
+    rc = gpg_check_return(gpg);
+    return rc == 0 ? nbytes_r : -EIO;
 }
 
 void free_fingerprints(struct fingerprint_t *fpt)
