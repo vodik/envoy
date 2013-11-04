@@ -203,7 +203,7 @@ int gpg_update_tty(struct gpg_t *gpg)
     status = ( 'OK' | 'ERR' >error [^\n]* ) newline %return;
 
     # KEYGRIP is the keygrip
-    keygrip = xdigit+ >clear $append;
+    keygrip = xdigit{40} >clear $append;
 
     # TYPE describes the type of the key:
     #     'D' - Regular key stored on disk,
