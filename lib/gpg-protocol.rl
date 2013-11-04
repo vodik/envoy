@@ -188,13 +188,12 @@ int gpg_update_tty(struct gpg_t *gpg)
     action clear { keylen = 0; }
     action append { keygrip[keylen++] = fc; }
     action term {
-        keygrip[keylen] = '\0';
-        struct fingerprint_t *node = malloc(sizeof(struct fingerprint_t));
-        *node = (struct fingerprint_t){
+        struct fingerprint_t *next = fpt;
+        fpt = malloc(sizeof(struct fingerprint_t));
+        *fpt = (struct fingerprint_t){
             .fingerprint = strndup(keygrip, keylen),
-            .next = fpt
+            .next = next
         };
-        fpt = node;
     }
 
     action error { fprintf(stderr, "%s: gpg protocol error: %s", program_invocation_short_name, fpc); }
