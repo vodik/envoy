@@ -151,8 +151,7 @@ struct gpg_t *gpg_agent_connection(const char *sock)
 int gpg_update_tty(struct gpg_t *gpg)
 {
     extern char **environ;
-    const char *tty = ttyname(STDIN_FILENO);
-    char *display = NULL, *term = NULL;
+    char *display = NULL, *term = NULL, *tty = ttyname(STDIN_FILENO);
     int i;
 
     for (i = 0; environ[i]; ++i) {
