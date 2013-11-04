@@ -277,6 +277,9 @@ int gpg_preset_passphrase(struct gpg_t *gpg, const char *fingerprint, int timeou
     static const char *hex_digits = "0123456789ABCDEF";
     ssize_t nbytes_r;
 
+    if (!fingerprint)
+        return -1;
+
     if (!password) {
         nbytes_r = dprintf(gpg->fd, "PRESET_PASSPHRASE %s %d\n", fingerprint, timeout);
         return gpg_check_return(gpg) == 0 ? nbytes_r : -1;

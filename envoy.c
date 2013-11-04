@@ -169,7 +169,7 @@ static int unlock(const struct agent_data_t *data, char *password)
     const struct fingerprint_t *fgpt = gpg_keyinfo(agent);
     for (; fgpt; fgpt = fgpt->next) {
         if (gpg_preset_passphrase(agent, fgpt->fingerprint, -1, password) < 0) {
-            warnx("failed to unlock %s", fgpt->fingerprint);
+            warnx("failed to unlock key '%s'", fgpt->fingerprint);
             return 1;
         }
     }
