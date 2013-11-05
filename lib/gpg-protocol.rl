@@ -156,9 +156,9 @@ int gpg_update_tty(struct gpg_t *gpg)
 
     for (i = 0; environ[i]; ++i) {
         if (strncmp(environ[i], "DISPLAY=", 8) == 0)
-            display = environ[i];
+            display = environ[i] + 8;
         else if (strncmp(environ[i], "TERM=", 5) == 0)
-            term = environ[i];
+            term = environ[i] + 5;
     }
 
     gpg_send_message(gpg, "RESET\n");
