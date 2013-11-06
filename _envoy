@@ -2,7 +2,8 @@
 
 zstyle -a ":completion:${curcontext}:" environ environ
 
-if [[ $service == envoy ]]; then
+case "$service" in
+envoy)
   _arguments -s \
     {-h,--help}'[display this help]'\
     {-v,--version}'[display version]'\
@@ -13,11 +14,14 @@ if [[ $service == envoy ]]; then
     {-u,--unlock=-}'[unlock the agent''s keyring (gpg-agent only)]'\
     {-p,--print}'[print out environmental arguments]' \
     {-t,--agent=-}'[set the prefered to start]:agents:(ssh-agent gpg-agent)'
-elif [[ $service == envoyd ]]; then
+  ;;
+envoyd)
   _arguments -s \
     {-h,--help}'[display this help]'\
     {-v,--version}'[display version]'\
     {-t,--agent=-}'[set the prefered to start]:agents:(ssh-agent gpg-agent)'
-elif [[ $service == envoy-exec ]]; then
+  ;;
+envoy-exec)
   _arguments -s '*::arguments: _normal'
-fi
+  ;;
+esac
