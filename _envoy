@@ -1,0 +1,23 @@
+#compdef envoy envoyd envoy-exec
+
+zstyle -a ":completion:${curcontext}:" environ environ
+
+if [[ $service == envoy ]]; then
+  _arguments -s \
+    {-h,--help}'[display this help]'\
+    {-v,--version}'[display version]'\
+    {-a,--add}'[add private key identities]':files:_files \
+    {-k,--clear}'[force identities to expire (gpg-agent only)]'\
+    {-K,--kill}'[kill the running agent]'\
+    {-l,--list}'[list fingerprints of all loaded identities]'\
+    {-u,--unlock=-}'[unlock the agent''s keyring (gpg-agent only)]'\
+    {-p,--print}'[print out environmental arguments]' \
+    {-t,--agent=-}'[set the prefered to start]:agents:(ssh-agent gpg-agent)'
+elif [[ $service == envoyd ]]; then
+  _arguments -s \
+    {-h,--help}'[display this help]'\
+    {-v,--version}'[display version]'\
+    {-t,--agent=-}'[set the prefered to start]:agents:(ssh-agent gpg-agent)'
+elif [[ $service == envoy-exec ]]; then
+  _arguments -s '*::arguments: _normal'
+fi
