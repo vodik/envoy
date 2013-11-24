@@ -137,13 +137,22 @@ static void __attribute__((__noreturn__)) add_keys(char **keys, int count)
     err(EXIT_FAILURE, "failed to launch ssh-add");
 }
 
-static void print_env(struct agent_data_t *data)
+static void print_sh_env(struct agent_data_t *data)
 {
     if (data->type == AGENT_GPG_AGENT)
         printf("export GPG_AGENT_INFO='%s'\n", data->gpg);
 
     printf("export SSH_AUTH_SOCK='%s'\n", data->sock);
     printf("export SSH_AGENT_PID='%d'\n", data->pid);
+}
+
+static void print_fish_env(struct agent_data_t *data)
+{
+    if (data->type == AGENT_GPG_AGENT)
+        printf("set -x GPG_AGENT_INFO '%s';\n", data->gpg);
+
+    printf("set -x SSH_AUTH_SOCK '%s';\n", data->sock);
+    printf("set -x SSH_AGENT_PID '%d';\n", data->pid);
 }
 
 static void source_env(struct agent_data_t *data)
@@ -190,6 +199,8 @@ static void __attribute__((__noreturn__)) usage(FILE *out)
         " -l, --list            list fingerprints of all loaded identities\n"
         " -u, --unlock=[PASS]   unlock the agent's keyring (gpg-agent only)\n"
         " -p, --print           print out environmental arguments\n"
+        " -s, --sh              print sh style commands\n"
+        " -f, --fish            print fish style commands\n"
         " -t, --agent=AGENT     set the prefered to start\n", out);
 
     exit(out == stderr ? EXIT_FAILURE : EXIT_SUCCESS);
@@ -202,6 +213,7 @@ int main(int argc, char *argv[])
     char *password = NULL;
     enum action verb = ACTION_NONE;
     enum agent type = AGENT_DEFAULT;
+    void (*print_env)(struct agent_data_t *data) = print_sh_env;
 
     static const struct option opts[] = {
         { "help",    no_argument, 0, 'h' },
@@ -212,12 +224,13 @@ int main(int argc, char *argv[])
         { "list",    no_argument, 0, 'l' },
         { "unlock",  optional_argument, 0, 'u' },
         { "print",   no_argument, 0, 'p' },
+        { "fish",    no_argument, 0, 'f' },
         { "agent",   required_argument, 0, 't' },
         { 0, 0, 0, 0 }
     };
 
     while (true) {
-        int opt = getopt_long(argc, argv, "hvakKlu::pt:", opts, NULL);
+        int opt = getopt_long(argc, argv, "hvakKlu::psft:", opts, NULL);
         if (opt == -1)
             break;
 
@@ -248,6 +261,12 @@ int main(int argc, char *argv[])
             break;
         case 'p':
             verb = ACTION_PRINT;
+            break;
+        case 's':
+            print_env = print_sh_env;
+            break;
+        case 'f':
+            print_env = print_fish_env;
             break;
         case 't':
             type = lookup_agent(optarg);
