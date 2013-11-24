@@ -49,8 +49,9 @@ configuration.
      -K, --kill            kill the running agent
      -l, --list            list fingerprints of all loaded identities
      -u, --unlock=[PASS]   unlock the agent's keyring (gpg-agent only)
-     -p, --print           print out sh environmental arguments
-     -f, --fish            print out fish environmental arguments
+     -p, --print           print out environmental arguments
+     -s, --sh              print sh style commands
+     -f, --fish            print fish style commands
      -t, --agent=AGENT     set the prefered to start
 
 Note that when passing in keys, if they reside in `~/.ssh/`, then just
