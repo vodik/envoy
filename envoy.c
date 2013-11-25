@@ -227,17 +227,17 @@ int main(int argc, char *argv[])
     void (*print_env)(struct agent_data_t *data) = print_sh_env;
 
     static const struct option opts[] = {
-        { "help",    no_argument, 0, 'h' },
-        { "version", no_argument, 0, 'v' },
-        { "add",     no_argument, 0, 'a' },
-        { "clear",   no_argument, 0, 'k' },
-        { "kill",    no_argument, 0, 'K' },
-        { "list",    no_argument, 0, 'l' },
+        { "help",    no_argument,       0, 'h' },
+        { "version", no_argument,       0, 'v' },
+        { "add",     no_argument,       0, 'a' },
+        { "clear",   no_argument,       0, 'k' },
+        { "kill",    no_argument,       0, 'K' },
+        { "list",    no_argument,       0, 'l' },
         { "unlock",  optional_argument, 0, 'u' },
-        { "print",   no_argument, 0, 'p' },
-        { "sh",      no_argument, 0, 's' },
-        { "csh",     no_argument, 0, 'c' },
-        { "fish",    no_argument, 0, 'f' },
+        { "print",   no_argument,       0, 'p' },
+        { "sh",      no_argument,       0, 's' },
+        { "csh",     no_argument,       0, 'c' },
+        { "fish",    no_argument,       0, 'f' },
         { "agent",   required_argument, 0, 't' },
         { 0, 0, 0, 0 }
     };
