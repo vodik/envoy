@@ -51,6 +51,7 @@ configuration.
      -u, --unlock=[PASS]   unlock the agent's keyring (gpg-agent only)
      -p, --print           print out environmental arguments
      -s, --sh              print sh style commands
+     -c, --csh             print csh style commands
      -f, --fish            print fish style commands
      -t, --agent=AGENT     set the prefered to start
 
