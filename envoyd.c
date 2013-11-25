@@ -155,8 +155,6 @@ static void parse_agentdata_line(char *val, struct agent_data_t *info)
         info->pid = atoi(val);
     else if (strcmp(var, "GPG_AGENT_INFO") == 0)
         strcpy(info->gpg, val);
-    else
-        fprintf(stderr, "Didn't understand %s, skipping...\n", var);
 }
 
 static int parse_agentdata(int fd, struct agent_data_t *data)
