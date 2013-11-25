@@ -47,6 +47,7 @@ struct agent_t {
 struct agent_request_t {
     enum agent type;
     bool defer;
+    bool start;
 };
 
 struct agent_data_t {

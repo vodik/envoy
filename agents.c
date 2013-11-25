@@ -58,8 +58,9 @@ static int read_agent(int fd, struct agent_data_t *data)
 static int start_agent(int fd, struct agent_data_t *data, enum agent type, bool defer)
 {
     struct agent_request_t req = {
-        .type = type,
-        .defer = defer
+        .type  = type,
+        .defer = defer,
+        .start = true
     };
 
     if (write(fd, &req, sizeof(struct agent_data_t)) < 0)
@@ -83,10 +84,7 @@ int envoy_agent(struct agent_data_t *data, enum agent id, bool start, bool defer
     if (connect(fd, &sa.sa, sa_len) < 0)
         return -errno;
 
-    int ret = read_agent(fd, data);
-
-    if (ret && start && data->status == ENVOY_STOPPED)
-        ret = start_agent(fd, data, id, defer);
+    int ret = start_agent(fd, data, id, defer);
 
     close(fd);
     return ret;

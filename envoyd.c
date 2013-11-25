@@ -363,6 +363,7 @@ static void accept_conn(void)
         struct sockaddr sa;
         struct sockaddr_un un;
     } sa;
+    struct agent_request_t req;
     static socklen_t sa_len = sizeof(struct sockaddr_un);
     static socklen_t cred_len = sizeof(struct ucred);
     uid_t server_uid = geteuid();
@@ -370,6 +371,10 @@ static void accept_conn(void)
     int cfd = accept4(server_sock, &sa.sa, &sa_len, SOCK_CLOEXEC);
     if (cfd < 0)
         err(EXIT_FAILURE, "failed to accept connection");
+
+    int nbytes_r = read(cfd, &req, sizeof(struct agent_request_t));
+    if (nbytes_r < 0)
+        err(EXIT_FAILURE, "couldn't read agent type to start");
 
     if (getsockopt(cfd, SOL_SOCKET, SO_PEERCRED, &cred, &cred_len) < 0)
         err(EXIT_FAILURE, "couldn't obtain credentials from unix domain socket");
@@ -382,57 +387,35 @@ static void accept_conn(void)
 
     struct agent_info_t *node = lookup_agent_info(agents, cred.uid);
 
-    if (!node || node->d.pid == 0 || !unit_running(&node->d)) {
-        struct epoll_event event = {
-            .data.fd = cfd,
-            .events  = EPOLLIN | EPOLLET
-        };
-
-        if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, cfd, &event) < 0)
-            err(EXIT_FAILURE, "failed to add socket to epoll");
-
-        if (node)
-            node->d.pid = 0;
-
-        send_message(cfd, ENVOY_STOPPED, false);
-    } else {
-        send_agent(cfd, &node->d, true);
-    }
-}
-
-static void handle_conn(int cfd)
-{
-    struct ucred cred;
-    static socklen_t cred_len = sizeof(struct ucred);
-    struct agent_request_t req;
-
-    int nbytes_r = read(cfd, &req, sizeof(struct agent_request_t));
-    if (nbytes_r < 0)
-        err(EXIT_FAILURE, "couldn't read agent type to start");
-
-    if (getsockopt(cfd, SOL_SOCKET, SO_PEERCRED, &cred, &cred_len) < 0)
-        err(EXIT_FAILURE, "couldn't obtain credentials from unix domain socket");
-
-    struct agent_info_t *node = lookup_agent_info(agents, cred.uid);
-
     if (!node) {
         node = malloc(sizeof(struct agent_info_t));
         *node = (struct agent_info_t){
-            .uid = cred.uid,
-            .next = agents
+            .uid  = cred.uid,
+            .next = agents,
         };
         agents = node;
-    } else {
-        printf("Agent for uid=%u is has terminated. Restarting...\n", cred.uid);
-        fflush(stdout);
     }
 
-    node->d.type = req.type != AGENT_DEFAULT ? req.type : default_type;
+    if (node->d.pid == 0 || !unit_running(&node->d)) {
+        node->d = (struct agent_data_t){
+            .pid  = 0,
+            .type = req.type == AGENT_DEFAULT ? default_type : req.type,
+        };
 
-    run_agent(&node->d, cred.uid, cred.gid);
+        if (!req.start) {
+            send_message(cfd, ENVOY_STOPPED, true);
+            return;
+        }
+
+        printf("Agent for uid=%u is has terminated. Restarting...\n", cred.uid);
+        fflush(stdout);
+
+        run_agent(&node->d, cred.uid, cred.gid);
+    }
+
     send_agent(cfd, &node->d, true);
 
-    if (node->d.pid && !req.defer)
+    if (node->d.pid && node->d.status == ENVOY_STARTED && !req.defer)
         node->d.status = ENVOY_RUNNING;
 }
 
@@ -462,8 +445,6 @@ static int loop(void)
                 close(evt->data.fd);
             else if (evt->data.fd == server_sock)
                 accept_conn();
-            else
-                handle_conn(evt->data.fd);
         }
     }
 
