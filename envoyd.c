@@ -24,7 +24,7 @@
 #include <errno.h>
 #include <err.h>
 #include <pwd.h>
-#include <sys/epoll.h>
+#include <poll.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/un.h>
@@ -48,7 +48,7 @@ static enum agent default_type = AGENT_SSH_AGENT;
 static struct agent_info_t *agents = NULL;
 static bool sd_activated = false;
 static bool multiuser_mode;
-static int epoll_fd, server_sock;
+static int server_sock;
 
 static union agent_environ_t {
     struct {
@@ -76,8 +76,6 @@ static void kill_agents(int signal)
 
 static void cleanup(void)
 {
-    close(epoll_fd);
-
     if (!sd_activated) {
         close(server_sock);
         unlink_envoy_socket();
@@ -421,30 +419,24 @@ static void accept_conn(void)
 
 static int loop(void)
 {
-    struct epoll_event events[4], event = {
-        .data.fd = server_sock,
-        .events  = EPOLLIN | EPOLLET
-    };
-
-    if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, server_sock, &event) < 0)
-        err(EXIT_FAILURE, "failed to add socket to epoll");
-
     while (true) {
-        int i, n = epoll_wait(epoll_fd, events, 4, -1);
+        struct pollfd fds[] = {
+            { .fd = server_sock, .events = POLLIN }
+        };
 
-        if (n < 0) {
+        int ret = poll(fds, sizeof(fds) / sizeof(struct pollfd), -1);
+        if (ret < 0) {
             if (errno == EINTR)
                 continue;
-            err(EXIT_FAILURE, "epoll_wait failed");
+            err(EXIT_FAILURE, "failed to poll");
         }
 
-        for (i = 0; i < n; ++i) {
-            struct epoll_event *evt = &events[i];
-
-            if (evt->events & EPOLLERR || evt->events & EPOLLHUP)
-                close(evt->data.fd);
-            else if (evt->data.fd == server_sock)
+        if (ret > 0) {
+            if (fds[0].revents & POLLHUP) {
+                close(fds[0].fd);
+            } else if (fds[0].revents & POLLIN) {
                 accept_conn();
+            }
         }
     }
 
@@ -493,10 +485,6 @@ int main(int argc, char *argv[])
             usage(stderr);
         }
     }
-
-    epoll_fd = epoll_create1(EPOLL_CLOEXEC);
-    if (epoll_fd < 0)
-        err(EXIT_FAILURE, "failed to start epoll");
 
     multiuser_mode = (getuid() == 0) ? true : false;
 
