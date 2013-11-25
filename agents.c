@@ -55,14 +55,14 @@ static int read_agent(int fd, struct agent_data_t *data)
     }
 }
 
-static int start_agent(int fd, struct agent_data_t *data, enum agent type)
+static int start_agent(int fd, struct agent_data_t *data, struct agent_request_t *req)
 {
-    if (write(fd, &type, sizeof(enum agent)) < 0)
+    if (write(fd, req, sizeof(struct agent_data_t)) < 0)
         return -errno;
     return read_agent(fd, data);
 }
 
-int envoy_agent(struct agent_data_t *data, enum agent id, bool start)
+int envoy_agent(struct agent_data_t *data, struct agent_request_t *req)
 {
     socklen_t sa_len;
     union {
@@ -78,10 +78,7 @@ int envoy_agent(struct agent_data_t *data, enum agent id, bool start)
     if (connect(fd, &sa.sa, sa_len) < 0)
         return -errno;
 
-    int ret = read_agent(fd, data);
-
-    if (ret && start && data->status == ENVOY_STOPPED)
-        ret = start_agent(fd, data, id);
+    int ret = start_agent(fd, data, req);
 
     close(fd);
     return ret;

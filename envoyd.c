@@ -24,7 +24,7 @@
 #include <errno.h>
 #include <err.h>
 #include <pwd.h>
-#include <sys/epoll.h>
+#include <poll.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/un.h>
@@ -48,7 +48,7 @@ static enum agent default_type = AGENT_SSH_AGENT;
 static struct agent_info_t *agents = NULL;
 static bool sd_activated = false;
 static bool multiuser_mode;
-static int epoll_fd, server_sock;
+static int server_sock;
 
 static union agent_environ_t {
     struct {
@@ -76,8 +76,6 @@ static void kill_agents(int signal)
 
 static void cleanup(void)
 {
-    close(epoll_fd);
-
     if (!sd_activated) {
         close(server_sock);
         unlink_envoy_socket();
@@ -363,6 +361,7 @@ static void accept_conn(void)
         struct sockaddr sa;
         struct sockaddr_un un;
     } sa;
+    struct agent_request_t req;
     static socklen_t sa_len = sizeof(struct sockaddr_un);
     static socklen_t cred_len = sizeof(struct ucred);
     uid_t server_uid = geteuid();
@@ -370,6 +369,10 @@ static void accept_conn(void)
     int cfd = accept4(server_sock, &sa.sa, &sa_len, SOCK_CLOEXEC);
     if (cfd < 0)
         err(EXIT_FAILURE, "failed to accept connection");
+
+    int nbytes_r = read(cfd, &req, sizeof(struct agent_request_t));
+    if (nbytes_r < 0)
+        err(EXIT_FAILURE, "couldn't read agent type to start");
 
     if (getsockopt(cfd, SOL_SOCKET, SO_PEERCRED, &cred, &cred_len) < 0)
         err(EXIT_FAILURE, "couldn't obtain credentials from unix domain socket");
@@ -382,88 +385,58 @@ static void accept_conn(void)
 
     struct agent_info_t *node = lookup_agent_info(agents, cred.uid);
 
-    if (!node || node->d.pid == 0 || !unit_running(&node->d)) {
-        struct epoll_event event = {
-            .data.fd = cfd,
-            .events  = EPOLLIN | EPOLLET
-        };
-
-        if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, cfd, &event) < 0)
-            err(EXIT_FAILURE, "failed to add socket to epoll");
-
-        if (node)
-            node->d.pid = 0;
-
-        send_message(cfd, ENVOY_STOPPED, false);
-    } else {
-        send_agent(cfd, &node->d, true);
-    }
-}
-
-static void handle_conn(int cfd)
-{
-    struct ucred cred;
-    static socklen_t cred_len = sizeof(struct ucred);
-    enum agent type;
-
-    int nbytes_r = read(cfd, &type, sizeof(enum agent));
-    if (nbytes_r < 0)
-        err(EXIT_FAILURE, "couldn't read agent type to start");
-
-    if (getsockopt(cfd, SOL_SOCKET, SO_PEERCRED, &cred, &cred_len) < 0)
-        err(EXIT_FAILURE, "couldn't obtain credentials from unix domain socket");
-
-    struct agent_info_t *node = lookup_agent_info(agents, cred.uid);
-
     if (!node) {
         node = malloc(sizeof(struct agent_info_t));
         *node = (struct agent_info_t){
-            .uid = cred.uid,
-            .next = agents
+            .uid  = cred.uid,
+            .next = agents,
         };
         agents = node;
-    } else {
-        printf("Agent for uid=%u is has terminated. Restarting...\n", cred.uid);
-        fflush(stdout);
     }
 
-    node->d.type = type != AGENT_DEFAULT ? type : default_type;
+    if (node->d.pid == 0 || !unit_running(&node->d)) {
+        node->d = (struct agent_data_t){
+            .pid  = 0,
+            .type = req.type == AGENT_DEFAULT ? default_type : req.type,
+        };
 
-    run_agent(&node->d, cred.uid, cred.gid);
+        if (!req.start) {
+            send_message(cfd, ENVOY_STOPPED, true);
+            return;
+        }
+
+        printf("Agent for uid=%u is has terminated. Restarting...\n", cred.uid);
+        fflush(stdout);
+
+        run_agent(&node->d, cred.uid, cred.gid);
+    }
+
     send_agent(cfd, &node->d, true);
 
-    if (node->d.pid)
+    if (node->d.pid && node->d.status == ENVOY_STARTED && !req.defer)
         node->d.status = ENVOY_RUNNING;
 }
 
 static int loop(void)
 {
-    struct epoll_event events[4], event = {
-        .data.fd = server_sock,
-        .events  = EPOLLIN | EPOLLET
-    };
-
-    if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, server_sock, &event) < 0)
-        err(EXIT_FAILURE, "failed to add socket to epoll");
-
     while (true) {
-        int i, n = epoll_wait(epoll_fd, events, 4, -1);
+        struct pollfd fds[] = {
+            { .fd = server_sock, .events = POLLIN }
+        };
 
-        if (n < 0) {
+        int ret = poll(fds, sizeof(fds) / sizeof(struct pollfd), -1);
+        if (ret < 0) {
             if (errno == EINTR)
                 continue;
-            err(EXIT_FAILURE, "epoll_wait failed");
+            err(EXIT_FAILURE, "failed to poll");
         }
 
-        for (i = 0; i < n; ++i) {
-            struct epoll_event *evt = &events[i];
-
-            if (evt->events & EPOLLERR || evt->events & EPOLLHUP)
-                close(evt->data.fd);
-            else if (evt->data.fd == server_sock)
+        if (ret > 0) {
+            if (fds[0].revents & POLLHUP) {
+                close(fds[0].fd);
+            } else if (fds[0].revents & POLLIN) {
                 accept_conn();
-            else
-                handle_conn(evt->data.fd);
+            }
         }
     }
 
@@ -512,10 +485,6 @@ int main(int argc, char *argv[])
             usage(stderr);
         }
     }
-
-    epoll_fd = epoll_create1(EPOLL_CLOEXEC);
-    if (epoll_fd < 0)
-        err(EXIT_FAILURE, "failed to start epoll");
 
     multiuser_mode = (getuid() == 0) ? true : false;
 
