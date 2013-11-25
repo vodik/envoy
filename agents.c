@@ -40,26 +40,11 @@ const struct agent_t Agent[LAST_AGENT] = {
     }
 };
 
-static int read_agent(int fd, struct agent_data_t *data)
-{
-    int nbytes_r;
-
-    while (true) {
-        nbytes_r = read(fd, data, sizeof(*data));
-        if (nbytes_r < 0) {
-            if (errno != EAGAIN)
-                return -errno;
-        } else {
-            return nbytes_r;
-        }
-    }
-}
-
 static int start_agent(int fd, struct agent_data_t *data, struct agent_request_t *req)
 {
-    if (write(fd, req, sizeof(struct agent_data_t)) < 0)
+    if (write(fd, req, sizeof(struct agent_request_t)) < 0)
         return -errno;
-    return read_agent(fd, data);
+    return read(fd, data, sizeof(struct agent_data_t));
 }
 
 int envoy_agent(struct agent_data_t *data, struct agent_request_t *req)
@@ -70,7 +55,7 @@ int envoy_agent(struct agent_data_t *data, struct agent_request_t *req)
         struct sockaddr_un un;
     } sa;
 
-    int fd = socket(AF_UNIX, SOCK_STREAM | SOCK_NONBLOCK, 0);
+    int fd = socket(AF_UNIX, SOCK_STREAM, 0);
     if (fd < 0)
         return -errno;
 
