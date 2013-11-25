@@ -416,9 +416,11 @@ static void handle_conn(int cfd)
     struct agent_info_t *node = lookup_agent_info(agents, cred.uid);
 
     if (!node) {
-        node = calloc(1, sizeof(struct agent_info_t));
-        node->uid = cred.uid;
-        node->next = agents;
+        node = malloc(sizeof(struct agent_info_t));
+        *node = (struct agent_info_t){
+            .uid = cred.uid,
+            .next = agents
+        };
         agents = node;
     } else {
         printf("Agent for uid=%u is has terminated. Restarting...\n", cred.uid);
