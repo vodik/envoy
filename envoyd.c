@@ -329,15 +329,23 @@ static int get_socket(void)
     return fd;
 }
 
-static struct agent_info_t *lookup_agent_info(struct agent_info_t *list, uid_t uid)
+static struct agent_info_t *get_agent_entry(struct agent_info_t **list, uid_t uid)
 {
     struct agent_info_t *node;
-    for (node = list; node; node = node->next) {
+
+    for (node = *list; node; node = node->next) {
         if (node->uid == uid)
             return node;
     }
 
-    return NULL;
+    node = malloc(sizeof(struct agent_info_t));
+    *node = (struct agent_info_t){
+        .uid  = uid,
+        .next = agents,
+    };
+
+    *list = node;
+    return node;
 }
 
 static void send_agent(int fd, struct agent_data_t *agent, bool close_sock)
@@ -383,16 +391,7 @@ static void accept_conn(void)
         return;
     }
 
-    struct agent_info_t *node = lookup_agent_info(agents, cred.uid);
-
-    if (!node) {
-        node = malloc(sizeof(struct agent_info_t));
-        *node = (struct agent_info_t){
-            .uid  = cred.uid,
-            .next = agents,
-        };
-        agents = node;
-    }
+    struct agent_info_t *node = get_agent_entry(&agents, cred.uid);
 
     if (node->d.pid == 0 || !unit_running(&node->d)) {
         node->d = (struct agent_data_t){
