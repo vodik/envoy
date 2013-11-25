@@ -404,9 +404,9 @@ static void handle_conn(int cfd)
 {
     struct ucred cred;
     static socklen_t cred_len = sizeof(struct ucred);
-    enum agent type;
+    struct agent_request_t req;
 
-    int nbytes_r = read(cfd, &type, sizeof(enum agent));
+    int nbytes_r = read(cfd, &req, sizeof(struct agent_request_t));
     if (nbytes_r < 0)
         err(EXIT_FAILURE, "couldn't read agent type to start");
 
@@ -427,12 +427,12 @@ static void handle_conn(int cfd)
         fflush(stdout);
     }
 
-    node->d.type = type != AGENT_DEFAULT ? type : default_type;
+    node->d.type = req.type != AGENT_DEFAULT ? req.type : default_type;
 
     run_agent(&node->d, cred.uid, cred.gid);
     send_agent(cfd, &node->d, true);
 
-    if (node->d.pid)
+    if (node->d.pid && !req.defer)
         node->d.status = ENVOY_RUNNING;
 }
 

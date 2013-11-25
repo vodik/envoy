@@ -44,6 +44,11 @@ struct agent_t {
     char *const *argv;
 };
 
+struct agent_request_t {
+    enum agent type;
+    bool defer;
+};
+
 struct agent_data_t {
     enum agent type;
     enum status status;
@@ -55,7 +60,8 @@ struct agent_data_t {
 
 extern const struct agent_t Agent[LAST_AGENT];
 
-int envoy_agent(struct agent_data_t *data, enum agent id, bool start);
+/* int envoy_agent(struct agent_data_t *data, enum agent id, bool start); */
+int envoy_agent(struct agent_data_t *data, enum agent id, bool start, bool defer);
 enum agent lookup_agent(const char *string);
 /* void safe_asprintf(char **strp, const char *fmt, ...) __attribute__((format (printf, 2, 3))); */
 

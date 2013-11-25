@@ -84,7 +84,7 @@ static int pam_get_agent(struct agent_data_t *data, enum agent id, uid_t uid, gi
     int ret = -1;
     bool dropped = set_privileges(true, &uid, &gid);
 
-    ret = envoy_agent(data, id, true);
+    ret = envoy_agent(data, id, true, true);
     if (ret < 0)
         syslog(PAM_LOG_ERR, "failed to fetch agent: %s", strerror(errno));
 
