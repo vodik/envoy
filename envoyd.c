@@ -113,18 +113,6 @@ static bool unit_running(struct agent_data_t *data)
     return running;
 }
 
-static int safe_atoi(const char *p, size_t len)
-{
-    int value = 0;
-
-    for (; len && *p; ++p, --len) {
-        value *= 10;
-        value += *p - '0';
-    }
-
-    return value;
-}
-
 static void init_agent_environ(void)
 {
     extern char **environ;
@@ -147,25 +135,6 @@ static void init_agent_environ(void)
         agent_env.arg.gnupghome = gnupghome;
     else
         fprintf(stderr, "warning: running as root and GNUPGHOME is set; ignoring.\n");
-}
-
-static pid_t gpg_info_extract_pid(const char *gpg)
-{
-    const char *div, *end;
-
-    div = strchr(gpg, ':');
-    if (div == NULL) {
-        fprintf(stderr, "GPG_AGENT_INFO=%s doesn't contain the agent's pid\n", gpg);
-        return 0;
-    }
-
-    end = strchr(++div, ':');
-    if (div == NULL) {
-        fprintf(stderr, "GPG_AGENT_INFO=%s doesn't contain protocol version\n", gpg);
-        return 0;
-    }
-
-    return safe_atoi(div, end - div);
 }
 
 static void parse_agentdata_line(char *val, struct agent_data_t *info)
@@ -214,7 +183,8 @@ static int parse_agentdata(int fd, struct agent_data_t *data)
     }
 
     if (data->pid == 0 && data->gpg) {
-        data->pid = gpg_info_extract_pid(data->gpg);
+        fprintf(stderr, "Did not receive SSH_AGENT_PID from agent, bailing...\n");
+        return -1;
     }
 
     return 0;
