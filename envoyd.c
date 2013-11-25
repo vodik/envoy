@@ -145,10 +145,9 @@ static void parse_agentdata_line(char *val, struct agent_data_t *info)
     if (eol)
         *eol = '\0';
 
-    if (strchr(val, '=') == NULL)
-        return;
-
     var = strsep(&val, "=");
+    if (!var)
+        return;
 
     if (strcmp(var, "SSH_AUTH_SOCK") == 0)
         strcpy(info->sock, val);
