@@ -30,7 +30,7 @@
 #include <sys/un.h>
 
 #include "lib/envoy.h"
-#include "lib/gpg-protocol.h"
+#include "gpg-protocol.h"
 
 static struct termios old_termios;
 

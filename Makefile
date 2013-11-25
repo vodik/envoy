@@ -17,24 +17,23 @@ LDLIBS = -lsystemd-daemon -ldbus-1
 
 all: envoyd envoy envoy-exec pam_envoy.so
 
-lib/envoy.o: lib/envoy.c
 pam_envoy.o: pam_envoy.c
 envoyd: envoyd.o lib/envoy.o \
 	clique/systemd-scope.o clique/systemd-unit.o \
 	clique/dbus/dbus-shim.o clique/dbus/dbus-util.o
-envoy: envoy.o lib/envoy.o lib/gpg-protocol.o
-envoy-exec: envoy-exec.o lib/envoy.o lib/gpg-protocol.o
+envoy: envoy.o lib/envoy.o gpg-protocol.o
+envoy-exec: envoy-exec.o lib/envoy.o gpg-protocol.o
 
-lib/gpg-protocol.c: lib/gpg-protocol.rl
+gpg-protocol.c: gpg-protocol.rl
 	ragel -F0 -C $< -o $@
 
-lib/gpg-protocol.o: lib/gpg-protocol.c
+gpg-protocol.o: gpg-protocol.c
 	${CC} ${CFLAGS} -fPIC -o $@ -c $<
 
 lib/envoy.o pam_envoy.o:
 	${CC} ${CFLAGS} -fPIC -o $@ -c $<
 
-pam_envoy.so: pam_envoy.o lib/envoy.o lib/gpg-protocol.o
+pam_envoy.so: pam_envoy.o lib/envoy.o gpg-protocol.o
 	${CC} ${LDFLAGS} -shared -DPIC -o $@ $?
 
 install: envoyd envoy pam_envoy.so
@@ -50,6 +49,6 @@ install: envoyd envoy pam_envoy.so
 	install -Dm644 _envoy ${DESTDIR}/usr/share/zsh/site-functions/_envoy
 
 clean:
-	${RM} envoyd envoy pam_envoy.so *.o
+	${RM} envoyd envoy envoy-exec pam_envoy.so *.o
 
 .PHONY: all clean install uninstall

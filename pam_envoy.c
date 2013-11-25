@@ -33,7 +33,7 @@
 #include <security/pam_modules.h>
 
 #include "lib/envoy.h"
-#include "lib/gpg-protocol.h"
+#include "gpg-protocol.h"
 
 #define UNUSED           __attribute__((unused))
 #define PAM_LOG_ERR      LOG_AUTHPRIV | LOG_ERR
