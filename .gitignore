@@ -1,4 +1,8 @@
-envoy
-envoyd
-pam_envoy.so
+/envoy
+/envoyd
+/envoy-exec
+/pam_envoy.so
+/gpg-protocol.c
 *.o
+*.pyc
+__pycache__/
