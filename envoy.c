@@ -158,10 +158,10 @@ static void print_csh_env(struct agent_data_t *data)
 static void print_fish_env(struct agent_data_t *data)
 {
     if (data->type == AGENT_GPG_AGENT)
-        printf("set -x GPG_AGENT_INFO '%s';\n", data->gpg);
+        printf("set -x GPG_AGENT_INFO %s;\n", data->gpg);
 
-    printf("set -x SSH_AUTH_SOCK '%s';\n", data->sock);
-    printf("set -x SSH_AGENT_PID '%d';\n", data->pid);
+    printf("set -x SSH_AUTH_SOCK %s;\n", data->sock);
+    printf("set -x SSH_AGENT_PID %d;\n", data->pid);
 }
 
 static void source_env(struct agent_data_t *data)
