@@ -483,6 +483,7 @@ static void __attribute__((__noreturn__)) usage(FILE *out)
 
 int main(int argc, char *argv[])
 {
+    static struct sigaction sa = { .sa_handler = sighandler };
     static const struct option opts[] = {
         { "help",    no_argument,       0, 'h' },
         { "version", no_argument,       0, 'v' },
@@ -522,8 +523,8 @@ int main(int argc, char *argv[])
     server_sock = get_socket();
     init_agent_environ();
 
-    signal(SIGTERM, sighandler);
-    signal(SIGINT,  sighandler);
+    sigaction(SIGTERM, &sa, NULL);
+    sigaction(SIGINT,  &sa, NULL);
 
     return loop();
 }
