@@ -17,12 +17,11 @@ LDLIBS = -lsystemd-daemon -ldbus-1
 
 all: envoyd envoy envoy-exec pam_envoy.so
 
-pam_envoy.o: pam_envoy.c
-envoyd: envoyd.o lib/envoy.o \
+envoyd: envoyd.o agents.o socket.o util.o \
 	clique/systemd-scope.o clique/systemd-unit.o \
 	clique/dbus/dbus-shim.o clique/dbus/dbus-util.o
-envoy: envoy.o lib/envoy.o gpg-protocol.o
-envoy-exec: envoy-exec.o lib/envoy.o gpg-protocol.o
+envoy: envoy.o agents.o socket.o gpg-protocol.o util.o
+envoy-exec: envoy-exec.o agents.o socket.o gpg-protocol.o util.o
 
 gpg-protocol.c: gpg-protocol.rl
 	ragel -F0 -C $< -o $@
@@ -30,10 +29,14 @@ gpg-protocol.c: gpg-protocol.rl
 gpg-protocol.o: gpg-protocol.c
 	${CC} ${CFLAGS} -fPIC -o $@ -c $<
 
-lib/envoy.o pam_envoy.o:
+agents.o: agents.c
+	${CC} ${CFLAGS} -fPIC -o $@ -c $<
+socket.o: socket.c
+	${CC} ${CFLAGS} -fPIC -o $@ -c $<
+pam_envoy.o: pam_envoy.c
 	${CC} ${CFLAGS} -fPIC -o $@ -c $<
 
-pam_envoy.so: pam_envoy.o lib/envoy.o gpg-protocol.o
+pam_envoy.so: pam_envoy.o agents.o socket.o gpg-protocol.o
 	${CC} ${LDFLAGS} -shared -DPIC -o $@ $?
 
 install: envoyd envoy pam_envoy.so

@@ -12,10 +12,10 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  *
- * Copyright (C) Simon Gomizelj, 2012
+ * Copyright (C) Simon Gomizelj, 2013
  */
 
-#include "envoy.h"
+#include "agents.h"
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -27,6 +27,8 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 
+#include "socket.h"
+
 const struct agent_t Agent[LAST_AGENT] = {
     [AGENT_SSH_AGENT] = {
         .name = "ssh-agent",
@@ -37,36 +39,6 @@ const struct agent_t Agent[LAST_AGENT] = {
         .argv = (char *const []){ "/usr/bin/gpg-agent", "--daemon", "--enable-ssh-support", NULL }
     }
 };
-
-static const char *get_socket_path(void)
-{
-    const char *socket = getenv("ENVOY_SOCKET");
-    return socket ? socket : "@/vodik/envoy";
-}
-
-size_t init_envoy_socket(struct sockaddr_un *un)
-{
-    const char *socket = get_socket_path();
-    off_t off = 0;
-    size_t len;
-
-    *un = (struct sockaddr_un){ .sun_family = AF_UNIX };
-
-    if (socket[0] == '@')
-        off = 1;
-
-    len = strlen(socket);
-    memcpy(&un->sun_path[off], &socket[off], len - off);
-
-    return len + sizeof(un->sun_family);
-}
-
-void unlink_envoy_socket(void)
-{
-    const char *socket = get_socket_path();
-    if (socket[0] != '@')
-        unlink(socket);
-}
 
 static int read_agent(int fd, struct agent_data_t *data)
 {
@@ -126,12 +98,4 @@ enum agent lookup_agent(const char *string)
     return i;
 }
 
-void safe_asprintf(char **strp, const char *fmt, ...)
-{
-    va_list ap;
-
-    va_start(ap, fmt);
-    if (vasprintf(strp, fmt, ap) < 0)
-        err(EXIT_FAILURE, "failed to allocate memory");
-    va_end(ap);
-}
+// vim: et:sts=4:sw=4:cino=(0

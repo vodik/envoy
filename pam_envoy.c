@@ -32,7 +32,8 @@
 #include <security/pam_appl.h>
 #include <security/pam_modules.h>
 
-#include "lib/envoy.h"
+#include "agents.h"
+#include "socket.h"
 #include "gpg-protocol.h"
 
 #define UNUSED           __attribute__((unused))

@@ -31,9 +31,11 @@
 #include <sys/wait.h>
 #include <systemd/sd-daemon.h>
 
-#include "lib/envoy.h"
 #include "clique/systemd-unit.h"
 #include "clique/systemd-scope.h"
+#include "agents.h"
+#include "socket.h"
+#include "util.h"
 
 struct agent_info_t {
     uid_t uid;

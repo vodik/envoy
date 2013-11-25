@@ -21,7 +21,8 @@
 #include <errno.h>
 #include <unistd.h>
 
-#include "lib/envoy.h"
+#include "agents.h"
+#include "socket.h"
 #include "gpg-protocol.h"
 
 static const char *exe_path;

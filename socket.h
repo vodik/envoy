@@ -24,43 +24,10 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 
-enum agent {
-    AGENT_DEFAULT = -1,
-    AGENT_SSH_AGENT = 0,
-    AGENT_GPG_AGENT,
-    LAST_AGENT
-};
-
-enum status {
-    ENVOY_STOPPED = 0,
-    ENVOY_STARTED,
-    ENVOY_RUNNING,
-    ENVOY_FAILED,
-    ENVOY_BADUSER,
-};
-
-struct agent_t {
-    const char *name;
-    char *const *argv;
-};
-
-struct agent_data_t {
-    enum agent type;
-    enum status status;
-    pid_t pid;
-    char sock[PATH_MAX];
-    char gpg[PATH_MAX];
-    char unit_path[PATH_MAX];
-};
-
-extern const struct agent_t Agent[LAST_AGENT];
-
 size_t init_envoy_socket(struct sockaddr_un *un);
 void unlink_envoy_socket(void);
 
-int envoy_agent(struct agent_data_t *data, enum agent id, bool start);
-enum agent lookup_agent(const char *string);
-void safe_asprintf(char **strp, const char *fmt, ...) __attribute__((format (printf, 2, 3)));
+void safe_asprintf(char **strp, const char *fmt, ...);
 
 #endif
 

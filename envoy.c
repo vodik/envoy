@@ -29,7 +29,8 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 
-#include "lib/envoy.h"
+#include "agents.h"
+#include "socket.h"
 #include "gpg-protocol.h"
 
 static struct termios old_termios;
