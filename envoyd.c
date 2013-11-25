@@ -424,19 +424,20 @@ static int loop(void)
             { .fd = server_sock, .events = POLLIN }
         };
 
-        int ret = poll(fds, sizeof(fds) / sizeof(struct pollfd), -1);
-        if (ret < 0) {
+        int ret = poll(fds, sizeof(fds) / sizeof(fds[0]), -1);
+
+        if (ret == 0) {
+            continue;
+        } else if (ret < 0) {
             if (errno == EINTR)
                 continue;
             err(EXIT_FAILURE, "failed to poll");
         }
 
-        if (ret > 0) {
-            if (fds[0].revents & POLLHUP) {
-                close(fds[0].fd);
-            } else if (fds[0].revents & POLLIN) {
-                accept_conn();
-            }
+        if (fds[0].revents & POLLHUP) {
+            close(fds[0].fd);
+        } else if (fds[0].revents & POLLIN) {
+            accept_conn();
         }
     }
 
@@ -486,14 +487,14 @@ int main(int argc, char *argv[])
         }
     }
 
-    multiuser_mode = (getuid() == 0) ? true : false;
+    multiuser_mode = getuid() == 0 ? true : false;
+    server_sock = get_socket();
 
     dbus_open(DBUS_AUTO, &bus);
-    server_sock = get_socket();
     init_agent_environ();
 
     sigaction(SIGTERM, &sa, NULL);
-    sigaction(SIGINT,  &sa, NULL);
+    sigaction(SIGINT, &sa, NULL);
 
     return loop();
 }
