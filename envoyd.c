@@ -49,6 +49,7 @@ static struct agent_info_t *agents = NULL;
 static bool sd_activated = false;
 static bool multiuser_mode;
 static int server_sock;
+static uid_t server_uid;
 
 static union agent_environ_t {
     struct {
@@ -379,7 +380,6 @@ static void accept_conn(void)
     struct agent_request_t req;
     static socklen_t sa_len = sizeof(struct sockaddr_un);
     static socklen_t cred_len = sizeof(struct ucred);
-    uid_t server_uid = geteuid();
 
     int cfd = accept4(server_sock, &sa.sa, &sa_len, SOCK_CLOEXEC);
     if (cfd < 0)
@@ -495,6 +495,7 @@ int main(int argc, char *argv[])
 
     multiuser_mode = getuid() == 0 ? true : false;
     server_sock = get_socket();
+    server_uid = geteuid();
 
     dbus_open(DBUS_AUTO, &bus);
     init_agent_environ();
