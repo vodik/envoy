@@ -187,11 +187,10 @@ static int parse_agentdata(int fd, struct agent_data_t *data)
     return 0;
 }
 
-static void __attribute__((__noreturn__)) exec_agent(const struct agent_t *agent, uid_t uid, gid_t gid)
+static void systemd_start_monitor(uid_t uid)
 {
     dbus_message *m;
     char *scope, *slice = NULL;
-    struct passwd *pwd;
 
     if (multiuser_mode && uid != 0)
         safe_asprintf(&slice, "user-%d.slice", uid);
@@ -207,6 +206,14 @@ static void __attribute__((__noreturn__)) exec_agent(const struct agent_t *agent
     dbus_close(bus);
 
     free(scope);
+    free(slice);
+}
+
+static void __attribute__((__noreturn__)) exec_agent(const struct agent_t *agent, uid_t uid, gid_t gid)
+{
+    struct passwd *pwd;
+
+    systemd_start_monitor(uid);
 
     if (setresgid(gid, gid, gid) < 0 || setresuid(uid, uid, uid) < 0)
         err(EXIT_FAILURE, "unable to drop to uid=%u gid=%u\n", uid, gid);
