@@ -89,10 +89,8 @@ static int pam_get_agent(struct agent_data_t *data, enum agent id, uid_t uid, gi
 
     switch (data->status) {
     case ENVOY_STOPPED:
-        break;
     case ENVOY_STARTED:
     case ENVOY_RUNNING:
-        ret = 0;
         break;
     case ENVOY_FAILED:
         syslog(PAM_LOG_ERR, "agent failed to start, check envoyd's log");

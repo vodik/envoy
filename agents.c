@@ -55,7 +55,7 @@ static int envoy_connect(void)
     return fd;
 }
 
-static ssize_t envoy_request(struct agent_request_t *req, struct agent_data_t *data)
+static ssize_t envoy_request(const struct agent_request_t *req, struct agent_data_t *data)
 {
     int fd = envoy_connect();
     ssize_t nbytes_r = 0;
@@ -70,32 +70,31 @@ static ssize_t envoy_request(struct agent_request_t *req, struct agent_data_t *d
 
 bool envoy_agent_launch(enum agent type, struct agent_data_t *data)
 {
-    struct agent_request_t req = {
+    const struct agent_request_t req = {
         .type  = type,
         .start = true,
         .defer = false
     };
-    return envoy_request(&req, data);
+    return envoy_request(&req, data) < 0 ? -errno : 0;
 }
 
 bool envoy_agent_get_environment(enum agent type, struct agent_data_t *data)
 {
-    struct agent_request_t req = {
+    const struct agent_request_t req = {
         .type  = type,
         .start = true,
         .defer = true,
     };
-    return envoy_request(&req, data);
+    return envoy_request(&req, data) < 0 ? -errno : 0;
 }
 
 enum agent lookup_agent(const char *string)
 {
     size_t i;
-
-    for (i = 0; i < LAST_AGENT; i++)
+    for (i = 0; i < LAST_AGENT; i++) {
         if (strcmp(Agent[i].name, string) == 0)
             break;
-
+    }
     return i;
 }
 
