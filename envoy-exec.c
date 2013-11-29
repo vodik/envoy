@@ -86,7 +86,7 @@ static void __attribute__((__noreturn__)) exec_wrapper(const char *cmd, int argc
     args[argc] = NULL;
 
     source_env(&data);
-    if (cmd[0] == '/' || cmd[0] == '.') {
+    if (cmd[0] == '/') {
         safe_execv(args[0], args);
     } else {
         char *path = getenv("PATH");
