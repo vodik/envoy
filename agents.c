@@ -37,14 +37,7 @@ const struct agent_t Agent[LAST_AGENT] = {
     }
 };
 
-static int start_agent(int fd, struct agent_data_t *data, struct agent_request_t *req)
-{
-    if (write(fd, req, sizeof(struct agent_request_t)) < 0)
-        return -errno;
-    return read(fd, data, sizeof(struct agent_data_t));
-}
-
-int envoy_agent(struct agent_data_t *data, struct agent_request_t *req)
+static int envoy_connect(void)
 {
     socklen_t sa_len;
     union {
@@ -59,11 +52,40 @@ int envoy_agent(struct agent_data_t *data, struct agent_request_t *req)
     sa_len = init_envoy_socket(&sa.un);
     if (connect(fd, &sa.sa, sa_len) < 0)
         return -errno;
+    return fd;
+}
 
-    int ret = start_agent(fd, data, req);
+static ssize_t envoy_request(struct agent_request_t *req, struct agent_data_t *data)
+{
+    int fd = envoy_connect();
+    ssize_t nbytes_r = 0;
 
+    if (write(fd, req, sizeof(struct agent_request_t)) < 0)
+        return -errno;
+
+    nbytes_r = read(fd, data, sizeof(struct agent_data_t));
     close(fd);
-    return ret;
+    return nbytes_r;
+}
+
+bool envoy_agent_launch(enum agent type, struct agent_data_t *data)
+{
+    struct agent_request_t req = {
+        .type  = type,
+        .start = true,
+        .defer = false
+    };
+    return envoy_request(&req, data);
+}
+
+bool envoy_agent_get_environment(enum agent type, struct agent_data_t *data)
+{
+    struct agent_request_t req = {
+        .type  = type,
+        .start = true,
+        .defer = true,
+    };
+    return envoy_request(&req, data);
 }
 
 enum agent lookup_agent(const char *string)

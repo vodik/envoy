@@ -84,12 +84,7 @@ static ssize_t read_password(char **password)
 
 static int get_agent(struct agent_data_t *data, enum agent id, bool start)
 {
-    int ret = envoy_agent(data, &(struct agent_request_t){
-        .type  = id,
-        .start = start,
-        .defer = false
-    });
-
+    int ret = start ? envoy_agent_launch(id, data) : envoy_agent_get_environment(id, data);
     if (ret < 0)
         err(EXIT_FAILURE, "failed to fetch agent");
 

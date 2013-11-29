@@ -28,14 +28,9 @@
 
 static const char *exe_path;
 
-static int get_agent(struct agent_data_t *data, enum agent id, bool start)
+static int get_agent(struct agent_data_t *data, enum agent id)
 {
-    int ret = envoy_agent(data, &(struct agent_request_t){
-        .type  = id,
-        .start = start,
-        .defer = true
-    });
-
+    int ret = envoy_agent_get_environment(id, data);
     if (ret < 0)
         err(EXIT_FAILURE, "failed to fetch agent");
 
@@ -83,7 +78,7 @@ static void __attribute__((__noreturn__)) exec_wrapper(const char *cmd, int argc
     char *args[argc + 1];
     int i;
 
-    if (get_agent(&data, AGENT_DEFAULT, true) < 0)
+    if (get_agent(&data, AGENT_DEFAULT) < 0)
         errx(EXIT_FAILURE, "recieved no data, did the agent fail to start?");
 
     for (i = 0; i < argc; i++)
