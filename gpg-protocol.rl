@@ -19,15 +19,12 @@
 
 #include <stdlib.h>
 #include <stdio.h>
-#include <stdbool.h>
 #include <stdarg.h>
 #include <string.h>
-#include <getopt.h>
 #include <err.h>
 #include <errno.h>
 #include <pwd.h>
 #include <unistd.h>
-#include <sys/wait.h>
 #include <sys/socket.h>
 #include <sys/un.h>
 

@@ -19,10 +19,7 @@
 
 #include <stdlib.h>
 #include <stdio.h>
-#include <stdbool.h>
-#include <stdarg.h>
 #include <errno.h>
-#include <err.h>
 #include <unistd.h>
 #include <sys/socket.h>
 #include <sys/un.h>

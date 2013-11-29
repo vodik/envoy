@@ -18,11 +18,7 @@
 #ifndef LIBENVOY_H
 #define LIBENVOY_H
 
-#include <stdbool.h>
-#include <limits.h>
-#include <sys/types.h>
 #include <sys/socket.h>
-#include <sys/un.h>
 
 size_t init_envoy_socket(struct sockaddr_un *un);
 void unlink_envoy_socket(void);

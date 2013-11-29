@@ -25,10 +25,10 @@
 #include <err.h>
 #include <pwd.h>
 #include <poll.h>
-#include <sys/socket.h>
 #include <sys/stat.h>
-#include <sys/un.h>
 #include <sys/wait.h>
+#include <sys/socket.h>
+#include <sys/un.h>
 #include <systemd/sd-daemon.h>
 
 #include "clique/systemd-unit.h"
@@ -129,7 +129,6 @@ static void init_agent_environ(void)
 
     if (!gnupghome)
         return;
-
     if (!multiuser_mode)
         agent_env.arg.gnupghome = gnupghome;
     else
@@ -234,6 +233,7 @@ static int run_agent(struct agent_data_t *data, uid_t uid, gid_t gid)
 {
     const struct agent_t *agent = &Agent[data->type];
     int fd[2], stat = 0, rc = 0;
+    char *scope, *path;
 
     data->status = ENVOY_STARTED;
     data->sock[0] = '\0';
@@ -267,8 +267,6 @@ static int run_agent(struct agent_data_t *data, uid_t uid, gid_t gid)
 
     if (stat) {
         rc = -1;
-        data->pid = 0;
-        data->status = ENVOY_FAILED;
 
         if (WIFEXITED(stat))
             fprintf(stderr, "%s exited with status %d.\n",
@@ -276,29 +274,38 @@ static int run_agent(struct agent_data_t *data, uid_t uid, gid_t gid)
         if (WIFSIGNALED(stat))
             fprintf(stderr, "%s terminated with signal %d.\n",
                     agent->name, WTERMSIG(stat));
-    } else if (parse_agentdata(fd[0], data) < 0) {
-        err(EXIT_FAILURE, "failed to parse %s output", agent->name);
-    } else {
-        char *scope, *path;
 
-        safe_asprintf(&scope, "envoy-monitor-%d.scope", uid);
-
-        rc = get_unit_by_pid(bus, data->pid, &path);
-        if (rc < 0) {
-            fprintf(stderr, "Failed to find unit for %s: %s\n"
-                    "Falling back to a naive (and less reliable) "
-                    "method of process management...\n",
-                    agent->name, bus->error);
-        } else {
-            strcpy(data->unit_path, path);
-            free(path);
-        }
-
-        free(scope);
+        goto cleanup;
     }
 
+    rc  = parse_agentdata(fd[0], data);
+    if (rc < 0) {
+        fprintf(stderr, "Failed to parse %s output", agent->name);
+        goto cleanup;
+    }
+
+    safe_asprintf(&scope, "envoy-monitor-%d.scope", uid);
+
+    if (get_unit_by_pid(bus, data->pid, &path) < 0) {
+        fprintf(stderr, "Failed to find unit for %s: %s\n"
+                "Falling back to a naive (and less reliable) "
+                "method of process management...\n",
+                agent->name, bus->error);
+    } else {
+        strcpy(data->unit_path, path);
+        free(path);
+    }
+
+    free(scope);
     close(fd[0]);
     close(fd[1]);
+
+cleanup:
+    if (rc < 0) {
+        data->pid = 0;
+        data->status = ENVOY_FAILED;
+    }
+
     return rc;
 }
 
@@ -419,7 +426,7 @@ static void accept_conn(void)
 
     send_agent(cfd, &node->d, true);
 
-    if (node->d.pid && node->d.status == ENVOY_STARTED && !req.defer)
+    if (!req.defer && node->d.status == ENVOY_STARTED)
         node->d.status = ENVOY_RUNNING;
 }
 

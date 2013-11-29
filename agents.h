@@ -21,8 +21,6 @@
 #include <stdbool.h>
 #include <limits.h>
 #include <sys/types.h>
-#include <sys/socket.h>
-#include <sys/un.h>
 
 enum agent {
     AGENT_DEFAULT = -1,

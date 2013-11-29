@@ -22,10 +22,10 @@
 #include <getopt.h>
 #include <err.h>
 #include <errno.h>
+#include <signal.h>
 #include <pwd.h>
 #include <unistd.h>
 #include <termios.h>
-#include <sys/wait.h>
 #include <sys/socket.h>
 #include <sys/un.h>
 
