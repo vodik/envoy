@@ -57,8 +57,10 @@ static int envoy_connect(void)
 
 static ssize_t envoy_request(const struct agent_request_t *req, struct agent_data_t *data)
 {
-    int fd = envoy_connect();
     ssize_t nbytes_r = 0;
+    int fd = envoy_connect();
+    if (fd < 0)
+        return -errno;
 
     if (write(fd, req, sizeof(struct agent_request_t)) < 0)
         return -errno;
