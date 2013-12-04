@@ -37,6 +37,12 @@ enum status {
     ENVOY_BADUSER,
 };
 
+enum options {
+    AGENT_DEFAULTS = 0,
+    AGENT_STATUS   = 1 << 0,
+    AGENT_ENVIRON  = 1 << 1
+};
+
 struct agent_t {
     const char *name;
     char *const *argv;
@@ -44,8 +50,7 @@ struct agent_t {
 
 struct agent_request_t {
     enum agent type;
-    bool defer;
-    bool start;
+    int opts;
 };
 
 struct agent_data_t {

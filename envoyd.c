@@ -413,7 +413,7 @@ static void accept_conn(void)
             .type = req.type == AGENT_DEFAULT ? default_type : req.type,
         };
 
-        if (!req.start) {
+        if (req.opts & AGENT_STATUS) {
             send_message(cfd, ENVOY_STOPPED, true);
             return;
         }
@@ -426,7 +426,7 @@ static void accept_conn(void)
 
     send_agent(cfd, &node->d, true);
 
-    if (!req.defer && node->d.status == ENVOY_STARTED)
+    if (!(req.opts & AGENT_ENVIRON) && node->d.status == ENVOY_STARTED)
         node->d.status = ENVOY_RUNNING;
 }
 
