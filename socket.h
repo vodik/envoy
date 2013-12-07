@@ -22,6 +22,4 @@
 size_t init_envoy_socket(struct sockaddr_un *un);
 void unlink_envoy_socket(void);
 
-void safe_asprintf(char **strp, const char *fmt, ...);
-
 // vim: et:sts=4:sw=4:cino=(0
