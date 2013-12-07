@@ -168,9 +168,8 @@ static void print_fish_env(struct agent_data_t *data)
 static void source_env(struct agent_data_t *data)
 {
     if (data->type == AGENT_GPG_AGENT) {
-        struct gpg_t *agent = gpg_agent_connection(data->gpg);
+        _cleanup_gpg_ struct gpg_t *agent = gpg_agent_connection(data->gpg);
         gpg_update_tty(agent);
-        gpg_close(agent);
     }
 
     setenv("SSH_AUTH_SOCK", data->sock, true);
@@ -178,7 +177,7 @@ static void source_env(struct agent_data_t *data)
 
 static int unlock(const struct agent_data_t *data, char *password)
 {
-    struct gpg_t *agent = gpg_agent_connection(data->gpg);
+    _cleanup_gpg_ struct gpg_t *agent = gpg_agent_connection(data->gpg);
     if (!agent)
         err(EXIT_FAILURE, "failed to open connection to gpg-agent");
 
@@ -193,7 +192,6 @@ static int unlock(const struct agent_data_t *data, char *password)
         }
     }
 
-    gpg_close(agent);
     return 0;
 }
 

@@ -33,4 +33,7 @@ struct fingerprint_t *gpg_keyinfo(struct gpg_t *gpg);
 
 void free_fingerprints(struct fingerprint_t *frpt);
 
+#define _cleanup_gpg_ __attribute__((cleanup(gpg_closep)))
+static inline void gpg_closep(struct gpg_t **p) { gpg_close(*p); }
+
 // vim: et:sts=4:sw=4:cino=(0
