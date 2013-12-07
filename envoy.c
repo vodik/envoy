@@ -286,7 +286,7 @@ int main(int argc, char *argv[])
             break;
         case 't':
             type = lookup_agent(optarg);
-            if (type == LAST_AGENT)
+            if (type < 0)
                 errx(EXIT_FAILURE, "unknown agent: %s", optarg);
             break;
         default:

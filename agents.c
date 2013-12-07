@@ -26,7 +26,7 @@
 
 #include "socket.h"
 
-const struct agent_t Agent[LAST_AGENT] = {
+const struct agent_t Agent[] = {
     [AGENT_SSH_AGENT] = {
         .name = "ssh-agent",
         .argv = (char *const []){ "/usr/bin/ssh-agent", NULL }
@@ -85,11 +85,11 @@ bool envoy_agent_get_environment(enum agent type, struct agent_data_t *data)
 enum agent lookup_agent(const char *string)
 {
     size_t i;
-    for (i = 0; i < LAST_AGENT; i++) {
+    for (i = 0; i < sizeof(Agent) / sizeof(Agent[0]); i++) {
         if (strcmp(Agent[i].name, string) == 0)
-            break;
+            return i;
     }
-    return i;
+    return -1;
 }
 
 // vim: et:sts=4:sw=4:cino=(0

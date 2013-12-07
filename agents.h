@@ -25,7 +25,6 @@ enum agent {
     AGENT_DEFAULT = -1,
     AGENT_SSH_AGENT = 0,
     AGENT_GPG_AGENT,
-    LAST_AGENT
 };
 
 enum status {
@@ -61,7 +60,7 @@ struct agent_data_t {
     char unit_path[PATH_MAX];
 };
 
-extern const struct agent_t Agent[LAST_AGENT];
+extern const struct agent_t Agent[];
 
 bool envoy_agent_launch(enum agent type, struct agent_data_t *data);
 bool envoy_agent_get_environment(enum agent type, struct agent_data_t *data);
