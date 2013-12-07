@@ -19,12 +19,17 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
+#include <stdbool.h>
 
 #define _unused_         __attribute__((unused))
 #define _cleanup_(x)     __attribute__((cleanup(x)))
 #define _cleanup_free_   _cleanup_(freep)
 
 static inline void freep(void *p) { free(*(void **)p); }
+
+static inline bool streq(const char *s1, const char *s2) { return strcmp(s1, s2) == 0; }
+static inline bool strneq(const char *s1, const char *s2, size_t n) { return strncmp(s1, s2, n) == 0; }
 
 void safe_asprintf(char **strp, const char *fmt, ...) __attribute__((format (printf, 2, 3)));
 

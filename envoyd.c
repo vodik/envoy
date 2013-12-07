@@ -102,7 +102,7 @@ static bool unit_running(struct agent_data_t *data)
     if (data->unit_path[0]) {
         char *state;
         get_unit_state(bus, data->unit_path, &state);
-        running = strcmp(state, "running") == 0;
+        running = streq(state, "running");
     } else if (kill(data->pid, 0) < 0) {
         if (errno != ESRCH)
             err(EXIT_FAILURE, "something strange happened with kill");
@@ -119,9 +119,9 @@ static void init_agent_environ(void)
     int i;
 
     for (i = 0; environ[i]; ++i) {
-        if (strncmp(environ[i], "PATH=", 5) == 0)
+        if (strneq(environ[i], "PATH=", 5))
             path = environ[i];
-        else if (strncmp(environ[i], "GNUPGHOME=", 10) == 0)
+        else if (strneq(environ[i], "GNUPGHOME=", 10))
             gnupghome = environ[i];
     }
 
@@ -147,11 +147,11 @@ static void parse_agentdata_line(char *val, struct agent_data_t *info)
     if (!var)
         return;
 
-    if (strcmp(var, "SSH_AUTH_SOCK") == 0)
+    if (streq(var, "SSH_AUTH_SOCK"))
         strcpy(info->sock, val);
-    else if (strcmp(var, "SSH_AGENT_PID") == 0)
+    else if (streq(var, "SSH_AGENT_PID"))
         info->pid = atoi(val);
-    else if (strcmp(var, "GPG_AGENT_INFO") == 0)
+    else if (streq(var, "GPG_AGENT_INFO"))
         strcpy(info->gpg, val);
 }
 

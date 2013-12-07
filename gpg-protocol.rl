@@ -28,6 +28,8 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 
+#include "util.h"
+
 struct gpg_t {
     int fd;
     char buf[BUFSIZ];
@@ -152,9 +154,9 @@ int gpg_update_tty(struct gpg_t *gpg)
     int i;
 
     for (i = 0; environ[i]; ++i) {
-        if (strncmp(environ[i], "DISPLAY=", 8) == 0)
+        if (strneq(environ[i], "DISPLAY=", 8))
             display = environ[i] + 8;
-        else if (strncmp(environ[i], "TERM=", 5) == 0)
+        else if (strneq(environ[i], "TERM=", 5))
             term = environ[i] + 5;
     }
 

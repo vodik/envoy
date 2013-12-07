@@ -25,6 +25,7 @@
 #include <sys/un.h>
 
 #include "socket.h"
+#include "util.h"
 
 const struct agent_t Agent[] = {
     [AGENT_SSH_AGENT] = {
@@ -86,7 +87,7 @@ enum agent lookup_agent(const char *string)
 {
     size_t i;
     for (i = 0; i < sizeof(Agent) / sizeof(Agent[0]); i++) {
-        if (strcmp(Agent[i].name, string) == 0)
+        if (streq(Agent[i].name, string))
             return i;
     }
     return -1;

@@ -63,9 +63,9 @@ static void source_env(struct agent_data_t *data)
 
 static inline int safe_execv(const char *path, char *const argv[])
 {
-    char *real = realpath(path, NULL);
+    _cleanup_free_ char *real = realpath(path, NULL);
 
-    if (real && strcmp(real, exe_path) == 0)
+    if (real && streq(real, exe_path))
         return 0;
 
     return execv(path, argv);
@@ -111,7 +111,7 @@ int main(int argc, char *argv[])
     if (!exe_path)
         err(EXIT_FAILURE, "failed to resolve /proc/self/exe");
 
-    if (strcmp(program_invocation_short_name, "envoy-exec") != 0)
+    if (!streq(program_invocation_short_name, "envoy-exec"))
         exec_wrapper(program_invocation_short_name, argc, argv);
 
     if (argc == 1) {
