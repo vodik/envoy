@@ -40,7 +40,7 @@
 #define PAM_LOG_ERR   LOG_AUTHPRIV | LOG_ERR
 #define PAM_LOG_WARN  LOG_AUTHPRIV | LOG_WARNING
 
-static int __attribute__((format (printf, 2, 3))) pam_setenv(pam_handle_t *ph, const char *fmt, ...)
+static _printf_(2, 3) int pam_setenv(pam_handle_t *ph, const char *fmt, ...)
 {
     va_list ap;
     int nbytes;

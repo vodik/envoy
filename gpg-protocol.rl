@@ -94,7 +94,7 @@ static int gpg_check_return(struct gpg_t *gpg)
     return rc;
 }
 
-static int __attribute__((format (printf, 2, 3))) gpg_send_message(struct gpg_t *gpg, const char *fmt, ...)
+static _printf_(2, 3) int gpg_send_message(struct gpg_t *gpg, const char *fmt, ...)
 {
     va_list ap;
     int nbytes_r, rc;
