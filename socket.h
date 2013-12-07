@@ -15,8 +15,7 @@
  * Copyright (C) Simon Gomizelj, 2012
  */
 
-#ifndef LIBENVOY_H
-#define LIBENVOY_H
+#pragma once
 
 #include <sys/socket.h>
 
@@ -24,7 +23,5 @@ size_t init_envoy_socket(struct sockaddr_un *un);
 void unlink_envoy_socket(void);
 
 void safe_asprintf(char **strp, const char *fmt, ...);
-
-#endif
 
 // vim: et:sts=4:sw=4:cino=(0

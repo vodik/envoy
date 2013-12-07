@@ -15,11 +15,8 @@
  * Copyright (C) Simon Gomizelj, 2013
  */
 
-#ifndef UTIL_H
-#define UTIL_H
+#pragma once
 
 void safe_asprintf(char **strp, const char *fmt, ...) __attribute__((format (printf, 2, 3)));
-
-#endif
 
 // vim: et:sts=4:sw=4:cino=(0

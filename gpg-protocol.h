@@ -15,8 +15,7 @@
  * Copyright (C) Simon Gomizelj, 2012
  */
 
-#ifndef GPG_PROTOCOL_H
-#define GPG_PROTOCOL_H
+#pragma once
 
 struct gpg_t;
 
@@ -33,7 +32,5 @@ int gpg_preset_passphrase(struct gpg_t *gpg, const char *fingerprint, int timeou
 struct fingerprint_t *gpg_keyinfo(struct gpg_t *gpg);
 
 void free_fingerprints(struct fingerprint_t *frpt);
-
-#endif
 
 // vim: et:sts=4:sw=4:cino=(0

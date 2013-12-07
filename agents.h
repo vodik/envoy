@@ -15,8 +15,7 @@
  * Copyright (C) Simon Gomizelj, 2013
  */
 
-#ifndef AGENT_H
-#define AGENT_H
+#pragma once
 
 #include <stdbool.h>
 #include <limits.h>
@@ -68,7 +67,5 @@ bool envoy_agent_launch(enum agent type, struct agent_data_t *data);
 bool envoy_agent_get_environment(enum agent type, struct agent_data_t *data);
 
 enum agent lookup_agent(const char *string);
-
-#endif
 
 // vim: et:sts=4:sw=4:cino=(0
