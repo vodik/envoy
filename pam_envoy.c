@@ -34,17 +34,17 @@
 
 #include "agents.h"
 #include "socket.h"
+#include "util.h"
 #include "gpg-protocol.h"
 
-#define UNUSED           __attribute__((unused))
-#define PAM_LOG_ERR      LOG_AUTHPRIV | LOG_ERR
-#define PAM_LOG_WARN     LOG_AUTHPRIV | LOG_WARNING
+#define PAM_LOG_ERR   LOG_AUTHPRIV | LOG_ERR
+#define PAM_LOG_WARN  LOG_AUTHPRIV | LOG_WARNING
 
 static int __attribute__((format (printf, 2, 3))) pam_setenv(pam_handle_t *ph, const char *fmt, ...)
 {
     va_list ap;
     int nbytes;
-    char *line = NULL;
+    _cleanup_free_ char *line = NULL;
 
     va_start(ap, fmt);
     nbytes = vasprintf(&line, fmt, ap);
@@ -54,7 +54,6 @@ static int __attribute__((format (printf, 2, 3))) pam_setenv(pam_handle_t *ph, c
         return -1;
 
     pam_putenv(ph, line);
-    free(line);
     return 0;
 }
 
@@ -106,7 +105,7 @@ static int pam_get_agent(struct agent_data_t *data, enum agent id, uid_t uid, gi
 }
 
 /* PAM entry point for session creation */
-PAM_EXTERN int pam_sm_open_session(pam_handle_t *ph, int UNUSED flags,
+PAM_EXTERN int pam_sm_open_session(pam_handle_t *ph, int _unused_ flags,
                                    int argc, const char **argv)
 {
     struct agent_data_t data;
@@ -156,15 +155,15 @@ PAM_EXTERN int pam_sm_open_session(pam_handle_t *ph, int UNUSED flags,
 }
 
 /* PAM entry point for session cleanup */
-PAM_EXTERN int pam_sm_close_session(pam_handle_t UNUSED *ph, int UNUSED flags,
-                                    int UNUSED argc, const char UNUSED **argv)
+PAM_EXTERN int pam_sm_close_session(pam_handle_t _unused_ *ph, int _unused_ flags,
+                                    int _unused_ argc, const char _unused_ **argv)
 {
     return PAM_IGNORE;
 }
 
 /* PAM entry point for authentication verification */
-PAM_EXTERN int pam_sm_authenticate(pam_handle_t UNUSED *ph, int UNUSED flags,
-                                   int UNUSED argc, const char UNUSED **argv)
+PAM_EXTERN int pam_sm_authenticate(pam_handle_t _unused_ *ph, int _unused_ flags,
+                                   int _unused_ argc, const char _unused_ **argv)
 {
     struct agent_data_t data;
     const struct passwd *pwd;
@@ -222,15 +221,15 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t UNUSED *ph, int UNUSED flags,
 /* PAM entry point for setting user credentials (that is, to actually
  * establish the authenticated user's credentials to the service
  * provider) */
-PAM_EXTERN int pam_sm_setcred(pam_handle_t UNUSED *ph, int UNUSED flags,
-                              int UNUSED argc, const char UNUSED **argv)
+PAM_EXTERN int pam_sm_setcred(pam_handle_t _unused_ *ph, int _unused_ flags,
+                              int _unused_ argc, const char _unused_ **argv)
 {
     return PAM_IGNORE;
 }
 
 /* PAM entry point for authentication token (password) changes */
-PAM_EXTERN int pam_sm_chauthtok(pam_handle_t UNUSED *ph, int UNUSED flags,
-                                int UNUSED argc, const char UNUSED **argv)
+PAM_EXTERN int pam_sm_chauthtok(pam_handle_t _unused_ *ph, int _unused_ flags,
+                                int _unused_ argc, const char _unused_ **argv)
 {
     return PAM_IGNORE;
 }

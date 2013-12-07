@@ -190,7 +190,7 @@ static int parse_agentdata(int fd, struct agent_data_t *data)
 static void systemd_start_monitor(uid_t uid)
 {
     dbus_message *m;
-    char *scope, *slice = NULL;
+    _cleanup_free_ char *scope, *slice = NULL;
 
     if (multiuser_mode && uid != 0)
         safe_asprintf(&slice, "user-%d.slice", uid);
@@ -204,9 +204,6 @@ static void systemd_start_monitor(uid_t uid)
         err(EXIT_FAILURE, "failed to start transient scope for agent: %s", bus->error);
     }
     dbus_close(bus);
-
-    free(scope);
-    free(slice);
 }
 
 static void __attribute__((__noreturn__)) exec_agent(const struct agent_t *agent, uid_t uid, gid_t gid)
@@ -233,7 +230,7 @@ static int run_agent(struct agent_data_t *data, uid_t uid, gid_t gid)
 {
     const struct agent_t *agent = &Agent[data->type];
     int fd[2], stat = 0, rc = 0;
-    char *scope, *path;
+    _cleanup_free_ char *scope, *path;
 
     data->status = ENVOY_STARTED;
     data->sock[0] = '\0';
@@ -293,10 +290,8 @@ static int run_agent(struct agent_data_t *data, uid_t uid, gid_t gid)
                 agent->name, bus->error);
     } else {
         strcpy(data->unit_path, path);
-        free(path);
     }
 
-    free(scope);
     close(fd[0]);
     close(fd[1]);
 

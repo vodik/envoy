@@ -17,6 +17,15 @@
 
 #pragma once
 
+#include <stdlib.h>
+#include <stdio.h>
+
+#define _unused_         __attribute__((unused))
+#define _cleanup_(x)     __attribute__((cleanup(x)))
+#define _cleanup_free_   _cleanup_(freep)
+
+static inline void freep(void *p) { free(*(void **)p); }
+
 void safe_asprintf(char **strp, const char *fmt, ...) __attribute__((format (printf, 2, 3)));
 
 // vim: et:sts=4:sw=4:cino=(0
