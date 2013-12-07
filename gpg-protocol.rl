@@ -149,16 +149,9 @@ struct gpg_t *gpg_agent_connection(const char *sock)
 
 int gpg_update_tty(struct gpg_t *gpg)
 {
-    extern char **environ;
-    char *display = NULL, *term = NULL, *tty = ttyname(STDIN_FILENO);
-    int i;
-
-    for (i = 0; environ[i]; ++i) {
-        if (strneq(environ[i], "DISPLAY=", 8))
-            display = environ[i] + 8;
-        else if (strneq(environ[i], "TERM=", 5))
-            term = environ[i] + 5;
-    }
+    const char *tty = ttyname(STDIN_FILENO);
+    const char *term = getenv("TERM");
+    const char *display = getenv("DISPLAY");
 
     gpg_send_message(gpg, "RESET\n");
 
