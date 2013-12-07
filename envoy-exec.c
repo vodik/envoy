@@ -25,6 +25,7 @@
 #include "agents.h"
 #include "socket.h"
 #include "gpg-protocol.h"
+#include "util.h"
 
 static const char *exe_path;
 
@@ -51,9 +52,8 @@ static int get_agent(struct agent_data_t *data, enum agent id)
 static void source_env(struct agent_data_t *data)
 {
     if (data->type == AGENT_GPG_AGENT) {
-        struct gpg_t *agent = gpg_agent_connection(data->gpg);
+        _cleanup_gpg_ struct gpg_t *agent = gpg_agent_connection(data->gpg);
         gpg_update_tty(agent);
-        gpg_close(agent);
 
         setenv("GPG_AGENT_INFO", data->gpg, true);
     }
@@ -95,11 +95,10 @@ static void __attribute__((__noreturn__)) exec_wrapper(const char *cmd, int argc
 
         char *saveptr, *segment = strtok_r(path, ":", &saveptr);
         for (; segment; segment = strtok_r(NULL, ":", &saveptr)) {
-            char *full_path;
+            _cleanup_free_ char *full_path;
 
             safe_asprintf(&full_path, "%s/%s", segment, cmd);
             safe_execv(full_path, args);
-            free(full_path);
         }
     }
 

@@ -289,7 +289,7 @@ int gpg_preset_passphrase(struct gpg_t *gpg, const char *fingerprint, int timeou
         nbytes_r = dprintf(gpg->fd, "PRESET_PASSPHRASE %s %d\n", fingerprint, timeout);
     } else {
         size_t i, size = strlen(password);
-        char *bin_password = malloc(2 * size + 1);
+        _cleanup_free_ char *bin_password = malloc(2 * size + 1);
 
         for(i = 0; i < size; i++) {
             bin_password[2 * i] = hex_digits[password[i] >> 4];
@@ -298,8 +298,6 @@ int gpg_preset_passphrase(struct gpg_t *gpg, const char *fingerprint, int timeou
 
         bin_password[2 * size] = '\0';
         nbytes_r = dprintf(gpg->fd, "PRESET_PASSPHRASE %s %d %s\n", fingerprint, timeout, bin_password);
-
-        free(bin_password);
     }
 
     rc = gpg_check_return(gpg);
