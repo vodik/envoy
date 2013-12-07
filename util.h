@@ -23,6 +23,7 @@
 #include <stdbool.h>
 
 #define _unused_         __attribute__((unused))
+#define _noreturn_       __attribute__((noreturn))
 #define _cleanup_(x)     __attribute__((cleanup(x)))
 #define _cleanup_free_   _cleanup_(freep)
 

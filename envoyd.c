@@ -206,7 +206,7 @@ static void systemd_start_monitor(uid_t uid)
     dbus_close(bus);
 }
 
-static void __attribute__((__noreturn__)) exec_agent(const struct agent_t *agent, uid_t uid, gid_t gid)
+static _noreturn_ void exec_agent(const struct agent_t *agent, uid_t uid, gid_t gid)
 {
     struct passwd *pwd;
 
@@ -452,7 +452,7 @@ static int loop(void)
     return 0;
 }
 
-static void __attribute__((__noreturn__)) usage(FILE *out)
+static _noreturn_ void usage(FILE *out)
 {
     fprintf(out, "usage: %s [options]\n", program_invocation_short_name);
     fputs("Options:\n"

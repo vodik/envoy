@@ -32,6 +32,7 @@
 #include "agents.h"
 #include "socket.h"
 #include "gpg-protocol.h"
+#include "util.h"
 
 static struct termios old_termios;
 
@@ -115,7 +116,7 @@ static char *get_key_path(const char *home, const char *fragment)
     return out;
 }
 
-static void __attribute__((__noreturn__)) add_keys(char **keys, int count)
+static _noreturn_ void add_keys(char **keys, int count)
 {
     /* command + end-of-opts + NULL + keys */
     char *args[count + 3];
@@ -195,7 +196,7 @@ static int unlock(const struct agent_data_t *data, char *password)
     return 0;
 }
 
-static void __attribute__((__noreturn__)) usage(FILE *out)
+static _noreturn_ void usage(FILE *out)
 {
     fprintf(out, "usage: %s [options] [key ...]\n", program_invocation_short_name);
     fputs("Options:\n"

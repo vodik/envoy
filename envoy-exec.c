@@ -71,7 +71,7 @@ static inline int safe_execv(const char *path, char *const argv[])
     return execv(path, argv);
 }
 
-static void __attribute__((__noreturn__)) exec_wrapper(const char *cmd, int argc, char *argv[])
+static _noreturn_ void exec_wrapper(const char *cmd, int argc, char *argv[])
 {
     /* command + NULL + argv */
     struct agent_data_t data;
