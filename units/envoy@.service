@@ -1,5 +1,6 @@
 [Unit]
 Description=Envoy agent monitor for %i
+Documentation=man:envoyd(1) man:envoy(1)
 
 [Service]
 ExecStart=/usr/bin/envoyd -t %i
