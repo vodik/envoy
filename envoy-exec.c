@@ -89,7 +89,7 @@ static _noreturn_ void exec_wrapper(const char *cmd, int argc, char *argv[])
     if (cmd[0] == '/') {
         safe_execv(args[0], args);
     } else {
-        char *path = getenv("PATH");
+        _cleanup_free_ char *path = strdup(getenv("PATH"));
         if (!path)
             err(EXIT_FAILURE, "command %s not found", cmd);
 
