@@ -89,11 +89,12 @@ static _noreturn_ void exec_wrapper(const char *cmd, int argc, char *argv[])
     if (cmd[0] == '/') {
         safe_execv(args[0], args);
     } else {
-        _cleanup_free_ char *path = strdup(getenv("PATH"));
+        const char *path = getenv("PATH");
         if (!path)
             err(EXIT_FAILURE, "command %s not found", cmd);
+        _cleanup_free_ char *buf = strdup(path);
 
-        char *saveptr, *segment = strtok_r(path, ":", &saveptr);
+        char *saveptr, *segment = strtok_r(buf, ":", &saveptr);
         for (; segment; segment = strtok_r(NULL, ":", &saveptr)) {
             _cleanup_free_ char *full_path;
 
