@@ -91,7 +91,7 @@ static _noreturn_ void exec_wrapper(const char *cmd, int argc, char *argv[])
     } else {
         const char *path = getenv("PATH");
         if (!path)
-            err(EXIT_FAILURE, "command %s not found", cmd);
+            errx(EXIT_FAILURE, "command %s not found", cmd);
         _cleanup_free_ char *buf = strdup(path);
 
         char *saveptr, *segment = strtok_r(buf, ":", &saveptr);
@@ -103,7 +103,7 @@ static _noreturn_ void exec_wrapper(const char *cmd, int argc, char *argv[])
         }
     }
 
-    err(EXIT_FAILURE, "command %s not found", cmd);
+    errx(EXIT_FAILURE, "command %s not found", cmd);
 }
 
 int main(int argc, char *argv[])
