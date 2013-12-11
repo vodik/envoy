@@ -62,8 +62,8 @@ struct agent_data_t {
 
 extern const struct agent_t Agent[];
 
-bool envoy_agent_launch(enum agent type, struct agent_data_t *data);
-bool envoy_agent_get_environment(enum agent type, struct agent_data_t *data);
+int envoy_agent_launch(enum agent type, struct agent_data_t *data);
+int envoy_agent_get_environment(enum agent type, struct agent_data_t *data);
 
 enum agent lookup_agent(const char *string);
 

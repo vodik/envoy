@@ -71,13 +71,13 @@ static ssize_t envoy_request(const struct agent_request_t *req, struct agent_dat
     return nbytes_r;
 }
 
-bool envoy_agent_launch(enum agent type, struct agent_data_t *data)
+int envoy_agent_launch(enum agent type, struct agent_data_t *data)
 {
     const struct agent_request_t req = { .type = type };
     return envoy_request(&req, data) < 0 ? -errno : 0;
 }
 
-bool envoy_agent_get_environment(enum agent type, struct agent_data_t *data)
+int envoy_agent_get_environment(enum agent type, struct agent_data_t *data)
 {
     const struct agent_request_t req = { .type = type, .opts = AGENT_ENVIRON };
     return envoy_request(&req, data) < 0 ? -errno : 0;
