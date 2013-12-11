@@ -33,6 +33,7 @@ static inline void freep(void *p) { free(*(void **)p); }
 static inline bool streq(const char *s1, const char *s2) { return strcmp(s1, s2) == 0; }
 static inline bool strneq(const char *s1, const char *s2, size_t n) { return strncmp(s1, s2, n) == 0; }
 
+char *joinpath(const char *root, ...);
 void safe_asprintf(char **strp, const char *fmt, ...) _printf_(2, 3);
 
 // vim: et:sts=4:sw=4:cino=(0

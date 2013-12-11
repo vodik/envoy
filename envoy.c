@@ -105,15 +105,12 @@ static int get_agent(struct agent_data_t *data, enum agent id, bool start)
 
 static char *get_key_path(const char *home, const char *fragment)
 {
-    char *out;
-
     /* path exists, add it */
-    if (access(fragment, F_OK) == 0)
+    if (fragment[0] == '-' || access(fragment, F_OK) == 0)
         return strdup(fragment);
 
     /* assume it's a key in $HOME/.ssh */
-    safe_asprintf(&out, "%s/.ssh/%s", home, fragment);
-    return out;
+    return joinpath(home, ".ssh", fragment, NULL);
 }
 
 static _noreturn_ void add_keys(char **keys, int count)
@@ -307,7 +304,7 @@ int main(int argc, char *argv[])
         print_env(&data);
         /* fall through */
     case ACTION_NONE:
-        if (data.status == ENVOY_RUNNING || data.type == AGENT_GPG_AGENT)
+        if (data.status != ENVOY_STARTED || data.type == AGENT_GPG_AGENT)
             break;
         /* fall through */
     case ACTION_FORCE_ADD:

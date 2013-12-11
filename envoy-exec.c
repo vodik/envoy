@@ -96,10 +96,9 @@ static _noreturn_ void exec_wrapper(const char *cmd, int argc, char *argv[])
 
         char *saveptr, *segment = strtok_r(buf, ":", &saveptr);
         for (; segment; segment = strtok_r(NULL, ":", &saveptr)) {
-            _cleanup_free_ char *full_path;
-
-            safe_asprintf(&full_path, "%s/%s", segment, cmd);
+            char *full_path = joinpath(segment, cmd, NULL);
             safe_execv(full_path, args);
+            free(full_path);
         }
     }
 
