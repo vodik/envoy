@@ -164,11 +164,10 @@ int gpg_update_tty(struct gpg_t *gpg)
     if (display) {
         gpg_send_message(gpg, "OPTION display=%s\n", display);
 
-        if (xauthority) {
+        if (xauthority)
             gpg_send_message(gpg, "OPTION xauthority=%s\n", xauthority);
-        } else {
+        else
             gpg_send_message(gpg, "OPTION xauthority=%s/.Xauthority\n", get_home_dir());
-        }
     }
 
     gpg_send_message(gpg, "UPDATESTARTUPTTY\n");
