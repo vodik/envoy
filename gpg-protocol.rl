@@ -152,6 +152,7 @@ int gpg_update_tty(struct gpg_t *gpg)
     const char *tty = ttyname(STDIN_FILENO);
     const char *term = getenv("TERM");
     const char *display = getenv("DISPLAY");
+    const char *xauthority = getenv("XAUTHORITY");
 
     gpg_send_message(gpg, "RESET\n");
 
@@ -162,12 +163,17 @@ int gpg_update_tty(struct gpg_t *gpg)
         gpg_send_message(gpg, "OPTION ttytype=%s\n", term);
 
     if (display) {
-        struct passwd *pwd = getpwuid(getuid());
-        if (pwd == NULL || pwd->pw_dir == NULL)
-            err(EXIT_FAILURE, "failed to lookup passwd entry");
-
         gpg_send_message(gpg, "OPTION display=%s\n", display);
-        gpg_send_message(gpg, "OPTION xauthority=%s/.Xauthority\n", pwd->pw_dir);
+
+        if (xauthority) {
+            gpg_send_message(gpg, "OPTION xauthority=%s\n", xauthority);
+        } else {
+            struct passwd *pwd = getpwuid(getuid());
+            if (pwd == NULL || pwd->pw_dir == NULL)
+                err(EXIT_FAILURE, "failed to lookup passwd entry");
+
+            gpg_send_message(gpg, "OPTION xauthority=%s/.Xauthority\n", pwd->pw_dir);
+        }
     }
 
     gpg_send_message(gpg, "UPDATESTARTUPTTY\n");
