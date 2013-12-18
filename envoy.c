@@ -116,19 +116,15 @@ static char *get_key_path(const char *home, const char *fragment)
 static _noreturn_ void add_keys(char **keys, int count)
 {
     /* command + end-of-opts + NULL + keys */
+    const char *home_dir = get_home_dir();
     char *args[count + 3];
-    struct passwd *pwd;
     int i;
-
-    pwd = getpwuid(getuid());
-    if (pwd == NULL || pwd->pw_dir == NULL)
-        err(EXIT_FAILURE, "failed to lookup passwd entry");
 
     args[0] = "/usr/bin/ssh-add";
     args[1] = "--";
 
     for (i = 0; i < count; i++)
-        args[2 + i] = get_key_path(pwd->pw_dir, keys[i]);
+        args[2 + i] = get_key_path(home_dir, keys[i]);
 
     args[2 + count] = NULL;
 

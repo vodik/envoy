@@ -23,7 +23,6 @@
 #include <string.h>
 #include <err.h>
 #include <errno.h>
-#include <pwd.h>
 #include <unistd.h>
 #include <sys/socket.h>
 #include <sys/un.h>
@@ -168,11 +167,7 @@ int gpg_update_tty(struct gpg_t *gpg)
         if (xauthority) {
             gpg_send_message(gpg, "OPTION xauthority=%s\n", xauthority);
         } else {
-            struct passwd *pwd = getpwuid(getuid());
-            if (pwd == NULL || pwd->pw_dir == NULL)
-                err(EXIT_FAILURE, "failed to lookup passwd entry");
-
-            gpg_send_message(gpg, "OPTION xauthority=%s/.Xauthority\n", pwd->pw_dir);
+            gpg_send_message(gpg, "OPTION xauthority=%s/.Xauthority\n", get_home_dir());
         }
     }
 
