@@ -33,6 +33,8 @@ agents.o: agents.c
 	${CC} ${CFLAGS} -fPIC -o $@ -c $<
 socket.o: socket.c
 	${CC} ${CFLAGS} -fPIC -o $@ -c $<
+util.o: util.c
+	${CC} ${CFLAGS} -fPIC -o $@ -c $<
 pam_envoy.o: pam_envoy.c
 	${CC} ${CFLAGS} -fPIC -o $@ -c $<
 
