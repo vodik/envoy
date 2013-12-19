@@ -36,7 +36,7 @@ socket.o: socket.c
 pam_envoy.o: pam_envoy.c
 	${CC} ${CFLAGS} -fPIC -o $@ -c $<
 
-pam_envoy.so: pam_envoy.o agents.o socket.o gpg-protocol.o
+pam_envoy.so: pam_envoy.o agents.o socket.o gpg-protocol.o util.o
 	${CC} ${LDFLAGS} -shared -DPIC -o $@ $?
 
 install: envoyd envoy pam_envoy.so
