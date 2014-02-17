@@ -486,9 +486,9 @@ int main(int argc, char *argv[])
         }
     }
 
-    multiuser_mode = getuid() == 0 ? true : false;
     server_sock = get_socket();
     server_uid = geteuid();
+    multiuser_mode = server_uid == 0;
 
     dbus_open(DBUS_AUTO, &bus);
     init_agent_environ();
