@@ -37,16 +37,16 @@
 #include "socket.h"
 #include "util.h"
 
-struct agent_info_t {
+struct agent_node_t {
     uid_t uid;
     char *scope, *slice;
     struct agent_data_t d;
-    struct agent_info_t *next;
+    struct agent_node_t *next;
 };
 
 static dbus_bus *bus = NULL;
 static enum agent default_type = AGENT_SSH_AGENT;
-static struct agent_info_t *agents = NULL;
+static struct agent_node_t *agents = NULL;
 static bool sd_activated = false;
 static bool multiuser_mode;
 static int server_sock;
@@ -136,7 +136,7 @@ static void init_agent_environ(void)
         fprintf(stderr, "warning: running as root and GNUPGHOME is set; ignoring.\n");
 }
 
-static void parse_agentdata_line(char *val, struct agent_data_t *info)
+static void parse_agentdata_line(char *val, struct agent_data_t *data)
 {
     char *eol, *var;
 
@@ -149,11 +149,11 @@ static void parse_agentdata_line(char *val, struct agent_data_t *info)
         return;
 
     if (streq(var, "SSH_AUTH_SOCK"))
-        strcpy(info->sock, val);
+        strcpy(data->sock, val);
     else if (streq(var, "SSH_AGENT_PID"))
-        info->pid = atoi(val);
+        data->pid = atoi(val);
     else if (streq(var, "GPG_AGENT_INFO"))
-        strcpy(info->gpg, val);
+        strcpy(data->gpg, val);
 }
 
 static int parse_agentdata(int fd, struct agent_data_t *data)
@@ -188,7 +188,7 @@ static int parse_agentdata(int fd, struct agent_data_t *data)
     return 0;
 }
 
-static void systemd_start_monitor(struct agent_info_t *agent)
+static void systemd_start_monitor(struct agent_node_t *agent)
 {
     dbus_message *m;
 
@@ -220,9 +220,9 @@ static _noreturn_ void exec_agent(const struct agent_t *agent, uid_t uid, gid_t 
     err(EXIT_FAILURE, "failed to start %s", agent->name);
 }
 
-static int run_agent(struct agent_info_t *info, uid_t uid, gid_t gid)
+static int run_agent(struct agent_node_t *node, uid_t uid, gid_t gid)
 {
-    struct agent_data_t *data = &info->d;
+    struct agent_data_t *data = &node->d;
     const struct agent_t *agent = &Agent[data->type];
     int fd[2], stat = 0, rc = 0;
     _cleanup_free_ char *path;
@@ -248,7 +248,7 @@ static int run_agent(struct agent_info_t *info, uid_t uid, gid_t gid)
         close(fd[0]);
         close(fd[1]);
 
-        systemd_start_monitor(info);
+        systemd_start_monitor(node);
         exec_agent(agent, uid, gid);
         break;
     default:
@@ -333,17 +333,17 @@ static int get_socket(void)
     return fd;
 }
 
-static struct agent_info_t *get_agent_entry(struct agent_info_t **list, enum agent type, uid_t uid)
+static struct agent_node_t *get_agent_entry(struct agent_node_t **list, enum agent type, uid_t uid)
 {
-    struct agent_info_t *node;
+    struct agent_node_t *node;
 
     for (node = *list; node; node = node->next) {
         if (node->d.type == type && node->uid == uid)
             return node;
     }
 
-    node = malloc(sizeof(struct agent_info_t));
-    *node = (struct agent_info_t){
+    node = malloc(sizeof(struct agent_node_t));
+    *node = (struct agent_node_t){
         .uid    = uid,
         .next   = agents,
         .d.type = type
@@ -400,7 +400,7 @@ static void accept_conn(void)
     }
 
     enum agent agent = req.type == AGENT_DEFAULT ? default_type : req.type;
-    struct agent_info_t *node = get_agent_entry(&agents, agent, cred.uid);
+    struct agent_node_t *node = get_agent_entry(&agents, agent, cred.uid);
 
     if (node->d.pid == 0 || !unit_running(&node->d)) {
         if (req.opts & AGENT_STATUS) {
