@@ -66,11 +66,10 @@ static union agent_environ_t {
 static void kill_agents(int signal)
 {
     while (agents) {
-        if (agents->d.unit_path[0]) {
+        if (agents->d.unit_path[0])
             unit_kill(bus, agents->d.unit_path, signal);
-        } else {
+        else
             kill(agents->d.pid, signal);
-        }
 
         agents = agents->next;
     }
@@ -188,17 +187,15 @@ static int parse_agentdata(int fd, struct agent_data_t *data)
     return 0;
 }
 
-static void systemd_start_monitor(struct agent_node_t *agent)
+static void systemd_start_monitor(struct agent_node_t *node)
 {
     dbus_message *m;
 
     /* bus is set to CLOEXEC, so we need to open it again */
     dbus_open(DBUS_AUTO, &bus);
-    scope_init(&m, agent->scope, agent->slice, "Envoy agent monitor", 0);
-    int rc = scope_commit(bus, m, NULL);
-    if (rc < 0) {
+    scope_init(&m, node->scope, node->slice, "Envoy agent monitor", 0);
+    if (scope_commit(bus, m, NULL) < 0)
         err(EXIT_FAILURE, "failed to start transient scope for agent: %s", bus->error);
-    }
     dbus_close(bus);
 }
 
@@ -437,11 +434,10 @@ static int loop(void)
             err(EXIT_FAILURE, "failed to poll");
         }
 
-        if (fds[0].revents & POLLHUP) {
+        if (fds[0].revents & POLLHUP)
             close(fds[0].fd);
-        } else if (fds[0].revents & POLLIN) {
+        else if (fds[0].revents & POLLIN)
             accept_conn();
-        }
     }
 
     return 0;
