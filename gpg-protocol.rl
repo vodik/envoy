@@ -122,8 +122,10 @@ struct gpg_t *gpg_agent_connection(const char *sock)
         return NULL;
     }
 
-    split = strchr(sock, ':');
-    len = split - sock;
+    len = strlen(sock);
+    split = memchr(sock, ':', len);
+    if (split)
+        len = split - sock;
 
     sa.un = (struct sockaddr_un){ .sun_family = AF_UNIX };
     memcpy(&sa.un.sun_path, sock, len);
