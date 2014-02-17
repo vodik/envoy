@@ -34,8 +34,8 @@
 
 #include "agents.h"
 #include "socket.h"
-#include "util.h"
 #include "gpg-protocol.h"
+#include "util.h"
 
 #define PAM_LOG_ERR   LOG_AUTHPRIV | LOG_ERR
 #define PAM_LOG_WARN  LOG_AUTHPRIV | LOG_WARNING
