@@ -274,8 +274,6 @@ struct fingerprint_t *gpg_keyinfo(struct gpg_t *gpg)
 int gpg_preset_passphrase(struct gpg_t *gpg, const char *fingerprint, int timeout, const char *password)
 {
     static const char *hex_digits = "0123456789ABCDEF";
-    ssize_t nbytes_r;
-    int rc;
 
     if (!fingerprint)
         return -EINVAL;

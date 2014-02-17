@@ -341,9 +341,9 @@ static struct agent_node_t *get_agent_entry(struct agent_node_t **list, enum age
 
     node = malloc(sizeof(struct agent_node_t));
     *node = (struct agent_node_t){
-        .uid    = uid,
-        .next   = agents,
-        .d.type = type
+        .uid  = uid,
+        .next = agents,
+        .d    = (struct agent_data_t){ .type = type }
     };
 
     if (multiuser_mode && uid != 0)
