@@ -280,23 +280,19 @@ int gpg_preset_passphrase(struct gpg_t *gpg, const char *fingerprint, int timeou
     if (!fingerprint)
         return -EINVAL;
 
-    if (!password) {
-        nbytes_r = dprintf(gpg->fd, "PRESET_PASSPHRASE %s %d\n", fingerprint, timeout);
-    } else {
-        size_t i, size = strlen(password);
-        char bin_password[2 * size + 1];
+    if (!password)
+        return gpg_send_message(gpg, "PRESET_PASSPHRASE %s %d\n", fingerprint, timeout);
 
-        for(i = 0; i < size; i++) {
-            bin_password[2 * i] = hex_digits[password[i] >> 4];
-            bin_password[2 * i + 1] = hex_digits[password[i] & 0x0f];
-        }
+    size_t i, size = strlen(password);
+    char bin_password[2 * size + 1];
 
-        bin_password[2 * size] = '\0';
-        nbytes_r = dprintf(gpg->fd, "PRESET_PASSPHRASE %s %d %s\n", fingerprint, timeout, bin_password);
+    for(i = 0; i < size; i++) {
+        bin_password[2 * i] = hex_digits[password[i] >> 4];
+        bin_password[2 * i + 1] = hex_digits[password[i] & 0x0f];
     }
 
-    rc = gpg_check_return(gpg);
-    return rc == 0 ? nbytes_r : -EIO;
+    bin_password[2 * size] = '\0';
+    return gpg_send_message(gpg, "PRESET_PASSPHRASE %s %d %s\n", fingerprint, timeout, bin_password);
 }
 
 void free_fingerprints(struct fingerprint_t *fpt)
