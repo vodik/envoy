@@ -62,6 +62,11 @@ static union agent_environ_t {
     .env = { 0 }
 };
 
+static inline void get_envoy_monitor_scope(char **scope, uid_t uid)
+{
+    safe_asprintf(scope, "envoy-monitor-%d.scope", uid);
+}
+
 static void kill_agents(int signal)
 {
     while (agents) {
@@ -194,7 +199,7 @@ static void systemd_start_monitor(uid_t uid)
 
     if (multiuser_mode && uid != 0)
         safe_asprintf(&slice, "user-%d.slice", uid);
-    safe_asprintf(&scope, "envoy-monitor-%d.scope", uid);
+    get_envoy_monitor_scope(&scope, uid);
 
     /* bus is set to CLOEXEC, so we need to open it again */
     dbus_open(DBUS_AUTO, &bus);
@@ -281,7 +286,7 @@ static int run_agent(struct agent_data_t *data, uid_t uid, gid_t gid)
         goto cleanup;
     }
 
-    safe_asprintf(&scope, "envoy-monitor-%d.scope", uid);
+    get_envoy_monitor_scope(&scope, uid);
 
     if (get_unit_by_pid(bus, data->pid, &path) < 0) {
         fprintf(stderr, "Failed to find unit for %s: %s\n"
@@ -339,12 +344,12 @@ static int get_socket(void)
     return fd;
 }
 
-static struct agent_info_t *get_agent_entry(struct agent_info_t **list, uid_t uid)
+static struct agent_info_t *get_agent_entry(struct agent_info_t **list, enum agent type, uid_t uid)
 {
     struct agent_info_t *node;
 
     for (node = *list; node; node = node->next) {
-        if (node->uid == uid)
+        if (node->d.type == type && node->uid == uid)
             return node;
     }
 
@@ -400,12 +405,13 @@ static void accept_conn(void)
         return;
     }
 
-    struct agent_info_t *node = get_agent_entry(&agents, cred.uid);
+    enum agent agent = AGENT_DEFAULT ? default_type : req.type;
+    struct agent_info_t *node = get_agent_entry(&agents, agent, cred.uid);
 
     if (node->d.pid == 0 || !unit_running(&node->d)) {
         node->d = (struct agent_data_t){
             .pid  = 0,
-            .type = req.type == AGENT_DEFAULT ? default_type : req.type,
+            .type = agent
         };
 
         if (req.opts & AGENT_STATUS) {
