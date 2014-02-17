@@ -39,6 +39,7 @@
 
 struct agent_info_t {
     uid_t uid;
+    char *scope, *slice;
     struct agent_data_t d;
     struct agent_info_t *next;
 };
@@ -61,11 +62,6 @@ static union agent_environ_t {
 } agent_env = {
     .env = { 0 }
 };
-
-static inline void get_envoy_monitor_scope(char **scope, uid_t uid)
-{
-    safe_asprintf(scope, "envoy-monitor-%d.scope", uid);
-}
 
 static void kill_agents(int signal)
 {
@@ -192,18 +188,13 @@ static int parse_agentdata(int fd, struct agent_data_t *data)
     return 0;
 }
 
-static void systemd_start_monitor(uid_t uid)
+static void systemd_start_monitor(struct agent_info_t *agent)
 {
     dbus_message *m;
-    _cleanup_free_ char *scope, *slice = NULL;
-
-    if (multiuser_mode && uid != 0)
-        safe_asprintf(&slice, "user-%d.slice", uid);
-    get_envoy_monitor_scope(&scope, uid);
 
     /* bus is set to CLOEXEC, so we need to open it again */
     dbus_open(DBUS_AUTO, &bus);
-    scope_init(&m, scope, slice, "Envoy agent monitor", 0);
+    scope_init(&m, agent->scope, agent->slice, "Envoy agent monitor", 0);
     int rc = scope_commit(bus, m, NULL);
     if (rc < 0) {
         err(EXIT_FAILURE, "failed to start transient scope for agent: %s", bus->error);
@@ -214,8 +205,6 @@ static void systemd_start_monitor(uid_t uid)
 static _noreturn_ void exec_agent(const struct agent_t *agent, uid_t uid, gid_t gid)
 {
     struct passwd *pwd;
-
-    systemd_start_monitor(uid);
 
     if (setresgid(gid, gid, gid) < 0 || setresuid(uid, uid, uid) < 0)
         err(EXIT_FAILURE, "unable to drop to uid=%u gid=%u\n", uid, gid);
@@ -231,11 +220,12 @@ static _noreturn_ void exec_agent(const struct agent_t *agent, uid_t uid, gid_t 
     err(EXIT_FAILURE, "failed to start %s", agent->name);
 }
 
-static int run_agent(struct agent_data_t *data, uid_t uid, gid_t gid)
+static int run_agent(struct agent_info_t *info, uid_t uid, gid_t gid)
 {
+    struct agent_data_t *data = &info->d;
     const struct agent_t *agent = &Agent[data->type];
     int fd[2], stat = 0, rc = 0;
-    _cleanup_free_ char *scope, *path;
+    _cleanup_free_ char *path;
 
     data->status = ENVOY_STARTED;
     data->sock[0] = '\0';
@@ -258,6 +248,7 @@ static int run_agent(struct agent_data_t *data, uid_t uid, gid_t gid)
         close(fd[0]);
         close(fd[1]);
 
+        systemd_start_monitor(info);
         exec_agent(agent, uid, gid);
         break;
     default:
@@ -285,8 +276,6 @@ static int run_agent(struct agent_data_t *data, uid_t uid, gid_t gid)
         fprintf(stderr, "Failed to parse %s output", agent->name);
         goto cleanup;
     }
-
-    get_envoy_monitor_scope(&scope, uid);
 
     if (get_unit_by_pid(bus, data->pid, &path) < 0) {
         fprintf(stderr, "Failed to find unit for %s: %s\n"
@@ -355,9 +344,14 @@ static struct agent_info_t *get_agent_entry(struct agent_info_t **list, enum age
 
     node = malloc(sizeof(struct agent_info_t));
     *node = (struct agent_info_t){
-        .uid  = uid,
-        .next = agents,
+        .uid    = uid,
+        .next   = agents,
+        .d.type = type
     };
+
+    if (multiuser_mode && uid != 0)
+        safe_asprintf(&node->slice, "user-%d.slice", uid);
+    safe_asprintf(&node->scope, "envoy-%s-monitor-%d.scope", Agent[type].name, uid);
 
     *list = node;
     return node;
@@ -405,15 +399,10 @@ static void accept_conn(void)
         return;
     }
 
-    enum agent agent = AGENT_DEFAULT ? default_type : req.type;
+    enum agent agent = req.type == AGENT_DEFAULT ? default_type : req.type;
     struct agent_info_t *node = get_agent_entry(&agents, agent, cred.uid);
 
     if (node->d.pid == 0 || !unit_running(&node->d)) {
-        node->d = (struct agent_data_t){
-            .pid  = 0,
-            .type = agent
-        };
-
         if (req.opts & AGENT_STATUS) {
             send_message(cfd, ENVOY_STOPPED, true);
             return;
@@ -422,7 +411,7 @@ static void accept_conn(void)
         printf("Agent for uid=%u is has terminated. Restarting...\n", cred.uid);
         fflush(stdout);
 
-        run_agent(&node->d, cred.uid, cred.gid);
+        run_agent(node, cred.uid, cred.gid);
     }
 
     send_agent(cfd, &node->d, true);
