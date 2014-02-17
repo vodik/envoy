@@ -64,7 +64,7 @@ static int gpg_buffer_refill(struct gpg_t *gpg)
     main := ( 'OK' | 'ERR' >error ) [^\n]* newline %return;
 }%%
 
-%%write data;
+%%write data nofinal;
 
 static int gpg_check_return(struct gpg_t *gpg)
 {
@@ -235,7 +235,7 @@ int gpg_update_tty(struct gpg_t *gpg)
     main := ( entry | status )*;
 }%%
 
-%%write data;
+%%write data nofinal;
 
 struct fingerprint_t *gpg_keyinfo(struct gpg_t *gpg)
 {
