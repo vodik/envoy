@@ -19,8 +19,15 @@
 
 struct gpg_t;
 
+enum keyflags {
+    KEY_DISABLED   = 1,
+    KEY_SSHCONTROL = 1 << 1,
+    KEY_CONFIRM    = 1 << 2,
+};
+
 struct fingerprint_t {
     char *fingerprint;
+    enum keyflags flags;
     struct fingerprint_t *next;
 };
 

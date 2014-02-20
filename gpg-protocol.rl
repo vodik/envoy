@@ -186,8 +186,24 @@ int gpg_update_tty(struct gpg_t *gpg)
         fpt = malloc(sizeof(struct fingerprint_t));
         *fpt = (struct fingerprint_t){
             .fingerprint = strndup(keygrip, keylen),
+            .flags = keyflags,
             .next = next
         };
+        keyflags = 0;
+    }
+
+    action flag {
+        switch (fc) {
+        case 'D':
+            keyflags |= KEY_DISABLED;
+            break;
+        case 'S':
+            keyflags |= KEY_SSHCONTROL;
+            break;
+        case 'c':
+            keyflags |= KEY_CONFIRM;
+            break;
+        }
     }
 
     action error { fprintf(stderr, "%s: gpg protocol error: %s", program_invocation_short_name, fpc); }
@@ -227,7 +243,7 @@ int gpg_update_tty(struct gpg_t *gpg)
     #       'S' - The key is listed in sshcontrol (requires --with-ssh),
     #       'c' - Use of the key needs to be confirmed,
     #       '-' - No flags given.
-    flags = [DSc\-];
+    flags = [DSc\-]+ >flag;
 
     # KEYINFO <keygrip> <type> <serialno> <idstr> - - <fpr> <ttl> <flags>
     entry = 'S KEYINFO' space keygrip space type  space serialno space idstr space
@@ -241,10 +257,11 @@ int gpg_update_tty(struct gpg_t *gpg)
 
 struct fingerprint_t *gpg_keyinfo(struct gpg_t *gpg)
 {
-    static const char message[] = "KEYINFO --list\n";
+    static const char message[] = "KEYINFO --list --with-ssh\n";
     struct fingerprint_t *fpt = NULL;
     char keygrip[40];
     size_t keylen = 0;
+    enum keyflags keyflags = 0;
 
     ssize_t nbytes_w = write(gpg->fd, message, sizeof(message) - 1);
     if (nbytes_w < 0)
