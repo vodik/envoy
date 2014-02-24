@@ -13,7 +13,7 @@ CFLAGS := -std=c11 \
 	-I/usr/include/dbus-1.0 -I/usr/lib/dbus-1.0/include \
 	${CFLAGS}
 
-LDLIBS = -lsystemd-daemon -ldbus-1
+LDLIBS = -lsystemd -ldbus-1
 
 all: envoyd envoy envoy-exec pam_envoy.so
 
