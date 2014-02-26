@@ -117,10 +117,8 @@ struct gpg_t *gpg_agent_connection(const char *sock)
     socklen_t sa_len;
 
     int fd = socket(AF_UNIX, SOCK_STREAM, 0);
-    if (fd < 0) {
-        warn("couldn't create socket");
+    if (fd < 0)
         return NULL;
-    }
 
     len = strlen(sock);
     split = memchr(sock, ':', len);
@@ -131,16 +129,13 @@ struct gpg_t *gpg_agent_connection(const char *sock)
     memcpy(&sa.un.sun_path, sock, len);
 
     sa_len = len + sizeof(sa.un.sun_family);
-    if (connect(fd, &sa.sa, sa_len) < 0) {
-        warn("failed to connect to gpg-agent");
+    if (connect(fd, &sa.sa, sa_len) < 0)
         return NULL;
-    }
 
     struct gpg_t *gpg = malloc(sizeof(struct gpg_t));
     *gpg = (struct gpg_t) { .fd = fd };
 
     if (gpg_check_return(gpg) < 0) {
-        warnx("incorrect response from gpg-agent");
         gpg_close(gpg);
         return NULL;
     }

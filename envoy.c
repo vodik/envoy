@@ -163,7 +163,10 @@ static void source_env(struct agent_data_t *data)
 {
     if (data->type == AGENT_GPG_AGENT) {
         _cleanup_gpg_ struct gpg_t *agent = gpg_agent_connection(data->gpg);
-        gpg_update_tty(agent);
+        if (!agent)
+            warn("failed to connect to GPG_AUTH_SOCK");
+        else
+            gpg_update_tty(agent);
     }
 
     setenv("SSH_AUTH_SOCK", data->sock, true);
@@ -173,7 +176,7 @@ static int unlock(const struct agent_data_t *data, char *password)
 {
     _cleanup_gpg_ struct gpg_t *agent = gpg_agent_connection(data->gpg);
     if (!agent)
-        err(EXIT_FAILURE, "failed to open connection to gpg-agent");
+        err(EXIT_FAILURE, "failed to connect to GPG_AUTH_SOCK");
 
     if (!password)
         read_password(&password);
