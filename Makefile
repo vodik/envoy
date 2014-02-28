@@ -5,15 +5,28 @@ ifneq "$(GIT_DESC)" ""
 VERSION=$(GIT_DESC)
 endif
 
-CFLAGS := -std=c11 \
+base_CFLAGS = -std=c11 \
 	-Wall -Wextra -pedantic \
 	-Wshadow -Wpointer-arith -Wcast-qual -Wstrict-prototypes -Wmissing-prototypes \
 	-D_GNU_SOURCE \
-	-DENVOY_VERSION=\"${VERSION}\" \
-	-I/usr/include/dbus-1.0 -I/usr/lib/dbus-1.0/include \
+	-DENVOY_VERSION=\"${VERSION}\"
+
+libsystemd_CFLAGS = $(shell pkg-config --cflags libsystemd-daemon)
+libsystemd_LDLIBS = $(shell pkg-config --libs libsystemd-daemon)
+
+dbus_CFLAGS = $(shell pkg-config --cflags dbus-1)
+dbus_LDLIBS = $(shell pkg-config --libs dbus-1)
+
+CFLAGS := \
+	${base_CFLAGS} \
+	${libsystemd_CFLAGS} \
+	${dbus_CFLAGS} \
 	${CFLAGS}
 
-LDLIBS = -lsystemd -ldbus-1
+LDLIBS := \
+	${libsystemd_LDLIBS} \
+	${dbus_LDLIBS} \
+	${LDLIBS}
 
 all: envoyd envoy envoy-exec pam_envoy.so
 
