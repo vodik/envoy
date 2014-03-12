@@ -137,29 +137,22 @@ static void init_agent_environ(void)
 
 static void parse_agentdata_line(char *val, struct agent_data_t *data)
 {
-    char *eol, *var;
+    val[strcspn(val, ";")] = 0;
+    size_t sep = strcspn(val, "=");
 
-    eol = strchr(val, ';');
-    if (eol)
-        *eol = '\0';
-
-    var = strsep(&val, "=");
-    if (!var)
-        return;
-
-    if (streq(var, "SSH_AUTH_SOCK"))
-        strcpy(data->sock, val);
-    else if (streq(var, "SSH_AGENT_PID"))
-        data->pid = atoi(val);
-    else if (streq(var, "GPG_AGENT_INFO"))
-        strcpy(data->gpg, val);
+    if (strneq(val, "SSH_AUTH_SOCK", sep))
+        strcpy(data->sock, &val[sep + 1]);
+    else if (strneq(val, "SSH_AGENT_PID", sep))
+        data->pid = atoi(&val[sep + 1]);
+    else if (strneq(val, "GPG_AGENT_INFO", sep))
+        strcpy(data->gpg, &val[sep + 1]);
 }
 
 static int parse_agentdata(int fd, struct agent_data_t *data)
 {
     char b[BUFSIZ];
-    char *l, *nl;
     ssize_t bytes_r;
+    char *l;
 
     bytes_r = read(fd, b, sizeof(b));
     if (bytes_r <= 0)
@@ -169,14 +162,11 @@ static int parse_agentdata(int fd, struct agent_data_t *data)
     l = &b[0];
 
     while (l < &b[bytes_r]) {
-        nl = strchr(l, '\n');
-        if (!nl)
-            break;
+        size_t nl = strcspn(l, "\n");
 
-        *nl = '\0';
+        l[nl] = 0;
         parse_agentdata_line(l, data);
-
-        l = nl + 1;
+        l += nl + 1;
     }
 
     if (data->pid == 0 && data->gpg) {
@@ -270,7 +260,7 @@ static int run_agent(struct agent_node_t *node, uid_t uid, gid_t gid)
 
     rc  = parse_agentdata(fd[0], data);
     if (rc < 0) {
-        fprintf(stderr, "Failed to parse %s output", agent->name);
+        fprintf(stderr, "Failed to parse %s output\n", agent->name);
         goto cleanup;
     }
 
