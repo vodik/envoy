@@ -109,7 +109,6 @@ static bool unit_running(struct agent_data_t *data)
         running = false;
     }
 
-    printf("RUNNING: %s\n", running ? "true" : "false");
     return running;
 }
 
