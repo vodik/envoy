@@ -19,9 +19,6 @@
 
 struct gpg_t;
 
-#define _cleanup_gpg_ __attribute__((cleanup(gpg_closep)))
-static inline void gpg_closep(struct gpg_t **p) { if (*p) gpg_close(*p); }
-
 enum keyflags {
     KEY_DISABLED   = 1,
     KEY_SSHCONTROL = 1 << 1,
@@ -42,5 +39,8 @@ int gpg_preset_passphrase(struct gpg_t *gpg, const char *fingerprint, int timeou
 struct fingerprint_t *gpg_keyinfo(struct gpg_t *gpg);
 
 void free_fingerprints(struct fingerprint_t *frpt);
+
+#define _cleanup_gpg_ __attribute__((cleanup(gpg_closep)))
+static inline void gpg_closep(struct gpg_t **p) { if (*p) gpg_close(*p); }
 
 // vim: et:sts=4:sw=4:cino=(0
