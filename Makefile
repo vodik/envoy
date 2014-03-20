@@ -32,9 +32,7 @@ LIBDIR ?= lib
 
 all: envoyd envoy envoy-exec pam_envoy.so
 
-envoyd: envoyd.o agents.o socket.o util.o \
-	clique/systemd-scope.o clique/systemd-unit.o \
-	clique/dbus/dbus-shim.o clique/dbus/dbus-util.o
+envoyd: envoyd.o agents.o socket.o dbus.o util.o
 envoy: envoy.o agents.o socket.o gpg-protocol.o util.o
 envoy-exec: envoy-exec.o agents.o socket.o gpg-protocol.o util.o
 
