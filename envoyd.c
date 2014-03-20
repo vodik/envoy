@@ -464,11 +464,11 @@ int main(int argc, char *argv[])
         }
     }
 
-    multiuser_mode = server_uid == 0;
-    server_sock = get_socket();
     server_uid = geteuid();
+    multiuser_mode = server_uid == 0;
 
-    bus = get_connection(DBUS_BUS_SESSION);
+    server_sock = get_socket();
+    bus = get_connection(multiuser_mode ? DBUS_BUS_SYSTEM : DBUS_BUS_SESSION);
     init_agent_environ();
 
     sigaction(SIGTERM, &sa, NULL);
