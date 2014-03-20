@@ -112,7 +112,7 @@ static void set_pids(DBusMessageIter *props)
                       in  a(sa(sv)) aux,
                       out o job); */
 int start_transient_unit(DBusConnection *conn, const char *name,
-                         const char *desc, char **ret)
+                         const char *slice, const char *desc, char **ret)
 {
     static const char *mode = "fail";
 
@@ -132,6 +132,8 @@ int start_transient_unit(DBusConnection *conn, const char *name,
 
     dbus_message_iter_open_container(&args, 'a', "(sv)", &props);
     set_property(&props, "Description", 's', desc);
+    if (slice)
+        set_property(&props, "Slice", 's', slice);
     set_pids(&props);
     dbus_message_iter_close_container(&args, &props);
 

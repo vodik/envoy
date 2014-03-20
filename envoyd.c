@@ -38,7 +38,7 @@
 
 struct agent_node_t {
     uid_t uid;
-    char *scope;
+    char *scope, *slice;
     struct agent_data_t d;
     struct agent_node_t *next;
 };
@@ -222,7 +222,7 @@ static int run_agent(struct agent_node_t *node, uid_t uid, gid_t gid)
         close(fd[0]);
         close(fd[1]);
 
-        start_transient_unit(bus, node->scope, "Envoy agent monitor", NULL);
+        start_transient_unit(bus, node->scope, node->slice, "Envoy agent monitoring scope", NULL);
         exec_agent(agent, uid, gid);
         break;
     default:
@@ -323,6 +323,8 @@ static struct agent_node_t *get_agent_entry(struct agent_node_t **list, enum age
         .d    = (struct agent_data_t){ .type = type }
     };
 
+    if (sd_activated)
+        node->slice = multiuser_mode ? "system-envoy.slice" : "envoy.slice";
     safe_asprintf(&node->scope, "envoy-%s-monitor-%d.scope", Agent[type].name, uid);
 
     *list = node;
