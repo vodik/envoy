@@ -38,7 +38,7 @@
 
 struct agent_node_t {
     uid_t uid;
-    char *scope, *slice;
+    char *scope;
     struct agent_data_t d;
     struct agent_node_t *next;
 };
@@ -182,7 +182,7 @@ static inline void systemd_start_monitor(struct agent_node_t *node)
 
     /* dbus' socket is set to CLOEXEC, so we need to open it again */
     DBusConnection *conn = get_connection(DBUS_BUS_SESSION);
-    start_transient_unit(conn, node->scope, node->slice, "Envoy agent monitor", &foo);
+    start_transient_unit(conn, node->scope, "Envoy agent monitor", &foo);
     /* dbus_connection_close(conn); */
 }
 
@@ -333,8 +333,6 @@ static struct agent_node_t *get_agent_entry(struct agent_node_t **list, enum age
         .d    = (struct agent_data_t){ .type = type }
     };
 
-    if (multiuser_mode && uid != 0)
-        safe_asprintf(&node->slice, "user-%d.slice", uid);
     safe_asprintf(&node->scope, "envoy-%s-monitor-%d.scope", Agent[type].name, uid);
 
     *list = node;
