@@ -20,7 +20,7 @@ static inline void dbus_msg_unref(DBusMessage **msg)
 
 #define _cleanup_dbus_msg_  _cleanup_(dbus_msg_unref)
 
-static inline void dbus_err(int eval, DBusError *err, const char *fmt, ...)
+static inline void _noreturn_ _printf_(3,4) dbus_err(int eval, DBusError *err, const char *fmt, ...)
 {
     fprintf(stderr, "%s: ", program_invocation_short_name);
 
@@ -69,8 +69,6 @@ static int dbus_reply_object_path(DBusMessage *reply, char **ret)
         return 0;
     default:
         warnx("message is of the wrong type");
-        if (ret)
-            *ret = NULL;
         return -1;
     }
 }
@@ -212,10 +210,6 @@ static int query_property(DBusConnection *conn, const char *path, const char *in
 int get_unit_state(DBusConnection *conn, const char *path, char **ret)
 {
     char *tmp;
-
-    if (ret)
-        *ret = NULL;
-
     if (query_property(conn, path, "org.freedesktop.systemd1.Unit",
                        "SubState", 's', &tmp) < 0)
         return -EINVAL;
