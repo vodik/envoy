@@ -62,14 +62,15 @@ static int dbus_reply_object_path(DBusMessage *reply, char **ret)
 
     switch (dbus_message_iter_get_arg_type(&args)) {
     case 'o':
-        if (*ret) {
+        if (ret) {
             dbus_message_iter_get_basic(&args, ret);
             *ret = strdup(*ret);
         }
         return 0;
     default:
         warnx("message is of the wrong type");
-        *ret = NULL;
+        if (ret)
+            *ret = NULL;
         return -1;
     }
 }
@@ -204,20 +205,22 @@ static int query_property(DBusConnection *conn, const char *path, const char *in
         return -EINVAL;
     }
 
-    dbus_message_iter_get_basic(&args, ret);
+    dbus_message_iter_get_basic(&var, ret);
     return 0;
 }
 
 int get_unit_state(DBusConnection *conn, const char *path, char **ret)
 {
-    _cleanup_free_ char *tmp;
+    char *tmp;
 
-    *ret = NULL;
+    if (ret)
+        *ret = NULL;
+
     if (query_property(conn, path, "org.freedesktop.systemd1.Unit",
                        "SubState", 's', &tmp) < 0)
         return -EINVAL;
 
-    if (*ret)
+    if (ret)
         *ret = strdup(tmp);
     return 0;
 }

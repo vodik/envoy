@@ -99,7 +99,7 @@ static bool unit_running(struct agent_data_t *data)
     bool running = true;
 
     if (data->unit_path[0]) {
-        char *state;
+        _cleanup_free_ char *state;
         get_unit_state(bus, data->unit_path, &state);
         running = streq(state, "running");
     } else if (kill(data->pid, 0) < 0) {
@@ -178,12 +178,9 @@ static int parse_agentdata(int fd, struct agent_data_t *data)
 
 static inline void systemd_start_monitor(struct agent_node_t *node)
 {
-    char *foo;
-
     /* dbus' socket is set to CLOEXEC, so we need to open it again */
-    DBusConnection *conn = get_connection(DBUS_BUS_SESSION);
-    start_transient_unit(conn, node->scope, "Envoy agent monitor", &foo);
-    /* dbus_connection_close(conn); */
+    DBusConnection *conn = get_connection(DBUS_BUS_SYSTEM);
+    start_transient_unit(conn, node->scope, "Envoy agent monitor", NULL);
 }
 
 static _noreturn_ void exec_agent(const struct agent_t *agent, uid_t uid, gid_t gid)
@@ -209,7 +206,7 @@ static int run_agent(struct agent_node_t *node, uid_t uid, gid_t gid)
     struct agent_data_t *data = &node->d;
     const struct agent_t *agent = &Agent[data->type];
     int fd[2], stat = 0, rc = 0;
-    char *path;
+    _cleanup_free_ char *path;
 
     data->status = ENVOY_STARTED;
     data->sock[0] = '\0';
@@ -478,7 +475,7 @@ int main(int argc, char *argv[])
     server_sock = get_socket();
     server_uid = geteuid();
 
-    bus = get_connection(DBUS_BUS_SESSION);
+    bus = get_connection(multiuser_mode ? DBUS_BUS_SYSTEM : DBUS_BUS_SESSION);
     init_agent_environ();
 
     sigaction(SIGTERM, &sa, NULL);
