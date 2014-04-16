@@ -29,6 +29,7 @@
 #include <sys/wait.h>
 #include <sys/socket.h>
 #include <sys/un.h>
+#include <sys/signalfd.h>
 #include <systemd/sd-daemon.h>
 
 #include "agents.h"
@@ -82,16 +83,6 @@ static void cleanup(void)
     }
 
     kill_agents(SIGTERM);
-}
-
-static void sighandler(int signum)
-{
-    switch (signum) {
-    case SIGINT:
-    case SIGTERM:
-        cleanup();
-        exit(EXIT_SUCCESS);
-    }
 }
 
 static bool unit_running(struct agent_data_t *data)
@@ -397,14 +388,49 @@ static void accept_conn(void)
         node->d.status = ENVOY_RUNNING;
 }
 
+static void handle_sig(int sfd)
+{
+    struct signalfd_siginfo si;
+    ssize_t nbytes_r = read(sfd, &si, sizeof(si));
+
+    if (nbytes_r < 0) {
+        err(EXIT_FAILURE, "failed to read signal");
+    } else if (nbytes_r != sizeof(si)) {
+        errx(EXIT_FAILURE, "failed to read a full signal");
+    }
+
+    switch (si.ssi_signo) {
+    case SIGINT:
+    case SIGTERM:
+        cleanup();
+        exit(EXIT_SUCCESS);
+    }
+}
+
 static int loop(void)
 {
+    int sfd;
+    sigset_t mask;
+
+    sigemptyset(&mask);
+    sigaddset(&mask, SIGTERM);
+    sigaddset(&mask, SIGINT);
+
+    if (sigprocmask(SIG_BLOCK, &mask, NULL) < 0)
+        err(EXIT_FAILURE, "sigprocmask failed");
+
+    sfd = signalfd(-1, &mask, SFD_CLOEXEC);
+    if (sfd < 0)
+        err(EXIT_FAILURE, "failed to create signalfd");
+
     while (true) {
         struct pollfd fds[] = {
-            { .fd = server_sock, .events = POLLIN }
+            { .fd = server_sock, .events = POLLIN },
+            { .fd = sfd,         .events = POLLIN }
         };
 
-        int ret = poll(fds, sizeof(fds) / sizeof(fds[0]), -1);
+        const size_t fd_count = sizeof(fds) / sizeof(fds[0]);
+        int ret = poll(fds, fd_count, -1);
 
         if (ret == 0) {
             continue;
@@ -418,6 +444,8 @@ static int loop(void)
             close(fds[0].fd);
         else if (fds[0].revents & POLLIN)
             accept_conn();
+        else if (fds[1].revents & POLLIN)
+            handle_sig(sfd);
     }
 
     return 0;
@@ -436,7 +464,6 @@ static _noreturn_ void usage(FILE *out)
 
 int main(int argc, char *argv[])
 {
-    static struct sigaction sa = { .sa_handler = sighandler };
     static const struct option opts[] = {
         { "help",    no_argument,       0, 'h' },
         { "version", no_argument,       0, 'v' },
@@ -472,9 +499,6 @@ int main(int argc, char *argv[])
     server_sock = get_socket();
     bus = get_connection(multiuser_mode ? DBUS_BUS_SYSTEM : DBUS_BUS_SESSION);
     init_agent_environ();
-
-    sigaction(SIGTERM, &sa, NULL);
-    sigaction(SIGINT, &sa, NULL);
 
     return loop();
 }
