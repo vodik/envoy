@@ -180,31 +180,6 @@ static _noreturn_ void exec_agent(const struct agent_t *agent, uid_t uid, gid_t 
     err(EXIT_FAILURE, "failed to start %s", agent->name);
 }
 
-static int unblock_signals(void)
-{
-    sigset_t mask;
-    sigfillset(&mask);
-    return sigprocmask(SIG_UNBLOCK, &mask, NULL);
-}
-
-static int get_signalfd(int signum, ...)
-{
-    va_list ap;
-    sigset_t mask;
-
-    sigemptyset(&mask);
-    sigaddset(&mask, signum);
-
-    va_start(ap, signum);
-    while ((signum = va_arg(ap, int)))
-        sigaddset(&mask, signum);
-    va_end(ap);
-
-    if (sigprocmask(SIG_BLOCK, &mask, NULL) < 0)
-        return -1;
-    return signalfd(-1, &mask, SFD_CLOEXEC);
-}
-
 static int run_agent(struct agent_node_t *node, uid_t uid, gid_t gid)
 {
     struct agent_data_t *data = &node->d;

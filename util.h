@@ -35,6 +35,10 @@ static inline bool strneq(const char *s1, const char *s2, size_t n) { return str
 
 char *joinpath(const char *root, ...);
 void safe_asprintf(char **strp, const char *fmt, ...) _printf_(2, 3);
+
+int unblock_signals(void);
+int get_signalfd(int signum, ...);
+
 const char *get_home_dir(void);
 
 // vim: et:sts=4:sw=4:cino=(0
