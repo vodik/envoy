@@ -191,7 +191,9 @@ static int get_signalfd(int signum, ...)
 {
     va_list ap;
     sigset_t mask;
+
     sigemptyset(&mask);
+    sigaddset(&mask, signum);
 
     va_start(ap, signum);
     while ((signum = va_arg(ap, int)))
