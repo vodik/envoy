@@ -387,13 +387,6 @@ static void accept_conn(int fd)
         node->d.status = ENVOY_RUNNING;
 }
 
-static inline void read_signal(int fd, struct signalfd_siginfo *si)
-{
-    ssize_t nbytes_r = read(fd, si, sizeof(*si));
-    if (nbytes_r < 0)
-        err(EXIT_FAILURE, "failed to read signal");
-}
-
 static int loop(int server_sock)
 {
     int sfd;
@@ -434,7 +427,9 @@ static int loop(int server_sock)
             accept_conn(server_sock);
         else if (fds[1].revents & POLLIN) {
             struct signalfd_siginfo si;
-            read_signal(sfd, &si);
+            ssize_t nbytes_r = read(sfd, &si, sizeof(si));
+            if (nbytes_r < 0)
+                err(EXIT_FAILURE, "failed to read signal");
 
             switch (si.ssi_signo) {
             case SIGINT:
