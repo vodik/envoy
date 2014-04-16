@@ -65,18 +65,18 @@ static union agent_environ_t {
 
 static void cleanup(int fd)
 {
+    struct agent_node_t *node;
+
     if (!sd_activated) {
         close(fd);
         unlink_envoy_socket();
     }
 
-    while (agents) {
-        if (agents->d.unit_path[0])
-            stop_unit(bus, agents->d.unit_path, NULL);
+    for (node = agents; node; node = node->next) {
+        if (node->d.unit_path[0])
+            stop_unit(bus, node->d.unit_path, NULL);
         else
-            kill(agents->d.pid, SIGTERM);
-
-        agents = agents->next;
+            kill(node->d.pid, SIGTERM);
     }
 }
 
