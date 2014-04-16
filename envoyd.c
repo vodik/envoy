@@ -387,15 +387,11 @@ static void accept_conn(int fd)
         node->d.status = ENVOY_RUNNING;
 }
 
-static void read_signal(int fd, struct signalfd_siginfo *si)
+static inline void read_signal(int fd, struct signalfd_siginfo *si)
 {
     ssize_t nbytes_r = read(fd, si, sizeof(*si));
-
-    if (nbytes_r < 0) {
+    if (nbytes_r < 0)
         err(EXIT_FAILURE, "failed to read signal");
-    } else if (nbytes_r != sizeof(si)) {
-        errx(EXIT_FAILURE, "failed to read a full signal");
-    }
 }
 
 static int loop(int server_sock)
@@ -406,6 +402,7 @@ static int loop(int server_sock)
     sigemptyset(&mask);
     sigaddset(&mask, SIGTERM);
     sigaddset(&mask, SIGINT);
+    sigaddset(&mask, SIGQUIT);
 
     if (sigprocmask(SIG_BLOCK, &mask, NULL) < 0)
         err(EXIT_FAILURE, "sigprocmask failed");
@@ -440,10 +437,11 @@ static int loop(int server_sock)
             read_signal(sfd, &si);
 
             switch (si.ssi_signo) {
-                case SIGINT:
-                case SIGTERM:
-                    cleanup(server_sock);
-                    exit(EXIT_SUCCESS);
+            case SIGINT:
+            case SIGTERM:
+            case SIGQUIT:
+                cleanup(server_sock);
+                exit(EXIT_SUCCESS);
             }
         }
     }
