@@ -20,6 +20,7 @@
 #include <stdbool.h>
 #include <string.h>
 #include <getopt.h>
+#include <fcntl.h>
 #include <unistd.h>
 #include <errno.h>
 #include <err.h>
@@ -217,7 +218,7 @@ static int run_agent(struct agent_node_t *node, uid_t uid, gid_t gid)
     printf("Starting %s for uid=%u gid=%u.\n", agent->name, uid, gid);
     fflush(stdout);
 
-    if (pipe(fd) < 0)
+    if (pipe2(fd, O_CLOEXEC) < 0)
         err(EXIT_FAILURE, "failed to create pipe");
 
     pid_t pid = fork();
@@ -227,8 +228,6 @@ static int run_agent(struct agent_node_t *node, uid_t uid, gid_t gid)
         break;
     case 0:
         dup2(fd[1], STDOUT_FILENO);
-        close(fd[0]);
-        close(fd[1]);
 
         unblock_signals();
         start_transient_unit(bus, node->scope, node->slice, "Envoy agent monitoring scope", NULL);
@@ -269,10 +268,10 @@ static int run_agent(struct agent_node_t *node, uid_t uid, gid_t gid)
         strcpy(data->unit_path, path);
     }
 
+cleanup:
     close(fd[0]);
     close(fd[1]);
 
-cleanup:
     if (rc < 0) {
         data->pid = 0;
         data->status = ENVOY_FAILED;
