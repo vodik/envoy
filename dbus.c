@@ -20,7 +20,7 @@ static inline void dbus_msg_unref(DBusMessage **msg)
 
 #define _cleanup_dbus_msg_  _cleanup_(dbus_msg_unref)
 
-static inline void _noreturn_ _printf_(3,4) dbus_err(int eval, DBusError *err, const char *fmt, ...)
+static void _noreturn_ _printf_(3,4) dbus_err(int eval, DBusError *err, const char *fmt, ...)
 {
     fprintf(stderr, "%s: ", program_invocation_short_name);
 

@@ -469,9 +469,9 @@ int main(int argc, char *argv[])
     server_uid = geteuid();
     multiuser_mode = server_uid == 0;
 
+    init_agent_environ();
     server_sock = get_socket();
     bus = get_connection(multiuser_mode ? DBUS_BUS_SYSTEM : DBUS_BUS_SESSION);
-    init_agent_environ();
 
     sigaction(SIGTERM, &sa, NULL);
     sigaction(SIGINT, &sa, NULL);

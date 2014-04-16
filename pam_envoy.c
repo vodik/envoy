@@ -97,9 +97,8 @@ static int pam_get_agent(struct agent_data_t *data, enum agent id, uid_t uid, gi
         syslog(PAM_LOG_ERR, "connection rejected, user is unauthorized to use this agent");
     }
 
-    if (dropped) {
+    if (dropped)
         set_privileges(false, &uid, &gid);
-    }
 
     return ret;
 }
