@@ -179,6 +179,29 @@ static _noreturn_ void exec_agent(const struct agent_t *agent, uid_t uid, gid_t 
     err(EXIT_FAILURE, "failed to start %s", agent->name);
 }
 
+static int unblock_signals(void)
+{
+    sigset_t mask;
+    sigfillset(&mask);
+    return sigprocmask(SIG_UNBLOCK, &mask, NULL);
+}
+
+static int get_signalfd(int signum, ...)
+{
+    va_list ap;
+    sigset_t mask;
+    sigemptyset(&mask);
+
+    va_start(ap, signum);
+    while ((signum = va_arg(ap, int)))
+        sigaddset(&mask, signum);
+    va_end(ap);
+
+    if (sigprocmask(SIG_BLOCK, &mask, NULL) < 0)
+        return -1;
+    return signalfd(-1, &mask, SFD_CLOEXEC);
+}
+
 static int run_agent(struct agent_node_t *node, uid_t uid, gid_t gid)
 {
     struct agent_data_t *data = &node->d;
@@ -207,6 +230,7 @@ static int run_agent(struct agent_node_t *node, uid_t uid, gid_t gid)
         close(fd[0]);
         close(fd[1]);
 
+        unblock_signals();
         start_transient_unit(bus, node->scope, node->slice, "Envoy agent monitoring scope", NULL);
         exec_agent(agent, uid, gid);
         break;
@@ -384,18 +408,7 @@ static void accept_conn(int fd)
 
 static int loop(int server_sock)
 {
-    int sfd;
-    sigset_t mask;
-
-    sigemptyset(&mask);
-    sigaddset(&mask, SIGTERM);
-    sigaddset(&mask, SIGINT);
-    sigaddset(&mask, SIGQUIT);
-
-    if (sigprocmask(SIG_BLOCK, &mask, NULL) < 0)
-        err(EXIT_FAILURE, "sigprocmask failed");
-
-    sfd = signalfd(-1, &mask, SFD_CLOEXEC);
+    int sfd = get_signalfd(SIGTERM, SIGINT, SIGQUIT, 0);
     if (sfd < 0)
         err(EXIT_FAILURE, "failed to create signalfd");
 
