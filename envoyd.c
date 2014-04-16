@@ -29,6 +29,7 @@
 #include <sys/wait.h>
 #include <sys/socket.h>
 #include <sys/un.h>
+#include <sys/signalfd.h>
 #include <systemd/sd-daemon.h>
 
 #include "agents.h"
@@ -48,7 +49,6 @@ static enum agent default_type = AGENT_SSH_AGENT;
 static struct agent_node_t *agents = NULL;
 static bool sd_activated = false;
 static bool multiuser_mode;
-static int server_sock;
 static uid_t server_uid;
 
 static union agent_environ_t {
@@ -74,24 +74,14 @@ static void kill_agents(int signal)
     }
 }
 
-static void cleanup(void)
+static void cleanup(int fd)
 {
     if (!sd_activated) {
-        close(server_sock);
+        close(fd);
         unlink_envoy_socket();
     }
 
     kill_agents(SIGTERM);
-}
-
-static void sighandler(int signum)
-{
-    switch (signum) {
-    case SIGINT:
-    case SIGTERM:
-        cleanup();
-        exit(EXIT_SUCCESS);
-    }
 }
 
 static bool unit_running(struct agent_data_t *data)
@@ -345,7 +335,7 @@ static void send_message(int fd, enum status status, bool close_sock)
     send_agent(fd, &d, close_sock);
 }
 
-static void accept_conn(void)
+static void accept_conn(int fd)
 {
     struct ucred cred;
     union {
@@ -356,7 +346,7 @@ static void accept_conn(void)
     static socklen_t sa_len = sizeof(struct sockaddr_un);
     static socklen_t cred_len = sizeof(struct ucred);
 
-    int cfd = accept4(server_sock, &sa.sa, &sa_len, SOCK_CLOEXEC);
+    int cfd = accept4(fd, &sa.sa, &sa_len, SOCK_CLOEXEC);
     if (cfd < 0)
         err(EXIT_FAILURE, "failed to accept connection");
 
@@ -397,14 +387,41 @@ static void accept_conn(void)
         node->d.status = ENVOY_RUNNING;
 }
 
-static int loop(void)
+static void read_signal(int fd, struct signalfd_siginfo *si)
 {
+    ssize_t nbytes_r = read(fd, si, sizeof(*si));
+
+    if (nbytes_r < 0) {
+        err(EXIT_FAILURE, "failed to read signal");
+    } else if (nbytes_r != sizeof(si)) {
+        errx(EXIT_FAILURE, "failed to read a full signal");
+    }
+}
+
+static int loop(int server_sock)
+{
+    int sfd;
+    sigset_t mask;
+
+    sigemptyset(&mask);
+    sigaddset(&mask, SIGTERM);
+    sigaddset(&mask, SIGINT);
+
+    if (sigprocmask(SIG_BLOCK, &mask, NULL) < 0)
+        err(EXIT_FAILURE, "sigprocmask failed");
+
+    sfd = signalfd(-1, &mask, SFD_CLOEXEC);
+    if (sfd < 0)
+        err(EXIT_FAILURE, "failed to create signalfd");
+
     while (true) {
         struct pollfd fds[] = {
-            { .fd = server_sock, .events = POLLIN }
+            { .fd = server_sock, .events = POLLIN },
+            { .fd = sfd,         .events = POLLIN }
         };
 
-        int ret = poll(fds, sizeof(fds) / sizeof(fds[0]), -1);
+        const size_t fd_count = sizeof(fds) / sizeof(fds[0]);
+        int ret = poll(fds, fd_count, -1);
 
         if (ret == 0) {
             continue;
@@ -417,7 +434,18 @@ static int loop(void)
         if (fds[0].revents & POLLHUP)
             close(fds[0].fd);
         else if (fds[0].revents & POLLIN)
-            accept_conn();
+            accept_conn(server_sock);
+        else if (fds[1].revents & POLLIN) {
+            struct signalfd_siginfo si;
+            read_signal(sfd, &si);
+
+            switch (si.ssi_signo) {
+                case SIGINT:
+                case SIGTERM:
+                    cleanup(server_sock);
+                    exit(EXIT_SUCCESS);
+            }
+        }
     }
 
     return 0;
@@ -436,7 +464,8 @@ static _noreturn_ void usage(FILE *out)
 
 int main(int argc, char *argv[])
 {
-    static struct sigaction sa = { .sa_handler = sighandler };
+    int server_sock;
+
     static const struct option opts[] = {
         { "help",    no_argument,       0, 'h' },
         { "version", no_argument,       0, 'v' },
@@ -473,10 +502,7 @@ int main(int argc, char *argv[])
     server_sock = get_socket();
     bus = get_connection(multiuser_mode ? DBUS_BUS_SYSTEM : DBUS_BUS_SESSION);
 
-    sigaction(SIGTERM, &sa, NULL);
-    sigaction(SIGINT, &sa, NULL);
-
-    return loop();
+    return loop(server_sock);
 }
 
 // vim: et:sts=4:sw=4:cino=(0
