@@ -62,18 +62,6 @@ static union agent_environ_t {
     .env = { 0 }
 };
 
-static void kill_agents(int signal)
-{
-    while (agents) {
-        if (agents->d.unit_path[0])
-            stop_unit(bus, agents->d.unit_path, NULL);
-        else
-            kill(agents->d.pid, signal);
-
-        agents = agents->next;
-    }
-}
-
 static void cleanup(int fd)
 {
     if (!sd_activated) {
@@ -81,7 +69,14 @@ static void cleanup(int fd)
         unlink_envoy_socket();
     }
 
-    kill_agents(SIGTERM);
+    while (agents) {
+        if (agents->d.unit_path[0])
+            stop_unit(bus, agents->d.unit_path, NULL);
+        else
+            kill(agents->d.pid, SIGTERM);
+
+        agents = agents->next;
+    }
 }
 
 static bool unit_running(struct agent_data_t *data)
