@@ -49,7 +49,6 @@ static enum agent default_type = AGENT_SSH_AGENT;
 static struct agent_node_t *agents = NULL;
 static bool sd_activated = false;
 static bool multiuser_mode;
-static int server_sock;
 static uid_t server_uid;
 
 static union agent_environ_t {
@@ -75,10 +74,10 @@ static void kill_agents(int signal)
     }
 }
 
-static void cleanup(void)
+static void cleanup(int fd)
 {
     if (!sd_activated) {
-        close(server_sock);
+        close(fd);
         unlink_envoy_socket();
     }
 
@@ -336,7 +335,7 @@ static void send_message(int fd, enum status status, bool close_sock)
     send_agent(fd, &d, close_sock);
 }
 
-static void accept_conn(void)
+static void accept_conn(int fd)
 {
     struct ucred cred;
     union {
@@ -347,7 +346,7 @@ static void accept_conn(void)
     static socklen_t sa_len = sizeof(struct sockaddr_un);
     static socklen_t cred_len = sizeof(struct ucred);
 
-    int cfd = accept4(server_sock, &sa.sa, &sa_len, SOCK_CLOEXEC);
+    int cfd = accept4(fd, &sa.sa, &sa_len, SOCK_CLOEXEC);
     if (cfd < 0)
         err(EXIT_FAILURE, "failed to accept connection");
 
@@ -388,26 +387,18 @@ static void accept_conn(void)
         node->d.status = ENVOY_RUNNING;
 }
 
-static void handle_sig(int sfd)
+static void read_signal(int fd, struct signalfd_siginfo *si)
 {
-    struct signalfd_siginfo si;
-    ssize_t nbytes_r = read(sfd, &si, sizeof(si));
+    ssize_t nbytes_r = read(fd, si, sizeof(*si));
 
     if (nbytes_r < 0) {
         err(EXIT_FAILURE, "failed to read signal");
     } else if (nbytes_r != sizeof(si)) {
         errx(EXIT_FAILURE, "failed to read a full signal");
     }
-
-    switch (si.ssi_signo) {
-    case SIGINT:
-    case SIGTERM:
-        cleanup();
-        exit(EXIT_SUCCESS);
-    }
 }
 
-static int loop(void)
+static int loop(int server_sock)
 {
     int sfd;
     sigset_t mask;
@@ -443,9 +434,18 @@ static int loop(void)
         if (fds[0].revents & POLLHUP)
             close(fds[0].fd);
         else if (fds[0].revents & POLLIN)
-            accept_conn();
-        else if (fds[1].revents & POLLIN)
-            handle_sig(sfd);
+            accept_conn(server_sock);
+        else if (fds[1].revents & POLLIN) {
+            struct signalfd_siginfo si;
+            read_signal(sfd, &si);
+
+            switch (si.ssi_signo) {
+                case SIGINT:
+                case SIGTERM:
+                    cleanup(server_sock);
+                    exit(EXIT_SUCCESS);
+            }
+        }
     }
 
     return 0;
@@ -464,6 +464,8 @@ static _noreturn_ void usage(FILE *out)
 
 int main(int argc, char *argv[])
 {
+    int server_sock;
+
     static const struct option opts[] = {
         { "help",    no_argument,       0, 'h' },
         { "version", no_argument,       0, 'v' },
@@ -500,7 +502,7 @@ int main(int argc, char *argv[])
     bus = get_connection(multiuser_mode ? DBUS_BUS_SYSTEM : DBUS_BUS_SESSION);
     init_agent_environ();
 
-    return loop();
+    return loop(server_sock);
 }
 
 // vim: et:sts=4:sw=4:cino=(0
