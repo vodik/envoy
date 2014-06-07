@@ -31,7 +31,7 @@ static const char *exe_path;
 
 static int get_agent(struct agent_data_t *data, enum agent id)
 {
-    int ret = envoy_agent_get_environment(id, data);
+    int ret = envoy_get_agent(id, data, AGENT_ENVIRON);
     if (ret < 0)
         err(EXIT_FAILURE, "failed to fetch agent");
 
