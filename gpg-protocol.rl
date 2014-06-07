@@ -108,22 +108,16 @@ static _printf_(2, 3) int gpg_send_message(struct gpg_t *gpg, const char *fmt, .
 
 struct gpg_t *gpg_agent_connection(const char *sock)
 {
-    char *split;
     union {
         struct sockaddr sa;
         struct sockaddr_un un;
     } sa;
-    size_t len;
+    size_t len = strcspn(sock, ":");
     socklen_t sa_len;
 
     int fd = socket(AF_UNIX, SOCK_STREAM, 0);
     if (fd < 0)
         return NULL;
-
-    len = strlen(sock);
-    split = memchr(sock, ':', len);
-    if (split)
-        len = split - sock;
 
     sa.un = (struct sockaddr_un){ .sun_family = AF_UNIX };
     memcpy(&sa.un.sun_path, sock, len);
