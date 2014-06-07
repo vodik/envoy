@@ -120,10 +120,13 @@ static void init_agent_environ(void)
         fprintf(stderr, "warning: running as root and GNUPGHOME is set; ignoring.\n");
 }
 
-static void parse_agentdata_line(char *val, struct agent_data_t *data)
+static int parse_agentdata_line(char *val, struct agent_data_t *data)
 {
     val[strcspn(val, ";")] = 0;
+
     size_t sep = strcspn(val, "=");
+    if (val[sep] == '\0')
+        return -1;
 
     if (strneq(val, "SSH_AUTH_SOCK", sep))
         strcpy(data->sock, &val[sep + 1]);
@@ -131,6 +134,8 @@ static void parse_agentdata_line(char *val, struct agent_data_t *data)
         data->pid = strtol(&val[sep + 1], NULL, 10);
     else if (strneq(val, "GPG_AGENT_INFO", sep))
         strcpy(data->gpg, &val[sep + 1]);
+
+    return 0;
 }
 
 static int parse_agentdata(int fd, struct agent_data_t *data)
@@ -150,7 +155,8 @@ static int parse_agentdata(int fd, struct agent_data_t *data)
         size_t nl = strcspn(l, "\n");
 
         l[nl] = 0;
-        parse_agentdata_line(l, data);
+        if (parse_agentdata_line(l, data) < 0)
+            return -1;
         l += nl + 1;
     }
 
@@ -166,6 +172,11 @@ static int parse_agentdata(int fd, struct agent_data_t *data)
         }
 
         size_t sep = strcspn(data->gpg, ":");
+        if (data->gpg[sep] == '\0') {
+            fprintf(stderr, "Malformed GPG_AGENT_INFO, bailing...\n");
+            return -1;
+        }
+
         data->pid = strtol(&data->gpg[sep + 1], NULL, 10);
     }
 
