@@ -154,9 +154,19 @@ static int parse_agentdata(int fd, struct agent_data_t *data)
         l += nl + 1;
     }
 
-    if (data->pid == 0 && data->gpg) {
-        fprintf(stderr, "Did not receive SSH_AGENT_PID from agent, bailing...\n");
+    if (data->sock[0] == 0) {
+        fprintf(stderr, "Did not receive SSH_AUTH_SOCK from agent, bailing...\n");
         return -1;
+    }
+
+    if (data->pid == 0) {
+        if (data->gpg[0] == 0) {
+            fprintf(stderr, "Did not receive SSH_AGENT_PID from agent, bailing...\n");
+            return -1;
+        }
+
+        size_t sep = strcspn(data->gpg, ":");
+        data->pid = atoi(&data->gpg[sep + 1]);
     }
 
     return 0;
