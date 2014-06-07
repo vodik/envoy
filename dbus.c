@@ -45,7 +45,7 @@ static DBusMessage *dbus_send_message(DBusConnection *conn, DBusMessage *msg)
     dbus_error_init(&err);
     reply = dbus_connection_send_with_reply_and_block(conn, msg, -1, &err);
     if (!reply)
-        dbus_err(EXIT_FAILURE, &err, "failed to register unit");
+        dbus_err(EXIT_FAILURE, &err, "dbus error");
 
     dbus_connection_flush(conn);
     return reply;

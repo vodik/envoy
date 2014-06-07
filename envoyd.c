@@ -197,11 +197,10 @@ static int run_agent(struct agent_node_t *node, uid_t uid, gid_t gid)
     int fd[2], stat = 0, rc = 0;
     _cleanup_free_ char *path = NULL;
 
-    data->status = ENVOY_STARTED;
-    data->pid = 0;
-    data->sock[0] = '\0';
-    data->gpg[0] = '\0';
-    data->unit_path[0] = '\0';
+    *data = (struct agent_data_t){
+        .status = ENVOY_STARTED,
+        .type   = data->type
+    };
 
     printf("Starting %s for uid=%u gid=%u.\n", agent->name, uid, gid);
     fflush(stdout);
@@ -380,7 +379,8 @@ static void accept_conn(int fd)
         }
 
         if (node->d.pid != 0) {
-            printf("Agent for uid=%u is has terminated. Restarting...\n", cred.uid);
+            printf("Agent %s for uid=%u is has terminated. Restarting...\n",
+                   Agent[node->d.type].name, cred.uid);
             fflush(stdout);
         }
 
