@@ -128,7 +128,7 @@ static void parse_agentdata_line(char *val, struct agent_data_t *data)
     if (strneq(val, "SSH_AUTH_SOCK", sep))
         strcpy(data->sock, &val[sep + 1]);
     else if (strneq(val, "SSH_AGENT_PID", sep))
-        data->pid = atoi(&val[sep + 1]);
+        data->pid = strtol(&val[sep + 1], NULL, 10);
     else if (strneq(val, "GPG_AGENT_INFO", sep))
         strcpy(data->gpg, &val[sep + 1]);
 }
@@ -166,7 +166,7 @@ static int parse_agentdata(int fd, struct agent_data_t *data)
         }
 
         size_t sep = strcspn(data->gpg, ":");
-        data->pid = atoi(&data->gpg[sep + 1]);
+        data->pid = strtol(&data->gpg[sep + 1], NULL, 10);
     }
 
     return 0;
