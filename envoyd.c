@@ -198,6 +198,7 @@ static int run_agent(struct agent_node_t *node, uid_t uid, gid_t gid)
     _cleanup_free_ char *path = NULL;
 
     data->status = ENVOY_STARTED;
+    data->pid = 0;
     data->sock[0] = '\0';
     data->gpg[0] = '\0';
     data->unit_path[0] = '\0';
