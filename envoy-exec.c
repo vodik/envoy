@@ -17,7 +17,9 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <stdarg.h>
 #include <string.h>
+#include <getopt.h>
 #include <err.h>
 #include <errno.h>
 #include <unistd.h>
@@ -29,13 +31,29 @@
 
 static const char *exe_path;
 
-static int get_agent(struct agent_data_t *data, enum agent id)
+static int putenvf(const char *fmt, ...)
 {
-    int ret = envoy_get_agent(id, data, AGENT_ENVIRON);
+    /* we do not want to free the memory allocated for env because the
+     * allocated memory literally becomes part of the environ data. */
+    va_list ap;
+    char *env;
+    int ret;
+
+    va_start(ap, fmt);
+    ret = vasprintf(&env, fmt, ap);
+    va_end(ap);
+
+    return ret < 0 ? ret : putenv(env);
+}
+
+static void source_agent_env(enum agent id)
+{
+    struct agent_data_t data;
+    int ret = envoy_get_agent(id, &data, AGENT_ENVIRON);
     if (ret < 0)
         err(EXIT_FAILURE, "failed to fetch agent");
 
-    switch (data->status) {
+    switch (data.status) {
     case ENVOY_STOPPED:
     case ENVOY_STARTED:
     case ENVOY_RUNNING:
@@ -46,19 +64,17 @@ static int get_agent(struct agent_data_t *data, enum agent id)
         errx(EXIT_FAILURE, "connection rejected, user is unauthorized to use this agent");
     }
 
-    return ret;
-}
-
-static void source_env(struct agent_data_t *data)
-{
-    if (data->type == AGENT_GPG_AGENT) {
-        _cleanup_gpg_ struct gpg_t *agent = gpg_agent_connection(data->gpg);
+    if (data.type == AGENT_GPG_AGENT) {
+        _cleanup_gpg_ struct gpg_t *agent = gpg_agent_connection(data.gpg);
         gpg_update_tty(agent);
 
-        setenv("GPG_AGENT_INFO", data->gpg, true);
+        putenvf("GPG_AGENT_INFO=%s", data.gpg);
+    } else {
+        unsetenv("GPG_AGENT_INFO");
     }
 
-    setenv("SSH_AUTH_SOCK", data->sock, true);
+    putenvf("SSH_AUTH_SOCK=%s", data.sock);
+    putenvf("SSH_AGENT_PID=%d", data.pid);
 }
 
 static inline int safe_execv(const char *path, char *const argv[])
@@ -74,18 +90,13 @@ static inline int safe_execv(const char *path, char *const argv[])
 static _noreturn_ void exec_wrapper(const char *cmd, int argc, char *argv[])
 {
     /* command + NULL + argv */
-    struct agent_data_t data;
     char *args[argc + 1];
     int i;
-
-    if (get_agent(&data, AGENT_DEFAULT) < 0)
-        errx(EXIT_FAILURE, "recieved no data, did the agent fail to start?");
 
     for (i = 0; i < argc; i++)
         args[i] = argv[i];
     args[argc] = NULL;
 
-    source_env(&data);
     if (cmd[0] == '/') {
         safe_execv(args[0], args);
     } else {
@@ -105,21 +116,70 @@ static _noreturn_ void exec_wrapper(const char *cmd, int argc, char *argv[])
     errx(EXIT_FAILURE, "command %s not found", cmd);
 }
 
+static _noreturn_ void usage(FILE *out)
+{
+    fprintf(out, "usage: %s [options]\n", program_invocation_short_name);
+    fputs("Options:\n"
+        " -h, --help            display this help and exit\n"
+        " -v, --version         display version\n"
+        " -t, --agent=AGENT     set the agent to start\n", out);
+
+    exit(out == stderr ? EXIT_FAILURE : EXIT_SUCCESS);
+}
+
 int main(int argc, char *argv[])
 {
+    enum agent type = AGENT_DEFAULT;
+    const char *path;
+
+    static const struct option opts[] = {
+        { "help",    no_argument,       0, 'h' },
+        { "version", no_argument,       0, 'v' },
+        { "agent",   required_argument, 0, 't' },
+        { 0, 0, 0, 0 }
+    };
+
     exe_path = realpath("/proc/self/exe", NULL);
     if (!exe_path)
         err(EXIT_FAILURE, "failed to resolve /proc/self/exe");
 
-    if (!streq(program_invocation_short_name, "envoy-exec"))
-        exec_wrapper(program_invocation_short_name, argc, argv);
+    if (!streq(program_invocation_short_name, "envoy-exec")) {
+        path = argv[0];
+    } else {
+        opterr = 0;
 
-    if (argc == 1) {
-        fprintf(stderr, "usage: %s command\n", program_invocation_short_name);
-        return 1;
+        while (true) {
+            int opt = getopt_long(argc, argv, "hvt:", opts, NULL);
+            if (opt == -1)
+                break;
+
+            switch (opt) {
+            case 'h':
+                usage(stdout);
+                break;
+            case 'v':
+                printf("%s %s\n", program_invocation_short_name, ENVOY_VERSION);
+                return 0;
+            case 't':
+                type = lookup_agent(optarg);
+                if (type < 0)
+                    errx(EXIT_FAILURE, "unknown agent: %s", optarg);
+                break;
+            default:
+                break;
+            }
+        }
+
+        path = argv[optind];
+        argc -= optind;
+        argv += optind;
+
+        if (argc == 0)
+            usage(stderr);
     }
 
-    exec_wrapper(argv[1], argc - 1, argv + 1);
+    source_agent_env(type);
+    exec_wrapper(path, argc, argv);
 }
 
 // vim: et:sts=4:sw=4:cino=(0
