@@ -17,8 +17,24 @@ provide a terser wrapper for that command.
 export PATH="$HOME/bin:$PATH"
 ln -s /usr/bin/envoy-exec ~/bin/ssh
 .fi
+.SH OPTIONS
 .PP
-This will make ssh behave as if its been invoked as \fIenvoy-exec ssh\fP.
+.IP "\fB\-h\fR, \fB\-\-help\fR"
+Display help message.
+.IP "\fB\-v\fR, \fB\-\-version\fR"
+Display version information.
+.IP "\fB\-t\fR \fR\fIAGENT\fR\fR, \fB\-\-agent\fR\fB=\fR\fIAGENT\fR"
+Set the agent type to fetch. If this isn't set, its up to \fBenvoyd\fR
+to decide which agent is launched. \fIssh-agent\fR and \fIgpg-agent\fR
+are supported agents (see \fBenvoy\fR(1)).
+.SH ENVIRONMENT
+.PP
+.IP \fBENVOY_SOCKET\fR
+Both \fBenvoyd\fP and \fBenvoy\fP use this environment variable for the
+location of the unix domain socket for communication. Prefixing the
+socket with a @ denotes an abstract namespace. The default socket is
+\fI@/vodik/envoy\fR
+.PP
 .SH AUTHORS
 .nf
 Simon Gomizelj <simongmzlj@gmail.com>
