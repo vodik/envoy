@@ -17,7 +17,6 @@
 
 #include <stdlib.h>
 #include <stdio.h>
-#include <stdarg.h>
 #include <string.h>
 #include <getopt.h>
 #include <err.h>
@@ -30,21 +29,6 @@
 #include "util.h"
 
 static const char *exe_path;
-
-static int _printf_(1, 2) putenvf(const char *fmt, ...)
-{
-    /* we do not want to free the memory allocated for env because the
-     * allocated memory literally becomes part of the environ data. */
-    va_list ap;
-    char *env;
-    int ret;
-
-    va_start(ap, fmt);
-    ret = vasprintf(&env, fmt, ap);
-    va_end(ap);
-
-    return ret < 0 ? ret : putenv(env);
-}
 
 static void source_agent_env(enum agent id)
 {

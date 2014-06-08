@@ -49,6 +49,21 @@ char *joinpath(const char *root, ...)
     return ret;
 }
 
+int putenvf(const char *fmt, ...)
+{
+    /* we do not want to free the memory allocated for env because the
+     * allocated memory literally becomes part of the environ data. */
+    va_list ap;
+    char *env;
+    int ret;
+
+    va_start(ap, fmt);
+    ret = vasprintf(&env, fmt, ap);
+    va_end(ap);
+
+    return ret < 0 ? ret : putenv(env);
+}
+
 void safe_asprintf(char **strp, const char *fmt, ...)
 {
     va_list ap;

@@ -169,7 +169,7 @@ static void source_env(struct agent_data_t *data)
             gpg_update_tty(agent);
     }
 
-    setenv("SSH_AUTH_SOCK", data->sock, true);
+    putenvf("SSH_AUTH_SOCK=%s", data->sock);
 }
 
 static int unlock(const struct agent_data_t *data, char *password)
