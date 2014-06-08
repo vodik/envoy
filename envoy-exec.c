@@ -51,7 +51,7 @@ static void source_agent_env(enum agent id)
     struct agent_data_t data;
     int ret = envoy_get_agent(id, &data, AGENT_ENVIRON);
     if (ret < 0)
-        err(EXIT_FAILURE, "failed to fetch agent");
+        warn("failed to fetch envoy agent");
 
     switch (data.status) {
     case ENVOY_STOPPED:
@@ -59,9 +59,9 @@ static void source_agent_env(enum agent id)
     case ENVOY_RUNNING:
         break;
     case ENVOY_FAILED:
-        errx(EXIT_FAILURE, "agent failed to start, check envoyd's log");
+        warnx("agent failed to start, check envoyd's log");
     case ENVOY_BADUSER:
-        errx(EXIT_FAILURE, "connection rejected, user is unauthorized to use this agent");
+        warnx("connection rejected, user is unauthorized to use this agent");
     }
 
     if (data.type == AGENT_GPG_AGENT) {
