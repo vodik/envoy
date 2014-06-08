@@ -31,7 +31,7 @@
 
 static const char *exe_path;
 
-static int putenvf(const char *fmt, ...)
+static int _printf_(1, 2) putenvf(const char *fmt, ...)
 {
     /* we do not want to free the memory allocated for env because the
      * allocated memory literally becomes part of the environ data. */
