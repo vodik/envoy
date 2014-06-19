@@ -133,7 +133,7 @@ int main(int argc, char *argv[])
         opterr = 0;
 
         while (true) {
-            int opt = getopt_long(argc, argv, "hvt:", opts, NULL);
+            int opt = getopt_long(argc, argv, "+hvt:", opts, NULL);
             if (opt == -1)
                 break;
 
