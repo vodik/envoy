@@ -15,11 +15,13 @@ flags = [
   '-Wall',
   '-Wextra',
   '-Werror',
+  '-pedantic',
+  '-Wshadow', '-Wpointer-arith', '-Wcast-qual', '-Wstrict-prototypes', '-Wmissing-prototypes',
   '-DNDEBUG',
   '-DUSE_CLANG_COMPLETER',
   '-DENVOY_VERSION="ycm"',
   '-D_GNU_SOURCE',
-  '-std=c99',
+  '-std=c11',
   '-x', 'c'
 ]
 

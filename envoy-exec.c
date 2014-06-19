@@ -17,6 +17,7 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <stdbool.h>
 #include <string.h>
 #include <getopt.h>
 #include <err.h>
@@ -114,7 +115,7 @@ static _noreturn_ void usage(FILE *out)
 int main(int argc, char *argv[])
 {
     enum agent type = AGENT_DEFAULT;
-    const char *path;
+    const char *path = argv[0];
 
     static const struct option opts[] = {
         { "help",    no_argument,       0, 'h' },
@@ -127,11 +128,7 @@ int main(int argc, char *argv[])
     if (!exe_path)
         err(EXIT_FAILURE, "failed to resolve /proc/self/exe");
 
-    if (!streq(program_invocation_short_name, "envoy-exec")) {
-        path = argv[0];
-    } else {
-        opterr = 0;
-
+    if (streq(program_invocation_short_name, "envoy-exec")) {
         while (true) {
             int opt = getopt_long(argc, argv, "+hvt:", opts, NULL);
             if (opt == -1)
@@ -150,7 +147,7 @@ int main(int argc, char *argv[])
                     errx(EXIT_FAILURE, "unknown agent: %s", optarg);
                 break;
             default:
-                break;
+                usage(stderr);
             }
         }
 
