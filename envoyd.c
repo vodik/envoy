@@ -407,13 +407,13 @@ static int loop(int server_sock)
     if (sfd < 0)
         err(EXIT_FAILURE, "failed to create signalfd");
 
-    while (true) {
-        struct pollfd fds[] = {
-            { .fd = server_sock, .events = POLLIN },
-            { .fd = sfd,         .events = POLLIN }
-        };
+    struct pollfd fds[] = {
+        { .fd = server_sock, .events = POLLIN },
+        { .fd = sfd,         .events = POLLIN }
+    };
+    const size_t fd_count = sizeof(fds) / sizeof(fds[0]);
 
-        const size_t fd_count = sizeof(fds) / sizeof(fds[0]);
+    while (true) {
         int ret = poll(fds, fd_count, -1);
 
         if (ret == 0) {
