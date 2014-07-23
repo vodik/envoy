@@ -28,19 +28,15 @@ LDLIBS := \
 	${dbus_LDLIBS} \
 	${LDLIBS}
 
+VPATH = src
 LIBDIR ?= lib
 
 all: envoyd envoy envoy-exec pam_envoy.so
 
-envoyd: envoyd.o agents.o socket.o dbus.o util.o
-envoy: envoy.o agents.o socket.o gpg-protocol.o util.o
-envoy-exec: envoy-exec.o agents.o socket.o gpg-protocol.o util.o
-
 gpg-protocol.c: gpg-protocol.rl
-	ragel -F0 -C $< -o $@
-
+	ragel -F0 -C $< -o ${VPATH}/$@
 gpg-protocol.o: gpg-protocol.c
-	${CC} ${CFLAGS} -fPIC -o $@ -c $<
+	${CC} ${CFLAGS} -fPIC -o $@ -c ${VPATH}/$<
 
 agents.o: agents.c
 	${CC} ${CFLAGS} -fPIC -o $@ -c $<
@@ -51,6 +47,9 @@ util.o: util.c
 pam_envoy.o: pam_envoy.c
 	${CC} ${CFLAGS} -fPIC -o $@ -c $<
 
+envoyd: envoyd.o agents.o socket.o dbus.o util.o
+envoy: envoy.o agents.o socket.o gpg-protocol.o util.o
+envoy-exec: envoy-exec.o agents.o socket.o gpg-protocol.o util.o
 pam_envoy.so: pam_envoy.o agents.o socket.o gpg-protocol.o util.o
 	${CC} ${LDFLAGS} -shared -DPIC -o $@ $?
 
@@ -67,6 +66,6 @@ install: envoyd envoy pam_envoy.so
 	install -Dm644 zsh-completion ${DESTDIR}/usr/share/zsh/site-functions/_envoy
 
 clean:
-	${RM} envoyd envoy envoy-exec pam_envoy.so *.o
+	${RM} envoyd envoy envoy-exec pam_envoy.so *.o src/gpg-protocol.c
 
 .PHONY: all clean install uninstall
