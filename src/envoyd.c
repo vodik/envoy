@@ -351,15 +351,10 @@ static void send_message(int fd, enum status status, bool close_sock)
 static void accept_conn(int fd)
 {
     struct ucred cred;
-    union {
-        struct sockaddr sa;
-        struct sockaddr_un un;
-    } sa;
     struct agent_request_t req;
-    static socklen_t sa_len = sizeof(struct sockaddr_un);
-    static socklen_t cred_len = sizeof(struct ucred);
+    socklen_t cred_len = sizeof(struct ucred);
 
-    int cfd = accept4(fd, &sa.sa, &sa_len, SOCK_CLOEXEC);
+    int cfd = accept4(fd, NULL, NULL, SOCK_CLOEXEC);
     if (cfd < 0)
         err(EXIT_FAILURE, "failed to accept connection");
 

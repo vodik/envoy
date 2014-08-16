@@ -21,6 +21,7 @@ CFLAGS := \
 	${base_CFLAGS} \
 	${libsystemd_CFLAGS} \
 	${dbus_CFLAGS} \
+	-fsanitize=undefined,address \
 	${CFLAGS}
 
 LDLIBS := \
@@ -28,6 +29,7 @@ LDLIBS := \
 	${dbus_LDLIBS} \
 	${LDLIBS}
 
+LDFLAGS = -fsanitize=undefined,address
 VPATH = src
 LIBDIR ?= lib
 
