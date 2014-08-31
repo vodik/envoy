@@ -27,12 +27,17 @@ managed fashion that doesn't clutter user login sessions.
 
 To setup envoy, first enable the socket:
 
-    # systemctl enable envoy@ssh-agent.socket
+    # systemctl enable envoy@ssh-agent.socket    # to make ssh-agent the default agent
+    # systemctl enable envoy@gpg-agent.socket    # or to make it gpg-agent
 
 Then add the following to your shell's rc file.
 
-    envoy -t ssh-agent [key ...]     # gpg-agent also supported
+    envoy [key ...]
     source <(envoy -p)
+
+The `-t` flag lets you override the default agent. So `envoy -t
+gpg-agent` will launch gpg-agent even if ssh-agent is the system
+default.
 
 The envoyd daemon will also run just fine under a user session, just
 note that it won't be able to serve multiple users at once in this

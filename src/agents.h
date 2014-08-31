@@ -48,7 +48,7 @@ struct agent_t {
 
 struct agent_request_t {
     enum agent type;
-    int opts;
+    enum options opts;
 };
 
 struct agent_data_t {
