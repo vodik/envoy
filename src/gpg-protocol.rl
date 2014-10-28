@@ -220,6 +220,16 @@ int gpg_update_tty(struct gpg_t *gpg)
     #       is not known a dash is used instead.
     idstr = [^\ ]+ | '-';
 
+    # CACHED is 1 if the passphrase for the key was found in the key cache.
+    #        If not, a '-' is used instead.
+    cached = [1\-];
+
+    # PROTECTION describes the key protection type:
+    #     'P' - The key is protected with a passphrase,
+    #     'C' - The key is not protected,
+    #     '-' - Unknown protection.
+    protection = [PC\-];
+
     # FPR returns the formatted ssh-style fingerprint of the key.  It is only
     #     printed if the option --ssh-fpr has been used.  It defaults to '-'.
     fpr = '-';
@@ -234,10 +244,11 @@ int gpg_update_tty(struct gpg_t *gpg)
     #       '-' - No flags given.
     flags = [DSc\-]+ >flag;
 
-    # KEYINFO <keygrip> <type> <serialno> <idstr> - - <fpr> <ttl> <flags>
-    entry = 'S KEYINFO' space keygrip space type  space serialno space idstr space
-                              '-'     space '-'   space fpr      space ttl   space
-                              flags   newline @term;
+    # KEYINFO <keygrip> <type> <serialno> <idstr> <cached> <protection> <fpr>
+    entry = 'S KEYINFO' space keygrip space type       space serialno space idstr space
+                              cached  space protection space fpr      space ttl   space
+                              flags   newline
+                              @term;
 
     main := ( entry | status )*;
 }%%
