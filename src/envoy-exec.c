@@ -90,7 +90,7 @@ static _noreturn_ void exec_wrapper(const char *cmd, int argc, char *argv[])
             errx(EXIT_FAILURE, "command %s not found", cmd);
         _cleanup_free_ char *buf = strdup(path);
 
-        char *saveptr, *segment = strtok_r(buf, ":", &saveptr);
+        char *saveptr = NULL, *segment = strtok_r(buf, ":", &saveptr);
         for (; segment; segment = strtok_r(NULL, ":", &saveptr)) {
             char *full_path = joinpath(segment, cmd, NULL);
             safe_execv(full_path, args);
