@@ -50,8 +50,7 @@ configuration.
      -h, --help            display this help
      -v, --version         display version
      -a, --add             add private key identities
-     -k, --clear           force identities to expire (gpg-agent only)
-     -K, --kill            kill the running agent
+     -k, --kill            kill the running agent
      -l, --list            list fingerprints of all loaded identities
      -u, --unlock=[PASS]   unlock the agent's keyring (gpg-agent only)
      -p, --print           print out environmental arguments

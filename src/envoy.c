@@ -200,7 +200,6 @@ static _noreturn_ void usage(FILE *out)
         " -v, --version         display version\n"
         " -a, --add             add private key identities\n"
         " -k, --clear           force identities to expire (gpg-agent only)\n"
-        " -K, --kill            kill the running agent\n"
         " -l, --list            list fingerprints of all loaded identities\n"
         " -u, --unlock=[PASS]   unlock the agent's keyring (gpg-agent only)\n"
         " -p, --print           print out environmental arguments\n"
@@ -237,7 +236,7 @@ int main(int argc, char *argv[])
     };
 
     while (true) {
-        int opt = getopt_long(argc, argv, "hvakKlu::pscft:", opts, NULL);
+        int opt = getopt_long(argc, argv, "hvaklu::pscft:", opts, NULL);
         if (opt == -1)
             break;
 

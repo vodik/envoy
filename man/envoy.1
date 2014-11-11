@@ -30,11 +30,7 @@ Display version information.
 Add private key identities to the authentication agent using
 \fBssh-add\fR(1). Note that when passing in keys, if they reside in
 \fI~/.ssh/\fR, then just providing the filename is sufficient.
-.IP "\fB\-k\fR, \fB\-\-clear\fR"
-For gpg-agent only, flush all cached passphrases and, if the program has
-been started with a configuration file, reload it. Sends \fISIGHUP\fR to
-the running agent.
-.IP "\fB\-K\fR, \fB\-\-kill\fR"
+.IP "\fB\-k\fR, \fB\-\-kill\fR"
 Terminate the running agent. Sends \fISIGTERM\fR to the running agent.
 .IP "\fB\-l\fR, \fB\-\-list\fR"
 Lists fingerprints of all identities currently represented by the agent.
