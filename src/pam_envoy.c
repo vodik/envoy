@@ -142,7 +142,9 @@ PAM_EXTERN int pam_sm_open_session(pam_handle_t *ph, int _unused_ flags,
     if (data.type == AGENT_GPG_AGENT) {
         _cleanup_gpg_ struct gpg_t *agent = gpg_agent_connection(data.gpg);
         gpg_update_tty(agent);
+    }
 
+    if (data.gpg[0]) {
         pam_setenv(ph, "GPG_AGENT_INFO=%s", data.gpg);
     }
 
