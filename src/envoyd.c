@@ -75,26 +75,18 @@ static void cleanup(int fd)
     for (node = agents; node; node = node->next) {
         if (node->d.unit_path[0])
             stop_unit(bus, node->d.unit_path, NULL);
-        else
-            kill(node->d.pid, SIGTERM);
     }
 }
 
 static bool unit_running(struct agent_data_t *data)
 {
-    bool running = true;
-
     if (data->unit_path[0]) {
         _cleanup_free_ char *state = NULL;
         get_unit_state(bus, data->unit_path, &state);
-        running = streq(state, "running");
-    } else if (kill(data->pid, 0) < 0) {
-        if (errno != ESRCH)
-            err(EXIT_FAILURE, "something strange happened with kill");
-        running = false;
+        return streq(state, "running");
     }
 
-    return running;
+    return false;
 }
 
 static void init_agent_environ(void)
@@ -254,14 +246,10 @@ static int run_agent(struct agent_node_t *node, uid_t uid, gid_t gid)
         goto cleanup;
     }
 
-    if (get_unit_by_pid(bus, data->pid, &path) < 0) {
-        fprintf(stderr, "Failed to find unit for %s\n"
-                "Falling back to a naive (and less reliable) "
-                "method of process management...\n",
-                agent->name);
-    } else {
-        strcpy(data->unit_path, path);
-    }
+    if (get_unit(bus, node->scope, &path) < 0)
+        errx(1, "failed to retrieve scope's dbus path");
+
+    strcpy(data->unit_path, path);
 
 cleanup:
     close(fd[0]);
@@ -310,6 +298,13 @@ static int get_socket(void)
     return fd;
 }
 
+static char *get_scope_name(enum agent type, uid_t uid)
+{
+    char *scope_name;
+    safe_asprintf(&scope_name, "envoy-%s-monitor-%d.scope", Agent[type].name, uid);
+    return scope_name;
+}
+
 static struct agent_node_t *get_agent_entry(struct agent_node_t **list, enum agent type, uid_t uid)
 {
     struct agent_node_t *node;
@@ -328,7 +323,7 @@ static struct agent_node_t *get_agent_entry(struct agent_node_t **list, enum age
 
     if (sd_activated)
         node->slice = multiuser_mode ? "system-envoy.slice" : "envoy.slice";
-    safe_asprintf(&node->scope, "envoy-%s-monitor-%d.scope", Agent[type].name, uid);
+    node->scope = get_scope_name(type, uid);
 
     *list = node;
     return node;
