@@ -185,7 +185,7 @@ static int run_agent(struct agent_node_t *node, uid_t uid, gid_t gid)
         .type   = data->type
     };
 
-    printf("Starting %s for uid=%u gid=%u.\n", agent->name, uid, gid);
+    printf("Starting %s for uid=%u.\n", agent->name, uid);
     fflush(stdout);
 
     if (pipe2(fd, O_CLOEXEC) < 0)
@@ -369,7 +369,7 @@ static void accept_conn(int fd)
         }
 
         if (node->d.status != ENVOY_STOPPED) {
-            printf("Agent %s for uid=%u is has terminated. Restarting...\n",
+            printf("Agent %s for uid=%u has terminated. Restarting...\n",
                    Agent[node->d.type].name, cred.uid);
             fflush(stdout);
         }
