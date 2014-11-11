@@ -305,7 +305,8 @@ int main(int argc, char *argv[])
         add_keys(&argv[optind], argc - optind);
         break;
     case ACTION_KILL:
-        /* kill(data.pid, SIGTERM); */
+        if (envoy_kill_agent(type) < 0)
+            errx(EXIT_FAILURE, "failed to kill agent");
         break;
     case ACTION_LIST:
         execlp("ssh-add", "ssh-add", "-l", NULL);

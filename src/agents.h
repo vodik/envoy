@@ -38,7 +38,8 @@ enum status {
 enum options {
     AGENT_DEFAULTS = 0,
     AGENT_STATUS   = 1 << 0,
-    AGENT_ENVIRON  = 1 << 1
+    AGENT_ENVIRON  = 1 << 1,
+    AGENT_KILL     = 1 << 2
 };
 
 struct agent_t {
@@ -62,6 +63,7 @@ struct agent_data_t {
 extern const struct agent_t Agent[];
 
 int envoy_get_agent(enum agent type, struct agent_data_t *data, enum options opts);
+int envoy_kill_agent(enum agent type);
 
 enum agent lookup_agent(const char *string);
 

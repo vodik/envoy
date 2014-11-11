@@ -352,7 +352,17 @@ static void accept_conn(int fd)
     enum agent agent = req.type == AGENT_DEFAULT ? default_type : req.type;
     struct agent_node_t *node = get_agent_entry(&agents, agent, cred.uid);
 
-    if (!unit_running(&node->d)) {
+    if (unit_running(&node->d)) {
+        if (req.opts & AGENT_KILL && node->d.unit_path[0]) {
+            printf("Terminating %s for uid=%u.\n",
+                   Agent[node->d.type].name, cred.uid);
+            fflush(stdout);
+
+            stop_unit(bus, node->d.unit_path, NULL);
+            node->d.unit_path[0] = '\0';
+            node->d.status = ENVOY_STOPPED;
+        }
+    } else {
         if (req.opts & AGENT_STATUS) {
             send_message(cfd, ENVOY_STOPPED, true);
             return;
