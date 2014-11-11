@@ -75,26 +75,18 @@ static void cleanup(int fd)
     for (node = agents; node; node = node->next) {
         if (node->d.unit_path[0])
             stop_unit(bus, node->d.unit_path, NULL);
-        else
-            kill(node->d.pid, SIGTERM);
     }
 }
 
 static bool unit_running(struct agent_data_t *data)
 {
-    bool running = true;
-
     if (data->unit_path[0]) {
         _cleanup_free_ char *state = NULL;
         get_unit_state(bus, data->unit_path, &state);
-        running = streq(state, "running");
-    } else if (kill(data->pid, 0) < 0) {
-        if (errno != ESRCH)
-            err(EXIT_FAILURE, "something strange happened with kill");
-        running = false;
+        return streq(state, "running");
     }
 
-    return running;
+    return false;
 }
 
 static void init_agent_environ(void)
@@ -130,8 +122,6 @@ static void parse_agentdata_line(char *val, struct agent_data_t *data)
 
     if (strneq(val, "SSH_AUTH_SOCK", sep))
         strcpy(data->sock, &val[sep + 1]);
-    else if (strneq(val, "SSH_AGENT_PID", sep))
-        data->pid = strtol(&val[sep + 1], NULL, 10);
     else if (strneq(val, "GPG_AGENT_INFO", sep))
         strcpy(data->gpg, &val[sep + 1]);
 }
@@ -160,21 +150,6 @@ static int parse_agentdata(int fd, struct agent_data_t *data)
     if (data->sock[0] == 0) {
         fprintf(stderr, "Did not receive SSH_AUTH_SOCK from agent, bailing...\n");
         return -1;
-    }
-
-    if (data->pid == 0) {
-        if (data->gpg[0] == 0) {
-            fprintf(stderr, "Did not receive SSH_AGENT_PID from agent, bailing...\n");
-            return -1;
-        }
-
-        size_t sep = strcspn(data->gpg, ":");
-        if (data->gpg[sep] == '\0') {
-            fprintf(stderr, "Malformed GPG_AGENT_INFO, bailing...\n");
-            return -1;
-        }
-
-        data->pid = strtol(&data->gpg[sep + 1], NULL, 10);
     }
 
     return 0;
@@ -210,7 +185,7 @@ static int run_agent(struct agent_node_t *node, uid_t uid, gid_t gid)
         .type   = data->type
     };
 
-    printf("Starting %s for uid=%u gid=%u.\n", agent->name, uid, gid);
+    printf("Starting %s for uid=%u.\n", agent->name, uid);
     fflush(stdout);
 
     if (pipe2(fd, O_CLOEXEC) < 0)
@@ -254,21 +229,17 @@ static int run_agent(struct agent_node_t *node, uid_t uid, gid_t gid)
         goto cleanup;
     }
 
-    if (get_unit_by_pid(bus, data->pid, &path) < 0) {
-        fprintf(stderr, "Failed to find unit for %s\n"
-                "Falling back to a naive (and less reliable) "
-                "method of process management...\n",
-                agent->name);
-    } else {
-        strcpy(data->unit_path, path);
-    }
+    if (get_unit(bus, node->scope, &path) < 0)
+        errx(1, "failed to retrieve scope's dbus path");
+
+    strcpy(data->unit_path, path);
 
 cleanup:
     close(fd[0]);
     close(fd[1]);
 
     if (rc < 0) {
-        data->pid = 0;
+        data->unit_path[0] = '\0';
         data->status = ENVOY_FAILED;
     }
 
@@ -310,6 +281,13 @@ static int get_socket(void)
     return fd;
 }
 
+static char *get_scope_name(enum agent type, uid_t uid)
+{
+    char *scope_name;
+    safe_asprintf(&scope_name, "envoy-%s-monitor-%d.scope", Agent[type].name, uid);
+    return scope_name;
+}
+
 static struct agent_node_t *get_agent_entry(struct agent_node_t **list, enum agent type, uid_t uid)
 {
     struct agent_node_t *node;
@@ -328,7 +306,7 @@ static struct agent_node_t *get_agent_entry(struct agent_node_t **list, enum age
 
     if (sd_activated)
         node->slice = multiuser_mode ? "system-envoy.slice" : "envoy.slice";
-    safe_asprintf(&node->scope, "envoy-%s-monitor-%d.scope", Agent[type].name, uid);
+    node->scope = get_scope_name(type, uid);
 
     *list = node;
     return node;
@@ -373,16 +351,25 @@ static void accept_conn(int fd)
 
     enum agent agent = req.type == AGENT_DEFAULT ? default_type : req.type;
     struct agent_node_t *node = get_agent_entry(&agents, agent, cred.uid);
-    bool running = unit_running(&node->d);
 
-    if (node->d.pid == 0 || !running) {
+    if (unit_running(&node->d)) {
+        if (req.opts & AGENT_KILL && node->d.unit_path[0]) {
+            printf("Terminating %s for uid=%u.\n",
+                   Agent[node->d.type].name, cred.uid);
+            fflush(stdout);
+
+            stop_unit(bus, node->d.unit_path, NULL);
+            node->d.unit_path[0] = '\0';
+            node->d.status = ENVOY_STOPPED;
+        }
+    } else {
         if (req.opts & AGENT_STATUS) {
             send_message(cfd, ENVOY_STOPPED, true);
             return;
         }
 
-        if (node->d.pid != 0) {
-            printf("Agent %s for uid=%u is has terminated. Restarting...\n",
+        if (node->d.status != ENVOY_STOPPED) {
+            printf("Agent %s for uid=%u has terminated. Restarting...\n",
                    Agent[node->d.type].name, cred.uid);
             fflush(stdout);
         }

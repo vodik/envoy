@@ -77,6 +77,16 @@ int envoy_get_agent(enum agent type, struct agent_data_t *data, enum options opt
     return envoy_request(&req, data) < 0 ? -errno : 0;
 }
 
+int envoy_kill_agent(enum agent type)
+{
+    const struct agent_request_t req = { .type = type, .opts = AGENT_KILL };
+    struct agent_data_t data;
+
+    if (envoy_request(&req, &data) < 0)
+        return -errno;
+    return data.status == ENVOY_STOPPED ? 0 : -1;
+}
+
 enum agent lookup_agent(const char *string)
 {
     size_t i;

@@ -112,7 +112,7 @@ struct gpg_t *gpg_agent_connection(const char *sock)
         struct sockaddr sa;
         struct sockaddr_un un;
     } sa;
-    size_t len = strcspn(sock, ":");
+    size_t len;
     socklen_t sa_len;
 
     int fd = socket(AF_UNIX, SOCK_STREAM, 0);
@@ -120,7 +120,14 @@ struct gpg_t *gpg_agent_connection(const char *sock)
         return NULL;
 
     sa.un = (struct sockaddr_un){ .sun_family = AF_UNIX };
-    memcpy(&sa.un.sun_path, sock, len);
+
+    if (!sock || !sock[0]) {
+        len = snprintf(sa.un.sun_path, sizeof(sa.un.sun_path),
+                       "%s/.gnupg/S.gpg-agent", get_home_dir());
+    } else {
+        len = strcspn(sock, ":");
+        memcpy(&sa.un.sun_path, sock, len);
+    }
 
     sa_len = len + sizeof(sa.un.sun_family);
     if (connect(fd, &sa.sa, sa_len) < 0)

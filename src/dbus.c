@@ -144,21 +144,18 @@ int start_transient_unit(DBusConnection *conn, const char *name,
     return dbus_reply_object_path(reply, ret);
 }
 
-/* GetUnitByPID(in  u pid, */
-/*              out o unit); */
-int get_unit_by_pid(DBusConnection *conn, dbus_uint32_t pid, char **ret)
+/* GetUnit(in  s name, */
+/*         out o unit); */
+int get_unit(DBusConnection *conn, const char *name, char **ret)
 {
     _cleanup_dbus_msg_ DBusMessage *msg, *reply;
-
-    if (pid == 0)
-        pid = getpid();
 
     msg = dbus_message_new_method_call("org.freedesktop.systemd1",
                                        "/org/freedesktop/systemd1",
                                        "org.freedesktop.systemd1.Manager",
-                                       "GetUnitByPID");
+                                       "GetUnit");
 
-    dbus_message_append_args(msg, 'u', &pid, 0);
+    dbus_message_append_args(msg, 's', &name, 0);
     reply = dbus_send_message(conn, msg);
     return dbus_reply_object_path(reply, ret);
 }
