@@ -134,7 +134,7 @@ static _noreturn_ void add_keys(char **keys, int count)
 
 static void print_sh_env(struct agent_data_t *data)
 {
-    if (data->type == AGENT_GPG_AGENT)
+    if (data->type == AGENT_GPG_AGENT && data->gpg[0])
         printf("export GPG_AGENT_INFO='%s'\n", data->gpg);
 
     printf("export SSH_AUTH_SOCK='%s'\n", data->sock);
@@ -142,7 +142,7 @@ static void print_sh_env(struct agent_data_t *data)
 
 static void print_csh_env(struct agent_data_t *data)
 {
-    if (data->type == AGENT_GPG_AGENT)
+    if (data->type == AGENT_GPG_AGENT && data->gpg[0])
         printf("setenv GPG_AGENT_INFO '%s';\n", data->gpg);
 
     printf("setenv SSH_AUTH_SOCK '%s';\n", data->sock);
@@ -150,7 +150,7 @@ static void print_csh_env(struct agent_data_t *data)
 
 static void print_fish_env(struct agent_data_t *data)
 {
-    if (data->type == AGENT_GPG_AGENT)
+    if (data->type == AGENT_GPG_AGENT && data->gpg[0])
         printf("set -x GPG_AGENT_INFO '%s';\n", data->gpg);
 
     printf("set -x SSH_AUTH_SOCK '%s';\n", data->sock);
