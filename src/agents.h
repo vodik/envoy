@@ -54,7 +54,6 @@ struct agent_request_t {
 struct agent_data_t {
     enum agent type;
     enum status status;
-    pid_t pid;
     char sock[PATH_MAX];
     char gpg[PATH_MAX];
     char unit_path[PATH_MAX];

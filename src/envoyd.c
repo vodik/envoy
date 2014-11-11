@@ -122,8 +122,6 @@ static void parse_agentdata_line(char *val, struct agent_data_t *data)
 
     if (strneq(val, "SSH_AUTH_SOCK", sep))
         strcpy(data->sock, &val[sep + 1]);
-    else if (strneq(val, "SSH_AGENT_PID", sep))
-        data->pid = strtol(&val[sep + 1], NULL, 10);
     else if (strneq(val, "GPG_AGENT_INFO", sep))
         strcpy(data->gpg, &val[sep + 1]);
 }
@@ -152,21 +150,6 @@ static int parse_agentdata(int fd, struct agent_data_t *data)
     if (data->sock[0] == 0) {
         fprintf(stderr, "Did not receive SSH_AUTH_SOCK from agent, bailing...\n");
         return -1;
-    }
-
-    if (data->pid == 0) {
-        if (data->gpg[0] == 0) {
-            fprintf(stderr, "Did not receive SSH_AGENT_PID from agent, bailing...\n");
-            return -1;
-        }
-
-        size_t sep = strcspn(data->gpg, ":");
-        if (data->gpg[sep] == '\0') {
-            fprintf(stderr, "Malformed GPG_AGENT_INFO, bailing...\n");
-            return -1;
-        }
-
-        data->pid = strtol(&data->gpg[sep + 1], NULL, 10);
     }
 
     return 0;
@@ -256,7 +239,7 @@ cleanup:
     close(fd[1]);
 
     if (rc < 0) {
-        data->pid = 0;
+        data->unit_path[0] = '\0';
         data->status = ENVOY_FAILED;
     }
 
@@ -368,15 +351,14 @@ static void accept_conn(int fd)
 
     enum agent agent = req.type == AGENT_DEFAULT ? default_type : req.type;
     struct agent_node_t *node = get_agent_entry(&agents, agent, cred.uid);
-    bool running = unit_running(&node->d);
 
-    if (node->d.pid == 0 || !running) {
+    if (!unit_running(&node->d)) {
         if (req.opts & AGENT_STATUS) {
             send_message(cfd, ENVOY_STOPPED, true);
             return;
         }
 
-        if (node->d.pid != 0) {
+        if (node->d.status != ENVOY_STOPPED) {
             printf("Agent %s for uid=%u is has terminated. Restarting...\n",
                    Agent[node->d.type].name, cred.uid);
             fflush(stdout);

@@ -138,7 +138,6 @@ static void print_sh_env(struct agent_data_t *data)
         printf("export GPG_AGENT_INFO='%s'\n", data->gpg);
 
     printf("export SSH_AUTH_SOCK='%s'\n", data->sock);
-    printf("export SSH_AGENT_PID='%d'\n", data->pid);
 }
 
 static void print_csh_env(struct agent_data_t *data)
@@ -147,7 +146,6 @@ static void print_csh_env(struct agent_data_t *data)
         printf("setenv GPG_AGENT_INFO '%s';\n", data->gpg);
 
     printf("setenv SSH_AUTH_SOCK '%s';\n", data->sock);
-    printf("setenv SSH_AGENT_PID '%d';\n", data->pid);
 }
 
 static void print_fish_env(struct agent_data_t *data)
@@ -156,7 +154,6 @@ static void print_fish_env(struct agent_data_t *data)
         printf("set -x GPG_AGENT_INFO '%s';\n", data->gpg);
 
     printf("set -x SSH_AUTH_SOCK '%s';\n", data->sock);
-    printf("set -x SSH_AGENT_PID '%d';\n", data->pid);
 }
 
 static void source_env(struct agent_data_t *data)
@@ -228,8 +225,7 @@ int main(int argc, char *argv[])
         { "help",    no_argument,       0, 'h' },
         { "version", no_argument,       0, 'v' },
         { "add",     no_argument,       0, 'a' },
-        { "clear",   no_argument,       0, 'k' },
-        { "kill",    no_argument,       0, 'K' },
+        { "kill",    no_argument,       0, 'k' },
         { "list",    no_argument,       0, 'l' },
         { "unlock",  optional_argument, 0, 'u' },
         { "print",   no_argument,       0, 'p' },
@@ -256,10 +252,6 @@ int main(int argc, char *argv[])
             verb = ACTION_FORCE_ADD;
             break;
         case 'k':
-            verb = ACTION_CLEAR;
-            source = false;
-            break;
-        case 'K':
             verb = ACTION_KILL;
             source = false;
             break;
@@ -312,14 +304,8 @@ int main(int argc, char *argv[])
     case ACTION_FORCE_ADD:
         add_keys(&argv[optind], argc - optind);
         break;
-    case ACTION_CLEAR:
-        if (data.type == AGENT_GPG_AGENT)
-            kill(data.pid, SIGHUP);
-        else
-            errx(EXIT_FAILURE, "only gpg-agent supports this operation");
-        break;
     case ACTION_KILL:
-        kill(data.pid, SIGTERM);
+        /* kill(data.pid, SIGTERM); */
         break;
     case ACTION_LIST:
         execlp("ssh-add", "ssh-add", "-l", NULL);

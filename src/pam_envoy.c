@@ -147,7 +147,6 @@ PAM_EXTERN int pam_sm_open_session(pam_handle_t *ph, int _unused_ flags,
     }
 
     pam_setenv(ph, "SSH_AUTH_SOCK=%s", data.sock);
-    pam_setenv(ph, "SSH_AGENT_PID=%d", data.pid);
 
     return PAM_SUCCESS;
 }

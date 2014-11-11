@@ -59,7 +59,6 @@ static void source_agent_env(enum agent id)
     }
 
     putenvf("SSH_AUTH_SOCK=%s", data.sock);
-    putenvf("SSH_AGENT_PID=%d", data.pid);
 }
 
 static inline int safe_execv(const char *path, char *const argv[])
