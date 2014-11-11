@@ -31,7 +31,7 @@ struct fingerprint_t {
     struct fingerprint_t *next;
 };
 
-struct gpg_t *gpg_agent_connection(const char *sock);
+struct gpg_t *gpg_agent_connection(const char *sock, const char *home);
 void gpg_close(struct gpg_t *gpg);
 
 int gpg_update_tty(struct gpg_t *gpg);

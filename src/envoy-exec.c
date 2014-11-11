@@ -50,7 +50,7 @@ static void source_agent_env(enum agent id)
     }
 
     if (data.type == AGENT_GPG_AGENT) {
-        _cleanup_gpg_ struct gpg_t *agent = gpg_agent_connection(data.gpg);
+        _cleanup_gpg_ struct gpg_t *agent = gpg_agent_connection(data.gpg, NULL);
         gpg_update_tty(agent);
     }
 

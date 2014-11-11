@@ -140,7 +140,7 @@ PAM_EXTERN int pam_sm_open_session(pam_handle_t *ph, int _unused_ flags,
     }
 
     if (data.type == AGENT_GPG_AGENT) {
-        _cleanup_gpg_ struct gpg_t *agent = gpg_agent_connection(data.gpg);
+        _cleanup_gpg_ struct gpg_t *agent = gpg_agent_connection(data.gpg, pwd->pw_dir);
         gpg_update_tty(agent);
     }
 
@@ -201,7 +201,7 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t _unused_ *ph, int _unused_ flags
     }
 
     if (data.status == ENVOY_RUNNING && data.type == AGENT_GPG_AGENT) {
-        _cleanup_gpg_ struct gpg_t *agent = gpg_agent_connection(data.gpg);
+        _cleanup_gpg_ struct gpg_t *agent = gpg_agent_connection(data.gpg, pwd->pw_dir);
 
         if (password) {
             const struct fingerprint_t *fpt = gpg_keyinfo(agent);

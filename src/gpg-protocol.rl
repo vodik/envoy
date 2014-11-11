@@ -106,7 +106,7 @@ static _printf_(2, 3) int gpg_send_message(struct gpg_t *gpg, const char *fmt, .
     return rc == 0 ? nbytes_r : rc;
 }
 
-struct gpg_t *gpg_agent_connection(const char *sock)
+struct gpg_t *gpg_agent_connection(const char *sock, const char *home)
 {
     union {
         struct sockaddr sa;
@@ -123,7 +123,8 @@ struct gpg_t *gpg_agent_connection(const char *sock)
 
     if (!sock || !sock[0]) {
         len = snprintf(sa.un.sun_path, sizeof(sa.un.sun_path),
-                       "%s/.gnupg/S.gpg-agent", get_home_dir());
+                       "%s/.gnupg/S.gpg-agent",
+                       home ? home : get_home_dir());
     } else {
         len = strcspn(sock, ":");
         memcpy(&sa.un.sun_path, sock, len);
