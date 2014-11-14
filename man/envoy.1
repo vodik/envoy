@@ -32,6 +32,10 @@ Add private key identities to the authentication agent using
 \fI~/.ssh/\fR, then just providing the filename is sufficient.
 .IP "\fB\-k\fR, \fB\-\-kill\fR"
 Terminate the running agent. Sends \fISIGTERM\fR to the running agent.
+.IP "\fB\-r\fR, \fB\-\-reload\fR"
+For gpg-agent only, flush all cached passphrases and, if the program has
+been started with a configuration file, reload it. Sends
+\fIRELOADAGENT\fR over gpg-agent's socket.
 .IP "\fB\-l\fR, \fB\-\-list\fR"
 Lists fingerprints of all identities currently represented by the agent.
 .IP "\fB\-u\fR[\fIPASSWORD\fR], \fB\-\-unlock\fR\fB=\fR[\fIPASSWORD\fR]
