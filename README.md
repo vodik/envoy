@@ -51,6 +51,7 @@ configuration.
      -v, --version         display version
      -a, --add             add private key identities
      -k, --kill            kill the running agent
+     -r, --reload          reload the agent (gpg-agent only)
      -l, --list            list fingerprints of all loaded identities
      -u, --unlock=[PASS]   unlock the agent's keyring (gpg-agent only)
      -p, --print           print out environmental arguments
