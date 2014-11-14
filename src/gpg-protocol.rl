@@ -145,6 +145,11 @@ struct gpg_t *gpg_agent_connection(const char *sock, const char *home)
     return gpg;
 }
 
+int gpg_reload_agent(struct gpg_t *gpg)
+{
+    return gpg_send_message(gpg, "RELOADAGENT\n");
+}
+
 int gpg_update_tty(struct gpg_t *gpg)
 {
     const char *tty = ttyname(STDIN_FILENO);
