@@ -40,8 +40,8 @@ enum action {
     ACTION_PRINT,
     ACTION_NONE,
     ACTION_FORCE_ADD,
-    ACTION_CLEAR,
     ACTION_KILL,
+    ACTION_RELOAD,
     ACTION_LIST,
     ACTION_UNLOCK,
     ACTION_INVALID
@@ -169,8 +169,23 @@ static void source_env(struct agent_data_t *data)
     putenvf("SSH_AUTH_SOCK=%s", data->sock);
 }
 
+static void reload_agent(struct agent_data_t *data)
+{
+    if (data->type != AGENT_GPG_AGENT)
+        errx(EXIT_FAILURE, "only gpg-agent supports this operation");
+
+    _cleanup_gpg_ struct gpg_t *agent = gpg_agent_connection(data->gpg, NULL);
+    if (!agent)
+        err(EXIT_FAILURE, "failed to connect to GPG_AUTH_SOCK");
+
+    gpg_reload_agent(agent);
+}
+
 static int unlock(const struct agent_data_t *data, char *password)
 {
+    if (data->type != AGENT_GPG_AGENT)
+        errx(EXIT_FAILURE, "only gpg-agent supports this operation");
+
     _cleanup_gpg_ struct gpg_t *agent = gpg_agent_connection(data->gpg, NULL);
     if (!agent)
         err(EXIT_FAILURE, "failed to connect to GPG_AUTH_SOCK");
@@ -199,7 +214,8 @@ static _noreturn_ void usage(FILE *out)
         " -h, --help            display this help\n"
         " -v, --version         display version\n"
         " -a, --add             add private key identities\n"
-        " -k, --clear           force identities to expire (gpg-agent only)\n"
+        " -k, --kill            kill the running agent\n"
+        " -r, --reload          reload the agent (gpg-agent only)\n"
         " -l, --list            list fingerprints of all loaded identities\n"
         " -u, --unlock=[PASS]   unlock the agent's keyring (gpg-agent only)\n"
         " -p, --print           print out environmental arguments\n"
@@ -225,6 +241,7 @@ int main(int argc, char *argv[])
         { "version", no_argument,       0, 'v' },
         { "add",     no_argument,       0, 'a' },
         { "kill",    no_argument,       0, 'k' },
+        { "reload",  no_argument,       0, 'r' },
         { "list",    no_argument,       0, 'l' },
         { "unlock",  optional_argument, 0, 'u' },
         { "print",   no_argument,       0, 'p' },
@@ -236,7 +253,7 @@ int main(int argc, char *argv[])
     };
 
     while (true) {
-        int opt = getopt_long(argc, argv, "hvaklu::pscft:", opts, NULL);
+        int opt = getopt_long(argc, argv, "hvakrlu::pscft:", opts, NULL);
         if (opt == -1)
             break;
 
@@ -252,6 +269,10 @@ int main(int argc, char *argv[])
             break;
         case 'k':
             verb = ACTION_KILL;
+            source = false;
+            break;
+        case 'r':
+            verb = ACTION_RELOAD;
             source = false;
             break;
         case 'l':
@@ -306,6 +327,9 @@ int main(int argc, char *argv[])
     case ACTION_KILL:
         if (envoy_kill_agent(type) < 0)
             errx(EXIT_FAILURE, "failed to kill agent");
+        break;
+    case ACTION_RELOAD:
+        reload_agent(&data);
         break;
     case ACTION_LIST:
         execlp("ssh-add", "ssh-add", "-l", NULL);
