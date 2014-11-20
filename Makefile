@@ -29,7 +29,7 @@ LDLIBS := \
 	${LDLIBS}
 
 VPATH = src
-LIBDIR ?= lib
+LIBDIR = $(shell pkg-config --variable=libdir libsystemd)
 
 all: envoyd envoy envoy-exec pam_envoy.so
 
@@ -57,12 +57,14 @@ install: envoyd envoy pam_envoy.so
 	install -Dm755 envoyd ${DESTDIR}/usr/bin/envoyd
 	install -Dm755 envoy ${DESTDIR}/usr/bin/envoy
 	install -Dm755 envoy-exec ${DESTDIR}/usr/bin/envoy-exec
-	install -Dm755 pam_envoy.so ${DESTDIR}/usr/${LIBDIR}/security/pam_envoy.so
+	install -Dm755 pam_envoy.so ${DESTDIR}/${LIBDIR}/security/pam_envoy.so
 	install -Dm644 man/envoyd.1 ${DESTDIR}/usr/share/man/man1/envoyd.1
 	install -Dm644 man/envoy.1 ${DESTDIR}/usr/share/man/man1/envoy.1
 	install -Dm644 man/envoy-exec.1 ${DESTDIR}/usr/share/man/man1/envoy-exec.1
-	install -Dm644 units/envoy@.service ${DESTDIR}/usr/${LIBDIR}/systemd/system/envoy@.service
-	install -Dm644 units/envoy@.socket ${DESTDIR}/usr/${LIBDIR}/systemd/system/envoy@.socket
+	install -Dm644 units/envoy@.service ${DESTDIR}/usr/lib/systemd/system/envoy@.service
+	install -Dm644 units/envoy@.socket ${DESTDIR}/usr/lib/systemd/system/envoy@.socket
+	install -Dm644 units/envoy@.service ${DESTDIR}/usr/lib/systemd/user/envoy@.service
+	install -Dm644 units/envoy@.socket ${DESTDIR}/usr/lib/systemd/user/envoy@.socket
 	install -Dm644 zsh-completion ${DESTDIR}/usr/share/zsh/site-functions/_envoy
 
 clean:
