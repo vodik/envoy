@@ -227,7 +227,7 @@ static _noreturn_ void usage(FILE *out)
         " -s, --sh              print sh style commands\n"
         " -c, --csh             print csh style commands\n"
         " -f, --fish            print fish style commands\n"
-        " -t, --agent=AGENT     set the prefered to start\n", out);
+        " -t, --agent=AGENT     set the preferred to start\n", out);
 
     exit(out == stderr ? EXIT_FAILURE : EXIT_SUCCESS);
 }
