@@ -43,7 +43,7 @@ static int gpg_buffer_refill(struct gpg_t *gpg)
 {
     ssize_t nbytes_r = read(gpg->fd, gpg->buf, BUFSIZ);
     if (nbytes_r < 0)
-        return -errno;
+        return -1;
 
     gpg->buf[nbytes_r] = 0;
     gpg->p = gpg->buf;

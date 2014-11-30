@@ -48,11 +48,11 @@ static int envoy_connect(void)
 
     int fd = socket(AF_UNIX, SOCK_STREAM, 0);
     if (fd < 0)
-        return -errno;
+        return -1;
 
     sa_len = init_envoy_socket(&sa.un);
     if (connect(fd, &sa.sa, sa_len) < 0)
-        return -errno;
+        return -1;
     return fd;
 }
 
@@ -61,10 +61,10 @@ static ssize_t envoy_request(const struct agent_request_t *req, struct agent_dat
     ssize_t nbytes_r = 0;
     int fd = envoy_connect();
     if (fd < 0)
-        return -errno;
+        return -1;
 
     if (write(fd, req, sizeof(struct agent_request_t)) < 0)
-        return -errno;
+        return -1;
 
     nbytes_r = read(fd, data, sizeof(struct agent_data_t));
     close(fd);
@@ -74,7 +74,7 @@ static ssize_t envoy_request(const struct agent_request_t *req, struct agent_dat
 int envoy_get_agent(enum agent type, struct agent_data_t *data, enum options opts)
 {
     const struct agent_request_t req = { .type = type, .opts = opts };
-    return envoy_request(&req, data) < 0 ? -errno : 0;
+    return envoy_request(&req, data) < 0 ? -1 : 0;
 }
 
 int envoy_kill_agent(enum agent type)
@@ -83,7 +83,7 @@ int envoy_kill_agent(enum agent type)
     struct agent_data_t data;
 
     if (envoy_request(&req, &data) < 0)
-        return -errno;
+        return -1;
     return data.status == ENVOY_STOPPED ? 0 : -1;
 }
 
