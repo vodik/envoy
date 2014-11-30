@@ -26,6 +26,10 @@ source <(envoy -p)
 Display help message.
 .IP "\fB\-v\fR, \fB\-\-version\fR"
 Display version information.
+.IP "\fB\-d\fR, \fB\-\-defer\fR"
+Defer adding keys until the next envoy call. Useful for using envoy with
+ssh-agent in scripts. A useful safety to launch envoy correctly when in
+a environment where it can't ask for keys.
 .IP "\fB\-a\fR, \fB\-\-add\fR"
 Add private key identities to the authentication agent using
 \fBssh-add\fR(1). Note that when passing in keys, if they reside in

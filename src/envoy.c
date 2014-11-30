@@ -83,9 +83,13 @@ static ssize_t read_password(char **password)
     return nbytes_r;
 }
 
-static int get_agent(struct agent_data_t *data, enum agent id, bool start)
+static int get_agent(struct agent_data_t *data, enum agent id, bool start, bool env)
 {
-    int ret = envoy_get_agent(id, data, start ? AGENT_DEFAULTS : AGENT_STATUS);
+    enum options options = start ? AGENT_DEFAULTS : AGENT_STATUS;
+    if (env)
+        options |= AGENT_ENVIRON;
+
+    int ret = envoy_get_agent(id, data, options);
     if (ret < 0)
         err(EXIT_FAILURE, "failed to fetch agent");
 
@@ -213,6 +217,7 @@ static _noreturn_ void usage(FILE *out)
     fputs("Options:\n"
         " -h, --help            display this help\n"
         " -v, --version         display version\n"
+        " -d, --defer           defer adding keys until the next envoy invocation\n"
         " -a, --add             add private key identities\n"
         " -k, --kill            kill the running agent\n"
         " -r, --reload          reload the agent (gpg-agent only)\n"
@@ -230,6 +235,7 @@ static _noreturn_ void usage(FILE *out)
 int main(int argc, char *argv[])
 {
     bool source = true;
+    bool defer = false;
     struct agent_data_t data;
     char *password = NULL;
     enum action verb = ACTION_NONE;
@@ -239,6 +245,7 @@ int main(int argc, char *argv[])
     static const struct option opts[] = {
         { "help",    no_argument,       0, 'h' },
         { "version", no_argument,       0, 'v' },
+        { "defer",   no_argument,       0, 'd' },
         { "add",     no_argument,       0, 'a' },
         { "kill",    no_argument,       0, 'k' },
         { "reload",  no_argument,       0, 'r' },
@@ -253,7 +260,7 @@ int main(int argc, char *argv[])
     };
 
     while (true) {
-        int opt = getopt_long(argc, argv, "hvakrlu::pscft:", opts, NULL);
+        int opt = getopt_long(argc, argv, "hvdakrlu::pscft:", opts, NULL);
         if (opt == -1)
             break;
 
@@ -264,8 +271,12 @@ int main(int argc, char *argv[])
         case 'v':
             printf("%s %s\n", program_invocation_short_name, ENVOY_VERSION);
             return 0;
+        case 'd':
+            defer = true;
+            break;
         case 'a':
             verb = ACTION_FORCE_ADD;
+            defer = false;
             break;
         case 'k':
             verb = ACTION_KILL;
@@ -304,7 +315,7 @@ int main(int argc, char *argv[])
         }
     }
 
-    if (get_agent(&data, type, source) < 0)
+    if (get_agent(&data, type, source, defer) < 0)
         errx(EXIT_FAILURE, "recieved no data, did the agent fail to start?");
 
     if (data.status == ENVOY_STOPPED)
@@ -319,6 +330,8 @@ int main(int argc, char *argv[])
         /* fall through */
     case ACTION_NONE:
         if (data.status != ENVOY_STARTED || data.type == AGENT_GPG_AGENT)
+            break;
+        if (defer)
             break;
         /* fall through */
     case ACTION_FORCE_ADD:

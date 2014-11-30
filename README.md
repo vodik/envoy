@@ -49,6 +49,7 @@ configuration.
     Options:
      -h, --help            display this help
      -v, --version         display version
+     -d, --defer           defer adding keys until the next envoy invocation
      -a, --add             add private key identities
      -k, --kill            kill the running agent
      -r, --reload          reload the agent (gpg-agent only)
