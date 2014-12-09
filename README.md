@@ -21,7 +21,7 @@ This effectively allows a user to share a single long-running
 authentication agent between all shells and sessions in a clean and
 managed fashion that doesn't clutter user login sessions.
 
-  [keychain]: http://www.funtoo.org/wiki/Keychain
+  [keychain]: http://www.funtoo.org/Keychain
 
 ### Setup
 
