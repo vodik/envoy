@@ -210,8 +210,6 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t _unused_ *ph, int _unused_ flags
                     syslog(PAM_LOG_ERR, "failed to unlock '%s'", fpt->fingerprint);
             }
         }
-
-        gpg_close(agent);
     }
 
     return PAM_SUCCESS;
