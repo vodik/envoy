@@ -385,7 +385,7 @@ static void accept_conn(int fd)
 
 static int loop(int server_sock)
 {
-    int sfd = get_signalfd(SIGTERM, SIGINT, SIGQUIT, 0);
+    int sfd = get_signalfd(SIGTERM, SIGINT, SIGQUIT, NULL);
     if (sfd < 0)
         err(EXIT_FAILURE, "failed to create signalfd");
 

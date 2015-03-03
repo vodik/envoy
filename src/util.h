@@ -25,6 +25,7 @@
 #define _unused_         __attribute__((unused))
 #define _noreturn_       __attribute__((noreturn))
 #define _printf_(a,b)    __attribute__((format (printf, a, b)))
+#define _sentinel_       __attribute__((sentinel))
 #define _cleanup_(x)     __attribute__((cleanup(x)))
 #define _cleanup_free_   _cleanup_(freep)
 
@@ -38,7 +39,7 @@ int putenvf(const char *fmt, ...) _printf_(1, 2);
 void safe_asprintf(char **strp, const char *fmt, ...) _printf_(2, 3);
 
 int unblock_signals(void);
-int get_signalfd(int signum, ...);
+int get_signalfd(int signum, ...) _sentinel_;
 
 const char *get_home_dir(void);
 
