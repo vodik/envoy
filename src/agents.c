@@ -12,7 +12,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  *
- * Copyright (C) Simon Gomizelj, 2013
+ * Copyright (C) Simon Gomizelj, 2015
  */
 
 #include "agents.h"
