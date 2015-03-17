@@ -1,4 +1,4 @@
-VERSION=v12
+VERSION=v13
 GIT_DESC=$(shell test -d .git && git describe 2>/dev/null)
 
 ifneq "$(GIT_DESC)" ""
