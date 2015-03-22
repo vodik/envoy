@@ -60,6 +60,16 @@ struct agent_data_t {
     char unit_path[PATH_MAX];
 };
 
+static inline bool agent_running(struct agent_data_t *data)
+{
+    return data->status == ENVOY_STARTED || data->status == ENVOY_RUNNING;
+}
+
+static inline bool agent_started(struct agent_data_t *data)
+{
+    return data->status == ENVOY_STARTED;
+}
+
 extern const struct agent_t Agent[];
 
 int envoy_get_agent(enum agent type, struct agent_data_t *data, enum options opts);

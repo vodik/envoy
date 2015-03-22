@@ -329,7 +329,7 @@ int main(int argc, char *argv[])
         print_env(&data);
         /* fall through */
     case ACTION_NONE:
-        if (data.status != ENVOY_STARTED || data.type == AGENT_GPG_AGENT)
+        if (data.type == AGENT_GPG_AGENT || !agent_started(&data))
             break;
         if (defer)
             break;

@@ -200,7 +200,7 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t _unused_ *ph, int _unused_ flags
         return PAM_SUCCESS;
     }
 
-    if (data.status == ENVOY_RUNNING && data.type == AGENT_GPG_AGENT) {
+    if (data.type == AGENT_GPG_AGENT && agent_running(&data)) {
         _cleanup_gpg_ struct gpg_t *agent = gpg_agent_connection(data.gpg, pwd->pw_dir);
 
         if (password) {
