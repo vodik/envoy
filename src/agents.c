@@ -29,11 +29,11 @@
 
 const struct agent_t Agent[] = {
     [AGENT_SSH_AGENT] = {
-        .name = "ssh-agent",
+        .name = { "ssh-agent", "ssh" },
         .argv = (char *const []){ "/usr/bin/ssh-agent", NULL }
     },
     [AGENT_GPG_AGENT] = {
-        .name = "gpg-agent",
+        .name = { "gpg-agent", "gpg" },
         .argv = (char *const []){ "/usr/bin/gpg-agent", "--daemon", "--enable-ssh-support", NULL }
     }
 };
@@ -91,7 +91,9 @@ enum agent lookup_agent(const char *string)
 {
     size_t i;
     for (i = 0; i < sizeof(Agent) / sizeof(Agent[0]); i++) {
-        if (streq(Agent[i].name, string))
+        const struct agent_t *agent = &Agent[i];
+
+        if (streq(agent->name[0], string) || streq(agent->name[1], string))
             return i;
     }
     return -1;

@@ -43,7 +43,7 @@ enum options {
 };
 
 struct agent_t {
-    const char *name;
+    const char *name[2];
     char *const *argv;
 };
 
