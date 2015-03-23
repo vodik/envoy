@@ -170,7 +170,7 @@ static _noreturn_ void exec_agent(const struct agent_t *agent, uid_t uid, gid_t 
     safe_asprintf(&agent_env.arg.home, "HOME=%s", pwd->pw_dir);
 
     execve(agent->argv[0], agent->argv, agent_env.env);
-    err(EXIT_FAILURE, "failed to start %s", agent->name);
+    err(EXIT_FAILURE, "failed to start %s", agent->name[0]);
 }
 
 static int run_agent(struct agent_node_t *node, uid_t uid, gid_t gid)
@@ -185,7 +185,7 @@ static int run_agent(struct agent_node_t *node, uid_t uid, gid_t gid)
         .type   = data->type
     };
 
-    printf("Starting %s for uid=%u.\n", agent->name, uid);
+    printf("Starting %s for uid=%u.\n", agent->name[0], uid);
     fflush(stdout);
 
     if (pipe2(fd, O_CLOEXEC) < 0)
@@ -215,17 +215,17 @@ static int run_agent(struct agent_node_t *node, uid_t uid, gid_t gid)
 
         if (WIFEXITED(stat))
             fprintf(stderr, "%s exited with status %d.\n",
-                    agent->name, WEXITSTATUS(stat));
+                    agent->name[0], WEXITSTATUS(stat));
         if (WIFSIGNALED(stat))
             fprintf(stderr, "%s terminated with signal %d.\n",
-                    agent->name, WTERMSIG(stat));
+                    agent->name[0], WTERMSIG(stat));
 
         goto cleanup;
     }
 
     rc  = parse_agentdata(fd[0], data);
     if (rc < 0) {
-        fprintf(stderr, "Failed to parse %s output\n", agent->name);
+        fprintf(stderr, "Failed to parse %s output\n", agent->name[0]);
         goto cleanup;
     }
 
@@ -284,7 +284,7 @@ static int get_socket(void)
 static char *get_scope_name(enum agent type, uid_t uid)
 {
     char *scope_name;
-    safe_asprintf(&scope_name, "envoy-%s-monitor-%d.scope", Agent[type].name, uid);
+    safe_asprintf(&scope_name, "envoy-%s-monitor-%d.scope", Agent[type].name[0], uid);
     return scope_name;
 }
 
@@ -355,7 +355,7 @@ static void accept_conn(int fd)
     if (unit_running(&node->d)) {
         if (req.opts & AGENT_KILL && node->d.unit_path[0]) {
             printf("Terminating %s for uid=%u.\n",
-                   Agent[node->d.type].name, cred.uid);
+                   Agent[node->d.type].name[0], cred.uid);
             fflush(stdout);
 
             stop_unit(bus, node->d.unit_path, NULL);
@@ -370,7 +370,7 @@ static void accept_conn(int fd)
 
         if (node->d.status != ENVOY_STOPPED) {
             printf("Agent %s for uid=%u has terminated. Restarting...\n",
-                   Agent[node->d.type].name, cred.uid);
+                   Agent[node->d.type].name[0], cred.uid);
             fflush(stdout);
         }
 
