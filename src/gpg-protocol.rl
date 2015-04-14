@@ -90,6 +90,7 @@ static int gpg_check_return(struct gpg_t *gpg)
         }
     }
 
+    (void)status_en_main;
     return rc;
 }
 
@@ -300,6 +301,7 @@ struct fingerprint_t *gpg_keyinfo(struct gpg_t *gpg)
         }
     }
 
+    (void)keyinfo_en_main;
     return fpt;
 }
 
