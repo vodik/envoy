@@ -43,7 +43,7 @@ ENVOYLIBS = gpg-protocol.o agents.o socket.o util.o
 
 all: envoyd envoy envoy-exec pam_envoy.so
 
-gpg-protocol.o: src/gpg-protocol.c
+gpg-protocol.o: $(VPATH)/gpg-protocol.c
 $(ENVOYLIBS) pam_envoy.o: EXTRA_FLAGS := -fPIC
 
 envoyd: envoyd.o dbus.o $(ENVOYLIBS)
