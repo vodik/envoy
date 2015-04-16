@@ -39,17 +39,17 @@ LDLIBS := \
 
 VPATH = src
 LIBDIR := $(shell pkg-config --variable=libdir libsystemd)
-ENVOYLIB = gpg-protocol.o agents.o socket.o util.o
+ENVOYLIBS = gpg-protocol.o agents.o socket.o util.o
 
 all: envoyd envoy envoy-exec pam_envoy.so
 
 gpg-protocol.o: src/gpg-protocol.c
-$(ENVOYLIB) pam_envoy.o: EXTRA_FLAGS := -fPIC
+$(ENVOYLIBS) pam_envoy.o: EXTRA_FLAGS := -fPIC
 
-envoyd: envoyd.o dbus.o $(ENVOYLIB)
-envoy: envoy.o $(ENVOYLIB)
-envoy-exec: envoy-exec.o $(ENVOYLIB)
-pam_envoy.so: pam_envoy.o $(ENVOYLIB)
+envoyd: envoyd.o dbus.o $(ENVOYLIBS)
+envoy: envoy.o $(ENVOYLIBS)
+envoy-exec: envoy-exec.o $(ENVOYLIBS)
+pam_envoy.so: pam_envoy.o $(ENVOYLIBS)
 	$(LINK.o) -shared $^ $(LOADLIBES) $(LDLIBS) -o $@
 
 install: envoyd envoy pam_envoy.so
