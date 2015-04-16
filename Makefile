@@ -37,24 +37,19 @@ LDLIBS := \
 	$(dbus_LDLIBS) \
 	$(LDLIBS)
 
-LIBDIR := $(shell pkg-config --variable=libdir libsystemd)
-
 VPATH = src
+LIBDIR := $(shell pkg-config --variable=libdir libsystemd)
+ENVOYLIB = gpg-protocol.o agents.o socket.o util.o
 
 all: envoyd envoy envoy-exec pam_envoy.so
 
-gpg-protocol.o: gpg-protocol.c
-gpg-protocol.o: EXTRA_FLAGS := -fPIC -Isrc
+gpg-protocol.o: src/gpg-protocol.c
+$(ENVOYLIB) pam_envoy.o: EXTRA_FLAGS := -fPIC
 
-pam_envoy.o: EXTRA_FLAGS := -fPIC
-agents.o: EXTRA_FLAGS := -fPIC
-socket.o: EXTRA_FLAGS := -fPIC
-util.o: EXTRA_FLAGS := -fPIC
-
-envoyd: envoyd.o dbus.o gpg-protocol.o agents.o socket.o util.o
-envoy: envoy.o gpg-protocol.o agents.o socket.o util.o
-envoy-exec: envoy-exec.o gpg-protocol.o agents.o socket.o util.o
-pam_envoy.so: pam_envoy.o gpg-protocol.o agents.o socket.o util.o
+envoyd: envoyd.o dbus.o $(ENVOYLIB)
+envoy: envoy.o $(ENVOYLIB)
+envoy-exec: envoy-exec.o $(ENVOYLIB)
+pam_envoy.so: pam_envoy.o $(ENVOYLIB)
 	$(LINK.o) -shared $^ $(LOADLIBES) $(LDLIBS) -o $@
 
 install: envoyd envoy pam_envoy.so
@@ -72,6 +67,6 @@ install: envoyd envoy pam_envoy.so
 	install -Dm644 zsh-completion $(DESTDIR)/usr/share/zsh/site-functions/_envoy
 
 clean:
-	$(RM) envoyd envoy envoy-exec pam_envoy.so *.o gpg-protocol.c
+	$(RM) envoyd envoy envoy-exec pam_envoy.so *.o src/gpg-protocol.c
 
 .PHONY: all clean install
