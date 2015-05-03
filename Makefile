@@ -1,11 +1,11 @@
 RAGEL = ragel
-RAGEL_FLAGS = -F0 -C
+RAGEL_FLAGS := -F0
 
 COMPILE.rl = $(RAGEL) $(RAGEL_FLAGS)
 COMPILE.c = $(CC) $(CFLAGS) $(EXTRA_FLAGS) -c
 
 %.c: %.rl
-	$(COMPILE.rl) $(OUTPUT_OPTION) $<
+	$(COMPILE.rl) -C $(OUTPUT_OPTION) $<
 
 VERSION=v13
 GIT_DESC=$(shell test -d .git && git describe 2>/dev/null)
