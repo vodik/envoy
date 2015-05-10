@@ -158,13 +158,17 @@ int gpg_update_tty(struct gpg_t *gpg)
     const char *display = getenv("DISPLAY");
     const char *xauthority = getenv("XAUTHORITY");
 
+    /* In this case, there's no information to update, so lets bail to
+     * avoid clearing what's already there */
+    if (!tty && !display)
+        return 0;
+
     gpg_send_message(gpg, "RESET\n");
 
-    if (tty)
+    if (tty) {
         gpg_send_message(gpg, "OPTION ttyname=%s\n", tty);
-
-    if (term)
-        gpg_send_message(gpg, "OPTION ttytype=%s\n", term);
+        gpg_send_message(gpg, "OPTION ttytype=%s\n", term ? term : "dumb");
+    }
 
     if (display) {
         gpg_send_message(gpg, "OPTION display=%s\n", display);

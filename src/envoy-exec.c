@@ -54,12 +54,8 @@ static void source_agent_env(enum agent id)
         gpg_update_tty(agent);
     }
 
-    if (data.gpg[0]) {
+    if (data.gpg[0])
         putenvf("GPG_AGENT_INFO=%s", data.gpg);
-    } else {
-        unsetenv("GPG_AGENT_INFO");
-    }
-
     putenvf("SSH_AUTH_SOCK=%s", data.sock);
 }
 
