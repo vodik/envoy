@@ -76,10 +76,20 @@ static char *extract_binary(char *path)
     if (memblock[0] != '#' || memblock[1] != '!')
         return path;
 
-    size_t scan = strcspn(memblock, "\n");
-    scan += strspn(memblock + scan, "\n");
-    size_t eol = strcspn(memblock + scan, "\n");
-    return strndup(memblock + scan, eol);
+    memblock += strcspn(memblock, "\n");
+    while (*memblock++ == '\n') {
+        memblock += strspn(memblock, "\t ");
+        if (memblock[0] == '\0')
+            break;
+
+        size_t eol = strcspn(memblock, "\n");
+        if (*memblock == '#') {
+            memblock += eol;
+            continue;
+        }
+        return strndup(memblock, eol);
+    }
+    return path;
 }
 
 static _noreturn_ void exec_from_path(char *argv[])
