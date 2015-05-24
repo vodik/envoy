@@ -63,18 +63,18 @@ static void source_agent_env(enum agent id)
 static char *extract_binary(char *path)
 {
     struct stat st;
-    char *memblock;
+    char *memblock, *command = path;
 
     _cleanup_close_ int fd = open(path, O_RDONLY);
     if (fd < 0)
-        return path;
+        return command;
 
     fstat(fd, &st);
     memblock = mmap(NULL, st.st_size, PROT_READ, MAP_SHARED | MAP_POPULATE, fd, 0);
     madvise(memblock, st.st_size, MADV_WILLNEED | MADV_SEQUENTIAL);
 
     if (memblock[0] != '#' || memblock[1] != '!')
-        return path;
+        goto error;
 
     memblock += strcspn(memblock, "\n");
     while (*memblock++ == '\n') {
@@ -86,10 +86,15 @@ static char *extract_binary(char *path)
         if (*memblock == '#') {
             memblock += eol;
             continue;
+        } else {
+            command = strndup(memblock, eol);
+            goto error;
         }
-        return strndup(memblock, eol);
     }
-    return path;
+
+error:
+    memblock != MAP_FAILED ? munmap(memblock, st.st_size) : 0;
+    return command;
 }
 
 static _noreturn_ void exec_from_path(char *argv[])
