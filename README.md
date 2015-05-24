@@ -124,7 +124,7 @@ It is also possible to write an `envoy-exec` "script" to provide a
 terser wrapper.
 
     #!/usr/bin/envoy-exec
-    ssh
+    /usr/bin/ssh
 
 This script will behave as if its been invoked as `envoy-exec ssh`.
 
