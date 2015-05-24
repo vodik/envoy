@@ -120,13 +120,13 @@ the provided command. For example:
 
     envoy-exec ssh git@github.com
 
-It is also possible to symlink `envoy-exec` to another name to provide
-a terser wrapper.
+It is also possible to write an `envoy-exec` "script" to provide a
+terser wrapper.
 
-    export PATH="$HOME/bin:$PATH"
-    ln -s /usr/bin/envoy-exec ~/bin/ssh
+    #!/usr/bin/envoy-exec
+    ssh
 
-This will make `ssh` behave as if its been invoked as `envoy-exec ssh`.
+This script will behave as if its been invoked as `envoy-exec ssh`.
 
 ### Cgroups support
 
