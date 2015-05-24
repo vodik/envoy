@@ -37,7 +37,7 @@ static inline void closep(int *fd) { if (*fd >= 0) close(*fd); }
 static inline bool streq(const char *s1, const char *s2) { return strcmp(s1, s2) == 0; }
 static inline bool strneq(const char *s1, const char *s2, size_t n) { return strncmp(s1, s2, n) == 0; }
 
-char *joinpath(const char *root, ...);
+char *joinpath(const char *root, ...) _sentinel_;
 int putenvf(const char *fmt, ...) _printf_(1, 2);
 void safe_asprintf(char **strp, const char *fmt, ...) _printf_(2, 3);
 
