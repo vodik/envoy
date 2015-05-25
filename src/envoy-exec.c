@@ -32,8 +32,6 @@
 #include "gpg-protocol.h"
 #include "util.h"
 
-static const char *exe_path;
-
 static void source_agent_env(enum agent id)
 {
     struct agent_data_t data;
@@ -62,7 +60,7 @@ static void source_agent_env(enum agent id)
     putenvf("SSH_AUTH_SOCK=%s", data.sock);
 }
 
-static inline int safe_execv(const char *path, char *const argv[])
+static inline int safe_execv(const char *path, const char *exe_path, char *const argv[])
 {
     _cleanup_free_ char *real = realpath(path, NULL);
     if (real && streq(real, exe_path))
@@ -107,7 +105,7 @@ error:
     return command;
 }
 
-static _noreturn_ void exec_from_path(const char *cmd, char *argv[])
+static _noreturn_ void exec_from_path(const char *cmd, const char *exe_path, char *argv[])
 {
     char *path = strdup(getenv("PATH"));
     if (!path)
@@ -116,7 +114,7 @@ static _noreturn_ void exec_from_path(const char *cmd, char *argv[])
     char *saveptr = NULL, *segment = strtok_r(path, ":", &saveptr);
     for (; segment; segment = strtok_r(NULL, ":", &saveptr)) {
         char *full_path = joinpath(segment, cmd, NULL);
-        safe_execv(full_path, argv);
+        safe_execv(full_path, exe_path, argv);
         free(full_path);
     }
 
@@ -126,6 +124,7 @@ static _noreturn_ void exec_from_path(const char *cmd, char *argv[])
 static _noreturn_ void exec_wrapper(int argc, char *argv[])
 {
     /* command + NULL + argv */
+    const char *exe_path;
     char *new_argv[argc + 1];
     char *cmd = extract_binary(argv[0]);
     int i;
@@ -145,11 +144,11 @@ static _noreturn_ void exec_wrapper(int argc, char *argv[])
     new_argv[argc] = NULL;
 
     if (cmd[0] == '/' || cmd[0] == '.') {
-        safe_execv(cmd, new_argv);
+        safe_execv(cmd, exe_path, new_argv);
         // If the exec failed, the wrapper was called by its full path
         cmd = program_invocation_short_name;
     }
-    exec_from_path(cmd, new_argv);
+    exec_from_path(cmd, exe_path, new_argv);
 }
 
 static _noreturn_ void usage(FILE *out)
