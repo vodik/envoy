@@ -32,6 +32,8 @@
 #include "gpg-protocol.h"
 #include "util.h"
 
+static const char *exe_path;
+
 static void source_agent_env(enum agent id)
 {
     struct agent_data_t data;
@@ -60,10 +62,18 @@ static void source_agent_env(enum agent id)
     putenvf("SSH_AUTH_SOCK=%s", data.sock);
 }
 
+static inline int safe_execv(const char *path, char *const argv[])
+{
+    _cleanup_free_ char *real = realpath(path, NULL);
+    if (real && streq(real, exe_path))
+        return 0;
+    return execv(path, argv);
+}
+
 static char *extract_binary(char *path)
 {
     struct stat st;
-    char *memblock, *command = path;
+    char *memblock, *command = NULL;
 
     _cleanup_close_ int fd = open(path, O_RDONLY);
     if (fd < 0)
@@ -97,20 +107,20 @@ error:
     return command;
 }
 
-static _noreturn_ void exec_from_path(char *argv[])
+static _noreturn_ void exec_from_path(const char *cmd, char *argv[])
 {
     char *path = strdup(getenv("PATH"));
     if (!path)
-        errx(EXIT_FAILURE, "command %s not found", argv[0]);
+        errx(EXIT_FAILURE, "command %s not found", cmd);
 
     char *saveptr = NULL, *segment = strtok_r(path, ":", &saveptr);
     for (; segment; segment = strtok_r(NULL, ":", &saveptr)) {
-        char *full_path = joinpath(segment, argv[0], NULL);
-        execv(full_path, argv);
+        char *full_path = joinpath(segment, cmd, NULL);
+        safe_execv(full_path, argv);
         free(full_path);
     }
 
-    errx(EXIT_FAILURE, "command %s not found", argv[0]);
+    errx(EXIT_FAILURE, "command %s not found", cmd);
 }
 
 static _noreturn_ void exec_wrapper(int argc, char *argv[])
@@ -120,13 +130,26 @@ static _noreturn_ void exec_wrapper(int argc, char *argv[])
     char *cmd = extract_binary(argv[0]);
     int i;
 
+    if (cmd) {
+        exe_path = argv[0];
+    } else {
+        cmd = argv[0];
+        exe_path = realpath("/proc/self/exe", NULL);
+        if (!exe_path)
+            err(EXIT_FAILURE, "failed to resolve /proc/self/exe");
+    }
+
     new_argv[0] = cmd;
     for (i = 1; i < argc; i++)
         new_argv[i] = argv[i];
     new_argv[argc] = NULL;
 
-    execv(cmd, new_argv);
-    exec_from_path(new_argv);
+    if (cmd[0] == '/' || cmd[0] == '.') {
+        safe_execv(cmd, new_argv);
+        // If the exec failed, the wrapper was called by its full path
+        cmd = program_invocation_short_name;
+    }
+    exec_from_path(cmd, new_argv);
 }
 
 static _noreturn_ void usage(FILE *out)
@@ -151,33 +174,35 @@ int main(int argc, char *argv[])
         { 0, 0, 0, 0 }
     };
 
-    while (true) {
-        int opt = getopt_long(argc, argv, "+hvt:", opts, NULL);
-        if (opt == -1)
-            break;
+    if (streq(program_invocation_short_name, "envoy-exec")) {
+        while (true) {
+            int opt = getopt_long(argc, argv, "+hvt:", opts, NULL);
+            if (opt == -1)
+                break;
 
-        switch (opt) {
-        case 'h':
-            usage(stdout);
-            break;
-        case 'v':
-            printf("%s %s\n", program_invocation_short_name, ENVOY_VERSION);
-            return 0;
-        case 't':
-            type = lookup_agent(optarg);
-            if (type < 0)
-                errx(EXIT_FAILURE, "unknown agent: %s", optarg);
-            break;
-        default:
-            usage(stderr);
+            switch (opt) {
+            case 'h':
+                usage(stdout);
+                break;
+            case 'v':
+                printf("%s %s\n", program_invocation_short_name, ENVOY_VERSION);
+                return 0;
+            case 't':
+                type = lookup_agent(optarg);
+                if (type < 0)
+                    errx(EXIT_FAILURE, "unknown agent: %s", optarg);
+                break;
+            default:
+                usage(stderr);
+            }
         }
+
+        argc -= optind;
+        argv += optind;
+
+        if (argc == 0)
+            usage(stderr);
     }
-
-    argc -= optind;
-    argv += optind;
-
-    if (argc == 0)
-        usage(stderr);
 
     source_agent_env(type);
     exec_wrapper(argc, argv);
