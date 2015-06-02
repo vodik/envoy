@@ -51,6 +51,7 @@ configuration.
      -v, --version         display version
      -d, --defer           defer adding keys until the next envoy invocation
      -a, --add             add private key identities
+     -x, --expunge         remove private key identities
      -k, --kill            kill the running agent
      -r, --reload          reload the agent (gpg-agent only)
      -l, --list            list fingerprints of all loaded identities

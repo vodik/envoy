@@ -40,6 +40,7 @@ enum action {
     ACTION_PRINT,
     ACTION_NONE,
     ACTION_FORCE_ADD,
+    ACTION_FORCE_EXPUNGE,
     ACTION_KILL,
     ACTION_RELOAD,
     ACTION_LIST,
@@ -136,6 +137,26 @@ static _noreturn_ void add_keys(char **keys, int count)
     err(EXIT_FAILURE, "failed to launch ssh-add");
 }
 
+static _noreturn_ void expunge_keys(char **keys, int count)
+{
+    /* command + -d + end-of-opts + NULL + keys */
+    const char *home_dir = get_home_dir();
+    char *args[count + 4];
+    int i;
+
+    args[0] = "/usr/bin/ssh-add";
+    args[1] = "-d";
+    args[2] = "--";
+
+    for (i = 0; i < count; i++)
+        args[3 + i] = get_key_path(home_dir, keys[i]);
+
+    args[3 + count] = NULL;
+
+    execv(args[0], args);
+    err(EXIT_FAILURE, "failed to launch ssh-add");
+}
+
 static void print_sh_env(struct agent_data_t *data)
 {
     if (data->type == AGENT_GPG_AGENT && data->gpg[0])
@@ -219,6 +240,7 @@ static _noreturn_ void usage(FILE *out)
         " -v, --version         display version\n"
         " -d, --defer           defer adding keys until the next envoy invocation\n"
         " -a, --add             add private key identities\n"
+        " -x, --expunge         remove private key identities\n"
         " -k, --kill            kill the running agent\n"
         " -r, --reload          reload the agent (gpg-agent only)\n"
         " -l, --list            list fingerprints of all loaded identities\n"
@@ -247,6 +269,7 @@ int main(int argc, char *argv[])
         { "version", no_argument,       0, 'v' },
         { "defer",   no_argument,       0, 'd' },
         { "add",     no_argument,       0, 'a' },
+        { "expunge", no_argument,       0, 'x' },
         { "kill",    no_argument,       0, 'k' },
         { "reload",  no_argument,       0, 'r' },
         { "list",    no_argument,       0, 'l' },
@@ -260,7 +283,7 @@ int main(int argc, char *argv[])
     };
 
     while (true) {
-        int opt = getopt_long(argc, argv, "hvdakrlu::pscft:", opts, NULL);
+        int opt = getopt_long(argc, argv, "hvdaxkrlu::pscft:", opts, NULL);
         if (opt == -1)
             break;
 
@@ -276,6 +299,10 @@ int main(int argc, char *argv[])
             break;
         case 'a':
             verb = ACTION_FORCE_ADD;
+            defer = false;
+            break;
+        case 'x':
+            verb = ACTION_FORCE_EXPUNGE;
             defer = false;
             break;
         case 'k':
@@ -336,6 +363,9 @@ int main(int argc, char *argv[])
         /* fall through */
     case ACTION_FORCE_ADD:
         add_keys(&argv[optind], argc - optind);
+        break;
+    case ACTION_FORCE_EXPUNGE:
+        expunge_keys(&argv[optind], argc - optind);
         break;
     case ACTION_KILL:
         if (envoy_kill_agent(type) < 0)
