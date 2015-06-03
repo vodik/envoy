@@ -16,13 +16,13 @@ envoy)
     {-s,--sh}'[print sh style commands]' \
     {-c,--csh}'[print csh style commands]' \
     {-f,--fish}'[print fish style commands]' \
-    {-t,--agent=-}'[set the prefered to start]:agents:(ssh-agent gpg-agent)'
+    {-t,--agent=-}'[set the preferred agent to start]:agents:(ssh-agent gpg-agent)'
   ;;
 envoyd)
   _arguments -s \
     {-h,--help}'[display this help]'\
     {-v,--version}'[display version]'\
-    {-t,--agent=-}'[set the prefered to start]:agents:(ssh-agent gpg-agent)'
+    {-t,--agent=-}'[set the preferred agent to start]:agents:(ssh-agent gpg-agent)'
   ;;
 envoy-exec)
   _arguments -s '*::arguments: _normal'
