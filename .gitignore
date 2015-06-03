@@ -2,7 +2,7 @@
 /envoyd
 /envoy-exec
 /pam_envoy.so
-/gpg-protocol.c
+src/gpg-protocol.c
 *.o
 *.pyc
 __pycache__/
