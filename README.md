@@ -59,7 +59,7 @@ configuration.
      -s, --sh              print sh style commands
      -c, --csh             print csh style commands
      -f, --fish            print fish style commands
-     -t, --agent=AGENT     set the prefered to start
+     -t, --agent=AGENT     set the preferred agent to start
 
 Note that when passing in keys, if they reside in `~/.ssh/`, then just
 providing the filename is sufficient.
