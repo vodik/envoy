@@ -108,7 +108,7 @@ this, add:
     auth      optional    pam_envoy.so
     session   optional    pam_envoy.so
 
-Note that this replies on gpg-agent's passphrase presetting support. To
+Note that this relies on gpg-agent's passphrase presetting support. To
 enable this, ensure `allow-preset-passphrase` is also in
 `~/.gnupg/gpg-agent.conf`.
 
