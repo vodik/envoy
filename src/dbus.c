@@ -17,17 +17,30 @@
 
 #include "dbus.h"
 
-#include <stdio.h>
 #include <stdlib.h>
+#include <stdio.h>
 #include <stdarg.h>
+#include <stdbool.h>
 #include <string.h>
 #include <errno.h>
-#include <systemd/sd-bus.h>
+#include <err.h>
+#include <unistd.h>
+#include <dbus/dbus.h>
+
 #include "util.h"
 
-static void _noreturn_ _printf_(3,4) err2(int ret, int eval, const char *fmt, ...)
+static inline void dbus_msg_unref(DBusMessage **msg)
+{
+    if (*msg)
+        dbus_message_unref(*msg);
+}
+
+#define _cleanup_dbus_msg_  _cleanup_(dbus_msg_unref)
+
+static void _noreturn_ _printf_(3,4) dbus_err(int eval, DBusError *err, const char *fmt, ...)
 {
     fprintf(stderr, "%s: ", program_invocation_short_name);
+
     if (fmt) {
         va_list ap;
 
@@ -37,108 +50,201 @@ static void _noreturn_ _printf_(3,4) err2(int ret, int eval, const char *fmt, ..
         fprintf(stderr, ": ");
     }
 
-    fprintf(stderr, "%s\n", strerror(-ret));
+    fprintf(stderr, "%s\n", err->message);
     exit(eval);
 }
 
-void start_transient_unit(sd_bus *bus, const char *name,
-                          const char *slice, const char *desc)
+static DBusMessage *dbus_send_message(DBusConnection *conn, DBusMessage *msg)
 {
-    sd_bus_message *msg = NULL;
-    sd_bus_error error = SD_BUS_ERROR_NULL;
+    DBusError err;
+    DBusMessage *reply;
 
-    int ret = sd_bus_message_new_method_call(bus, &msg,
-                                             "org.freedesktop.systemd1",
-                                             "/org/freedesktop/systemd1",
-                                             "org.freedesktop.systemd1.Manager",
-                                             "StartTransientUnit");
-    if (ret < 0)
-        err2(ret, EXIT_FAILURE, "failed to create new message");
+    dbus_error_init(&err);
+    reply = dbus_connection_send_with_reply_and_block(conn, msg, -1, &err);
+    if (!reply)
+        dbus_err(EXIT_FAILURE, &err, "dbus error");
 
-    sd_bus_message_append(msg, "ss", name, "fail");
-
-    sd_bus_message_open_container(msg, 'a', "(sv)");
-    sd_bus_message_append(msg, "(sv)", "Slice", slice);
-    sd_bus_message_append(msg, "(sv)", "Description", desc);
-    sd_bus_message_close_container(msg);
-
-    sd_bus_message_append(msg, "a(sa(sv))", 0);
-
-    sd_bus_call(bus, msg, 0, &error, NULL);
-
-    sd_bus_message_unref(msg);
-    sd_bus_error_free(&error);
+    dbus_connection_flush(conn);
+    return reply;
 }
 
-char *get_unit(sd_bus *bus, const char *name)
+static int dbus_reply_object_path(DBusMessage *reply, char **ret)
 {
-    sd_bus_message *msg = NULL;
-    sd_bus_error error = SD_BUS_ERROR_NULL;
+    DBusMessageIter args;
 
-    int ret = sd_bus_call_method(bus, "org.freedesktop.systemd1",
-                                 "/org/freedesktop/systemd1",
-                                 "org.freedesktop.systemd1.Manager",
-                                 "GetUnit", &error, &msg,
-                                 "s", name);
-    if (ret < 0)
-        err2(ret, EXIT_FAILURE, "failed to issue method call");
+    if (!dbus_message_iter_init(reply, &args)) {
+        warnx("message has no arguments");
+        return -1;
+    }
 
-    char *path;
-    ret = sd_bus_message_read(msg, "o", &path);
-    if (ret < 0)
-        err2(ret, EXIT_FAILURE, "failed to parse response message");
-
-    sd_bus_message_unref(msg);
-    sd_bus_error_free(&error);
-    return strdup(path);
+    switch (dbus_message_iter_get_arg_type(&args)) {
+    case 'o':
+        if (ret) {
+            dbus_message_iter_get_basic(&args, ret);
+            *ret = strdup(*ret);
+        }
+        return 0;
+    default:
+        warnx("message is of the wrong type");
+        return -1;
+    }
 }
 
-void stop_unit(sd_bus *bus, const char *path)
+static void set_property(DBusMessageIter *props, const char *key, int type, const void *value)
 {
-    sd_bus_message *msg = NULL;
-    sd_bus_error error = SD_BUS_ERROR_NULL;
+    DBusMessageIter prop, var;
+    const char type_str[] = { type, '\0' };
 
-    printf("PATH: %s\n", path);
-    int ret = sd_bus_call_method(bus, "org.freedesktop.systemd1",
-                                 path, "org.freedesktop.systemd1.Unit",
-                                 "Stop", &error, &msg,
-                                 "s", "fail");
-    if (ret < 0)
-        err2(ret, EXIT_FAILURE, "failed to issue method call");
-
-    sd_bus_message_unref(msg);
-    sd_bus_error_free(&error);
+    dbus_message_iter_open_container(props, 'r', NULL, &prop);
+    dbus_message_iter_append_basic(&prop, 's', &key);
+    dbus_message_iter_open_container(&prop, 'v', type_str, &var);
+    dbus_message_iter_append_basic(&var, type, &value);
+    dbus_message_iter_close_container(&prop, &var);
+    dbus_message_iter_close_container(props, &prop);
 }
 
-char *get_unit_state(sd_bus *bus, const char *path)
+static void set_pids(DBusMessageIter *props)
 {
-    sd_bus_message *msg = NULL;
-    sd_bus_error error = SD_BUS_ERROR_NULL;
+    DBusMessageIter t, a, v;
+    const char *key = "PIDs";
+    const char *type_str = "au";
+    const dbus_int32_t pids[] = { getpid() };
+    const dbus_int32_t *p = pids;
 
-    int ret = sd_bus_get_property(bus, "org.freedesktop.systemd1",
-                                  path, "org.freedesktop.systemd1.Unit",
-                                  "SubState", &error, &msg, "s");
-    if (ret < 0)
-        err2(ret, EXIT_FAILURE, "failed to get property SubState");
+    dbus_message_iter_open_container(props, DBUS_TYPE_STRUCT, NULL, &t);
+    dbus_message_iter_append_basic(&t, DBUS_TYPE_STRING, &key);
 
-    char *state;
-    ret = sd_bus_message_read(msg, "s", &state);
-    if (ret < 0)
-        err2(ret, EXIT_FAILURE, "failed to get property SubState");
+    dbus_message_iter_open_container(&t, 'v', type_str, &v);
+    dbus_message_iter_open_container(&v, 'a', "u", &a);
+    dbus_message_iter_append_fixed_array(&a, 'u', &p, 1);
+    dbus_message_iter_close_container(&v, &a);
+    dbus_message_iter_close_container(&t, &v);
 
-    sd_bus_message_unref(msg);
-    sd_bus_error_free(&error);
-    return strdup(state);
+    dbus_message_iter_close_container(props, &t);
 }
 
-sd_bus *get_connection(uid_t uid)
+/* StartTransientUnit(in  s name,
+                      in  s mode,
+                      in  a(sv) properties,
+                      in  a(sa(sv)) aux,
+                      out o job); */
+int start_transient_unit(DBusConnection *conn, const char *name,
+                         const char *slice, const char *desc, char **ret)
 {
-    sd_bus *bus = NULL;
+    static const char *mode = "fail";
 
-    if (uid == 0)
-        sd_bus_open_system(&bus);
-    else
-        sd_bus_open_user(&bus);
+    _cleanup_dbus_msg_ DBusMessage *msg, *reply;
+    DBusMessageIter args, props, aux;
 
-    return bus;
+    msg = dbus_message_new_method_call("org.freedesktop.systemd1",
+                                       "/org/freedesktop/systemd1",
+                                       "org.freedesktop.systemd1.Manager",
+                                       "StartTransientUnit");
+    if (!msg)
+        errx(EXIT_FAILURE, "can't allocate new method call");
+
+    dbus_message_append_args(msg, 's', &name, 's', &mode, 0);
+
+    dbus_message_iter_init_append(msg, &args);
+
+    dbus_message_iter_open_container(&args, 'a', "(sv)", &props);
+    set_property(&props, "Description", 's', desc);
+    if (slice)
+        set_property(&props, "Slice", 's', slice);
+    set_pids(&props);
+    dbus_message_iter_close_container(&args, &props);
+
+    dbus_message_iter_open_container(&args, 'a', "(sa(sv))", &aux);
+    dbus_message_iter_close_container(&args, &aux);
+
+    reply = dbus_send_message(conn, msg);
+    return dbus_reply_object_path(reply, ret);
+}
+
+/* GetUnit(in  s name, */
+/*         out o unit); */
+int get_unit(DBusConnection *conn, const char *name, char **ret)
+{
+    _cleanup_dbus_msg_ DBusMessage *msg, *reply;
+
+    msg = dbus_message_new_method_call("org.freedesktop.systemd1",
+                                       "/org/freedesktop/systemd1",
+                                       "org.freedesktop.systemd1.Manager",
+                                       "GetUnit");
+
+    dbus_message_append_args(msg, 's', &name, 0);
+    reply = dbus_send_message(conn, msg);
+    return dbus_reply_object_path(reply, ret);
+}
+
+/* Stop(in  s mode, */
+/*      out o job); */
+int stop_unit(DBusConnection *conn, const char *path, char **ret)
+{
+    _cleanup_dbus_msg_ DBusMessage *msg, *reply;
+    static const char *mode = "fail";
+
+    msg = dbus_message_new_method_call("org.freedesktop.systemd1",
+                                       path,
+                                       "org.freedesktop.systemd1.Unit",
+                                       "Stop");
+
+    dbus_message_append_args(msg, 's', &mode, 0);
+    reply = dbus_send_message(conn, msg);
+    return dbus_reply_object_path(reply, ret);
+}
+
+static int query_property(DBusConnection *conn, const char *path, const char *interface,
+                          const char *property, const char type, void *ret)
+{
+    _cleanup_dbus_msg_ DBusMessage *msg, *reply;
+    DBusMessageIter args, var;
+
+    msg = dbus_message_new_method_call("org.freedesktop.systemd1", path,
+                                       "org.freedesktop.DBus.Properties",
+                                       "Get");
+
+    dbus_message_append_args(msg, 's', &interface, 's', &property, 0);
+    reply = dbus_send_message(conn, msg);
+
+    dbus_message_iter_init(reply, &args);
+    if (dbus_message_iter_get_arg_type(&args) != 'v') {
+        warnx("message is of the wrong type");
+        return -EINVAL;
+    }
+
+    dbus_message_iter_recurse(&args, &var);
+    if (dbus_message_iter_get_arg_type(&var) != type) {
+        warnx("message is of the wrong type");
+        return -EINVAL;
+    }
+
+    dbus_message_iter_get_basic(&var, ret);
+    return 0;
+}
+
+int get_unit_state(DBusConnection *conn, const char *path, char **ret)
+{
+    char *tmp;
+    if (query_property(conn, path, "org.freedesktop.systemd1.Unit",
+                       "SubState", 's', &tmp) < 0)
+        return -EINVAL;
+
+    if (ret)
+        *ret = strdup(tmp);
+    return 0;
+}
+
+DBusConnection *get_connection(DBusBusType type)
+{
+    DBusError err;
+    DBusConnection *conn;
+
+    dbus_error_init(&err);
+    conn = dbus_bus_get(type, &err);
+    if (dbus_error_is_set(&err))
+        dbus_err(EXIT_FAILURE, &err, "connection error");
+    dbus_error_free(&err);
+
+    return conn;
 }

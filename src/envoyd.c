@@ -45,7 +45,7 @@ struct agent_node_t {
     struct agent_node_t *next;
 };
 
-static sd_bus *bus = NULL;
+static DBusConnection *bus = NULL;
 static enum agent default_type = AGENT_SSH_AGENT;
 static struct agent_node_t *agents = NULL;
 static bool sd_activated = false;
@@ -74,14 +74,15 @@ static void cleanup(int fd)
 
     for (node = agents; node; node = node->next) {
         if (node->d.unit_path[0])
-            stop_unit(bus, node->d.unit_path);
+            stop_unit(bus, node->d.unit_path, NULL);
     }
 }
 
 static bool unit_running(struct agent_data_t *data)
 {
     if (data->unit_path[0]) {
-        _cleanup_free_ char *state = get_unit_state(bus, data->unit_path);
+        _cleanup_free_ char *state = NULL;
+        get_unit_state(bus, data->unit_path, &state);
         return streq(state, "running");
     }
 
@@ -199,8 +200,7 @@ static int run_agent(struct agent_node_t *node, uid_t uid, gid_t gid)
         dup2(fd[1], STDOUT_FILENO);
 
         unblock_signals();
-        start_transient_unit(bus, node->scope, node->slice,
-                             "Envoy agent monitoring scope");
+        start_transient_unit(bus, node->scope, node->slice, "Envoy agent monitoring scope", NULL);
         exec_agent(agent, uid, gid);
         break;
     default:
@@ -229,7 +229,9 @@ static int run_agent(struct agent_node_t *node, uid_t uid, gid_t gid)
         goto cleanup;
     }
 
-    path = get_unit(bus, node->scope);
+    if (get_unit(bus, node->scope, &path) < 0)
+        errx(1, "failed to retrieve scope's dbus path");
+
     strcpy(data->unit_path, path);
 
 cleanup:
@@ -356,7 +358,7 @@ static void accept_conn(int fd)
                    Agent[node->d.type].name[0], cred.uid);
             fflush(stdout);
 
-            stop_unit(bus, node->d.unit_path);
+            stop_unit(bus, node->d.unit_path, NULL);
             node->d.unit_path[0] = '\0';
             node->d.status = ENVOY_STOPPED;
         }
@@ -476,7 +478,7 @@ int main(int argc, char *argv[])
 
     init_agent_environ();
     server_sock = get_socket();
-    bus = get_connection(server_uid);
+    bus = get_connection(multiuser_mode ? DBUS_BUS_SYSTEM : DBUS_BUS_SESSION);
 
     return loop(server_sock);
 }
