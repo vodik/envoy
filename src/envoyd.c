@@ -196,11 +196,13 @@ static int run_agent(struct agent_node_t *node, uid_t uid, gid_t gid)
         err(EXIT_FAILURE, "failed to fork");
         break;
     case 0:
+        unblock_signals();
         dup2(fd[1], STDOUT_FILENO);
 
-        unblock_signals();
+        bus = get_connection(server_uid);
         start_transient_unit(bus, node->scope, node->slice,
                              "Envoy agent monitoring scope");
+
         exec_agent(agent, uid, gid);
         break;
     default:

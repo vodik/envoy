@@ -20,6 +20,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
+#include <stdbool.h>
 #include <string.h>
 #include <errno.h>
 #include <systemd/sd-bus.h>
@@ -58,13 +59,25 @@ void start_transient_unit(sd_bus *bus, const char *name,
     sd_bus_message_append(msg, "ss", name, "fail");
 
     sd_bus_message_open_container(msg, 'a', "(sv)");
-    sd_bus_message_append(msg, "(sv)", "Slice", slice);
-    sd_bus_message_append(msg, "(sv)", "Description", desc);
+    sd_bus_message_append(msg, "(sv)", "Description", "s", desc);
+    sd_bus_message_append(msg, "(sv)", "SendSIGHUP", "b", true);
+    sd_bus_message_append(msg, "(sv)", "PIDs", "au", 1, getpid());
+    if (slice)
+        sd_bus_message_append(msg, "(sv)", "Slice", "s", slice);
     sd_bus_message_close_container(msg);
 
+    /* Auxiliary units */
     sd_bus_message_append(msg, "a(sa(sv))", 0);
 
-    sd_bus_call(bus, msg, 0, &error, NULL);
+    ret = sd_bus_call(bus, msg, 0, &error, NULL);
+    if (ret < 0) {
+        if (error.message) {
+            fprintf(stderr, "%s", error.message);
+            return;
+        }
+        err2(ret, EXIT_FAILURE, "failed to issue StartTransientUnit call");
+    }
+
 
     sd_bus_message_unref(msg);
     sd_bus_error_free(&error);
@@ -80,8 +93,13 @@ char *get_unit(sd_bus *bus, const char *name)
                                  "org.freedesktop.systemd1.Manager",
                                  "GetUnit", &error, &msg,
                                  "s", name);
-    if (ret < 0)
-        err2(ret, EXIT_FAILURE, "failed to issue method call");
+    if (ret < 0) {
+        if (error.message) {
+            fprintf(stderr, "%s", error.message);
+            return NULL;
+        }
+        err2(ret, EXIT_FAILURE, "failed to issue method call GetUnit %s", name);
+    }
 
     char *path;
     ret = sd_bus_message_read(msg, "o", &path);
@@ -98,13 +116,17 @@ void stop_unit(sd_bus *bus, const char *path)
     sd_bus_message *msg = NULL;
     sd_bus_error error = SD_BUS_ERROR_NULL;
 
-    printf("PATH: %s\n", path);
     int ret = sd_bus_call_method(bus, "org.freedesktop.systemd1",
                                  path, "org.freedesktop.systemd1.Unit",
                                  "Stop", &error, &msg,
                                  "s", "fail");
-    if (ret < 0)
-        err2(ret, EXIT_FAILURE, "failed to issue method call");
+    if (ret < 0) {
+        if (error.message) {
+            fprintf(stderr, "%s", error.message);
+            return;
+        }
+        err2(ret, EXIT_FAILURE, "failed to issue method call Stop %s", path);
+    }
 
     sd_bus_message_unref(msg);
     sd_bus_error_free(&error);
@@ -118,8 +140,13 @@ char *get_unit_state(sd_bus *bus, const char *path)
     int ret = sd_bus_get_property(bus, "org.freedesktop.systemd1",
                                   path, "org.freedesktop.systemd1.Unit",
                                   "SubState", &error, &msg, "s");
-    if (ret < 0)
+    if (ret < 0) {
+        if (error.message) {
+            fprintf(stderr, "%s", error.message);
+            return NULL;
+        }
         err2(ret, EXIT_FAILURE, "failed to get property SubState");
+    }
 
     char *state;
     ret = sd_bus_message_read(msg, "s", &state);
@@ -134,11 +161,16 @@ char *get_unit_state(sd_bus *bus, const char *path)
 sd_bus *get_connection(uid_t uid)
 {
     sd_bus *bus = NULL;
+    sd_bus_new(&bus);
 
-    if (uid == 0)
-        sd_bus_open_system(&bus);
-    else
-        sd_bus_open_user(&bus);
+    if (uid == 0) {
+        sd_bus_set_address(bus, "unix:path=/run/systemd/private");
+    } else {
+        _cleanup_free_ char *path = NULL;
+        asprintf(&path, "unix:path=/run/user/%d/systemd/private", uid);
+        sd_bus_set_address(bus, path);
+    }
 
+    sd_bus_start(bus);
     return bus;
 }
