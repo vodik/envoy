@@ -7,7 +7,7 @@ COMPILE.c = $(CC) $(CFLAGS) $(EXTRA_FLAGS) -c
 %.c: %.rl
 	$(COMPILE.rl) -C $(OUTPUT_OPTION) $<
 
-VERSION=v13
+VERSION=v14
 GIT_DESC=$(shell test -d .git && git describe 2>/dev/null)
 
 ifneq "$(GIT_DESC)" ""
