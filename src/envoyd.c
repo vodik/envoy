@@ -252,7 +252,7 @@ static int get_socket(void)
 
     n = sd_listen_fds(0);
     if (n > 1)
-        err(EXIT_FAILURE, "too many file descriptors recieved");
+        err(EXIT_FAILURE, "too many file descriptors received");
     else if (n == 1) {
         fd = SD_LISTEN_FDS_START;
         sd_activated = true;
