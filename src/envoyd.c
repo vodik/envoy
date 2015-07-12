@@ -24,6 +24,7 @@
 #include <unistd.h>
 #include <errno.h>
 #include <err.h>
+#include <grp.h>
 #include <pwd.h>
 #include <poll.h>
 #include <sys/stat.h>
@@ -154,14 +155,20 @@ static int parse_agentdata(int fd, struct agent_data_t *data)
     return 0;
 }
 
-static _noreturn_ void exec_agent(const struct agent_t *agent, uid_t uid, gid_t gid)
+static int drop_permissions(uid_t uid, gid_t gid)
 {
-    struct passwd *pwd;
+    if (setgroups(0, NULL) < 0)
+        return -1;
 
     if (setresgid(gid, gid, gid) < 0 || setresuid(uid, uid, uid) < 0)
-        err(EXIT_FAILURE, "unable to drop to uid=%u gid=%u\n", uid, gid);
+        return -1;
 
-    pwd = getpwuid(uid);
+    return 0;
+}
+
+static _noreturn_ void exec_agent(const struct agent_t *agent, int uid)
+{
+    struct passwd *pwd = getpwuid(uid);
     if (pwd == NULL || pwd->pw_dir == NULL)
         err(EXIT_FAILURE, "failed to lookup passwd entry");
 
@@ -203,7 +210,11 @@ static int run_agent(struct agent_node_t *node, uid_t uid, gid_t gid)
         start_transient_unit(bus, node->scope, node->slice,
                              "Envoy agent monitoring scope");
 
-        exec_agent(agent, uid, gid);
+        if (drop_permissions(uid, gid) < 0) {
+            err(EXIT_FAILURE, "unable to drop permissions to uid=%u gid=%u\n", uid, gid);
+        }
+
+        exec_agent(agent, uid);
         break;
     default:
         break;
