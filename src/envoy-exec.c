@@ -134,8 +134,7 @@ static _noreturn_ void exec_wrapper(int argc, char *argv[])
     } else {
         cmd = argv[0];
         exe_path = realpath("/proc/self/exe", NULL);
-        if (!exe_path)
-            err(EXIT_FAILURE, "failed to resolve /proc/self/exe");
+        check_null(exe_path, "failed to resolve /proc/self/exe");
     }
 
     new_argv[0] = cmd;

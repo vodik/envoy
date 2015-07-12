@@ -62,20 +62,19 @@ static ssize_t read_password(char **password)
     fputs("Password: ", stdout);
     fflush(stdout);
 
-    if (tcgetattr(fileno(stdin), &old_termios) < 0)
-        err(EXIT_FAILURE, "failed to get terminal attributes");
+    check_posix(tcgetattr(fileno(stdin), &old_termios),
+                "failed to get terminal attributes");
 
     atexit(term_cleanup);
 
     new_termios = old_termios;
     new_termios.c_lflag &= ~ECHO;
 
-    if (tcsetattr(fileno(stdin), TCSAFLUSH, &new_termios) < 0)
-        err(EXIT_FAILURE, "failed to set terminal attributes");
+    check_posix(tcsetattr(fileno(stdin), TCSAFLUSH, &new_termios),
+                "failed to set terminal attributes");
 
     nbytes_r = getline(password, &len, stdin);
-    if (nbytes_r < 0)
-        errx(EXIT_FAILURE, "failed to read password");
+    check_posix(nbytes_r, "failed to read password");
 
     (*password)[--nbytes_r] = 0;
     tcsetattr(fileno(stdin), TCSAFLUSH, &old_termios);
@@ -91,8 +90,7 @@ static int get_agent(struct agent_data_t *data, enum agent id, bool start, bool 
         options |= AGENT_ENVIRON;
 
     int ret = envoy_get_agent(id, data, options);
-    if (ret < 0)
-        err(EXIT_FAILURE, "failed to fetch agent");
+    check_posix(ret,"failed to fetch agent");
 
     switch (data->status) {
     case ENVOY_STOPPED:
@@ -200,8 +198,7 @@ static void reload_agent(struct agent_data_t *data)
         errx(EXIT_FAILURE, "only gpg-agent supports this operation");
 
     _cleanup_gpg_ struct gpg_t *agent = gpg_agent_connection(data->gpg, NULL);
-    if (!agent)
-        err(EXIT_FAILURE, "failed to connect to GPG_AUTH_SOCK");
+    check_null(agent, "failed to connect to GPG_AUTH_SOCK");
 
     gpg_reload_agent(agent);
 }
@@ -212,8 +209,7 @@ static int unlock(const struct agent_data_t *data, char *password)
         errx(EXIT_FAILURE, "only gpg-agent supports this operation");
 
     _cleanup_gpg_ struct gpg_t *agent = gpg_agent_connection(data->gpg, NULL);
-    if (!agent)
-        err(EXIT_FAILURE, "failed to connect to GPG_AUTH_SOCK");
+    check_null(agent, "failed to connect to GPG_AUTH_SOCK");
 
     if (!password)
         read_password(&password);

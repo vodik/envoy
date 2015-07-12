@@ -169,11 +169,12 @@ static int drop_permissions(uid_t uid, gid_t gid)
 static _noreturn_ void exec_agent(const struct agent_t *agent, int uid)
 {
     struct passwd *pwd = getpwuid(uid);
-    if (pwd == NULL || pwd->pw_dir == NULL)
-        err(EXIT_FAILURE, "failed to lookup passwd entry");
+    check_null(pwd, "failed to lookup passwd entry");
 
     /* setup the most minimal environment */
-    safe_asprintf(&agent_env.arg.home, "HOME=%s", pwd->pw_dir);
+    if (pwd->pw_dir) {
+        safe_asprintf(&agent_env.arg.home, "HOME=%s", pwd->pw_dir);
+    }
 
     execve(agent->argv[0], agent->argv, agent_env.env);
     err(EXIT_FAILURE, "failed to start %s", agent->name[0]);
@@ -194,14 +195,12 @@ static int run_agent(struct agent_node_t *node, uid_t uid, gid_t gid)
     printf("Starting %s for uid=%u.\n", agent->name[0], uid);
     fflush(stdout);
 
-    if (pipe2(fd, O_CLOEXEC) < 0)
-        err(EXIT_FAILURE, "failed to create pipe");
+    check_posix(pipe2(fd, O_CLOEXEC), "failed to create pipe");
 
     pid_t pid = fork();
+    check_posix(pid, "failed to fork");
+
     switch (pid) {
-    case -1:
-        err(EXIT_FAILURE, "failed to fork");
-        break;
     case 0:
         unblock_signals();
         dup2(fd[1], STDOUT_FILENO);
@@ -210,9 +209,8 @@ static int run_agent(struct agent_node_t *node, uid_t uid, gid_t gid)
         start_transient_unit(bus, node->scope, node->slice,
                              "Envoy agent monitoring scope");
 
-        if (drop_permissions(uid, gid) < 0) {
-            err(EXIT_FAILURE, "unable to drop permissions to uid=%u gid=%u\n", uid, gid);
-        }
+        check_posix(drop_permissions(uid, gid),
+                    "unable to drop permissions to uid=%u gid=%u\n", uid, gid);
 
         exec_agent(agent, uid);
         break;
@@ -220,8 +218,7 @@ static int run_agent(struct agent_node_t *node, uid_t uid, gid_t gid)
         break;
     }
 
-    if (wait(&stat) < 1)
-        err(EXIT_FAILURE, "failed to get process status");
+    check_posix(wait(&stat), "failed to get process status");
 
     if (stat) {
         rc = -1;
@@ -263,7 +260,7 @@ static int get_socket(void)
 
     n = sd_listen_fds(0);
     if (n > 1)
-        err(EXIT_FAILURE, "too many file descriptors received");
+        errx(EXIT_FAILURE, "too many file descriptors received");
     else if (n == 1) {
         fd = SD_LISTEN_FDS_START;
         sd_activated = true;
@@ -275,18 +272,15 @@ static int get_socket(void)
         socklen_t sa_len;
 
         fd = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
-        if (fd < 0)
-            err(EXIT_FAILURE, "couldn't create socket");
+        check_posix(fd, "couldn't create socket");
 
         sa_len = init_envoy_socket(&sa.un);
-        if (bind(fd, &sa.sa, sa_len) < 0)
-            err(EXIT_FAILURE, "failed to bind");
+        check_posix(bind(fd, &sa.sa, sa_len), "failed to bind");
 
         if (sa.un.sun_path[0] != '@')
             chmod(sa.un.sun_path, multiuser_mode ? 0777 : 0700);
 
-        if (listen(fd, SOMAXCONN) < 0)
-            err(EXIT_FAILURE, "failed to listen");
+        check_posix(listen(fd, SOMAXCONN), "failed to listen");
     }
 
     return fd;
@@ -325,8 +319,8 @@ static struct agent_node_t *get_agent_entry(struct agent_node_t **list, enum age
 
 static void send_agent(int fd, struct agent_data_t *agent, bool close_sock)
 {
-    if (write(fd, agent, sizeof(struct agent_data_t)) < 0)
-        err(EXIT_FAILURE, "failed to write agent data");
+    check_posix(write(fd, agent, sizeof(struct agent_data_t)),
+                "failed to write agent data");
     if (close_sock)
         close(fd);
 }
@@ -344,15 +338,13 @@ static void accept_conn(int fd)
     socklen_t cred_len = sizeof(struct ucred);
 
     int cfd = accept4(fd, NULL, NULL, SOCK_CLOEXEC);
-    if (cfd < 0)
-        err(EXIT_FAILURE, "failed to accept connection");
+    check_posix(cfd, "failed to accept connection");
 
     int nbytes_r = read(cfd, &req, sizeof(struct agent_request_t));
-    if (nbytes_r < 0)
-        err(EXIT_FAILURE, "couldn't read agent type to start");
+    check_posix(nbytes_r, "couldn't read agent type to start");
 
-    if (getsockopt(cfd, SOL_SOCKET, SO_PEERCRED, &cred, &cred_len) < 0)
-        err(EXIT_FAILURE, "couldn't obtain credentials from unix domain socket");
+    check_posix(getsockopt(cfd, SOL_SOCKET, SO_PEERCRED, &cred, &cred_len),
+                "couldn't obtain credentials from unix domain socket");
 
     if (server_uid != 0 && server_uid != cred.uid) {
         fprintf(stderr, "Connection from uid=%u rejected.\n", cred.uid);
@@ -397,8 +389,7 @@ static void accept_conn(int fd)
 static int loop(int server_sock)
 {
     int sfd = get_signalfd(SIGTERM, SIGINT, SIGQUIT, NULL);
-    if (sfd < 0)
-        err(EXIT_FAILURE, "failed to create signalfd");
+    check_posix(sfd, "failed to create signalfd");
 
     struct pollfd fds[] = {
         { .fd = server_sock, .events = POLLIN },
@@ -424,8 +415,7 @@ static int loop(int server_sock)
         else if (fds[1].revents & POLLIN) {
             struct signalfd_siginfo si;
             ssize_t nbytes_r = read(sfd, &si, sizeof(si));
-            if (nbytes_r < 0)
-                err(EXIT_FAILURE, "failed to read signal");
+            check_null(nbytes_r, "failed to read signal");
 
             switch (si.ssi_signo) {
             case SIGINT:
