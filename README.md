@@ -1,5 +1,10 @@
 ## envoy
 
+<a href="https://scan.coverity.com/projects/5987">
+  <img alt="Coverity Scan Build Status"
+       src="https://scan.coverity.com/projects/5987/badge.svg"/>
+</a>
+
 Envoy helps you to manage ssh keys in similar fashion to [keychain], but
 done in c, takes advantage of cgroups and systemd.
 
