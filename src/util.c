@@ -44,6 +44,7 @@ char *joinpath(const char *root, ...)
     while ((temp = va_arg(ap, const char *))) {
         size_t temp_len = strlen(temp) + 1;
         if (temp_len > ((size_t) -1) - len) {
+            va_end(ap);
             return NULL;
         }
 
