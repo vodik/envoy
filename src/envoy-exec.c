@@ -77,7 +77,9 @@ static char *extract_binary(char *path)
     if (fd < 0)
         return command;
 
-    fstat(fd, &st);
+    if (fstat(fd, &st) < 0)
+        err(EXIT_FAILURE, "failed to stat %s", path);
+
     memblock = mmap(NULL, st.st_size, PROT_READ, MAP_SHARED | MAP_POPULATE, fd, 0);
     madvise(memblock, st.st_size, MADV_WILLNEED | MADV_SEQUENTIAL);
 
