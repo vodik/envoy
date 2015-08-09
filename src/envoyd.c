@@ -121,9 +121,9 @@ static void parse_agentdata_line(char *val, struct agent_data_t *data)
         return;
 
     if (strneq(val, "SSH_AUTH_SOCK", sep))
-        strcpy(data->sock, &val[sep + 1]);
+        strncpy(data->sock, &val[sep + 1], sizeof(data->sock) - 1);
     else if (strneq(val, "GPG_AGENT_INFO", sep))
-        strcpy(data->gpg, &val[sep + 1]);
+        strncpy(data->gpg, &val[sep + 1], sizeof(data->gpg) - 1);
 }
 
 static int parse_agentdata(int fd, struct agent_data_t *data)
@@ -243,7 +243,7 @@ static int run_agent(struct agent_node_t *node, uid_t uid, gid_t gid)
     }
 
     path = get_unit(bus, node->scope);
-    strcpy(data->unit_path, path);
+    strncpy(data->unit_path, path, sizeof(data->unit_path) - 1);
 
 cleanup:
     close(fd[0]);
