@@ -132,8 +132,10 @@ struct gpg_t *gpg_agent_connection(const char *sock, const char *home)
     }
 
     sa_len = len + sizeof(sa.un.sun_family);
-    if (connect(fd, &sa.sa, sa_len) < 0)
+    if (connect(fd, &sa.sa, sa_len) < 0) {
+        close(fd);
         return NULL;
+    }
 
     struct gpg_t *gpg = malloc(sizeof(struct gpg_t));
     *gpg = (struct gpg_t) { .fd = fd };

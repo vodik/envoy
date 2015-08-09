@@ -51,24 +51,22 @@ static int envoy_connect(void)
         return -1;
 
     sa_len = init_envoy_socket(&sa.un);
-    if (connect(fd, &sa.sa, sa_len) < 0)
+    if (connect(fd, &sa.sa, sa_len) < 0) {
+        close(fd);
         return -1;
+    }
+
     return fd;
 }
 
 static ssize_t envoy_request(const struct agent_request_t *req, struct agent_data_t *data)
 {
-    ssize_t nbytes_r = 0;
-    int fd = envoy_connect();
+    _cleanup_close_ int fd = envoy_connect();
     if (fd < 0)
         return -1;
-
     if (write(fd, req, sizeof(struct agent_request_t)) < 0)
         return -1;
-
-    nbytes_r = read(fd, data, sizeof(struct agent_data_t));
-    close(fd);
-    return nbytes_r;
+    return read(fd, data, sizeof(struct agent_data_t));
 }
 
 int envoy_get_agent(enum agent type, struct agent_data_t *data, enum options opts)
