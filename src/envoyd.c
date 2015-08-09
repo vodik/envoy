@@ -128,23 +128,21 @@ static void parse_agentdata_line(char *val, struct agent_data_t *data)
 
 static int parse_agentdata(int fd, struct agent_data_t *data)
 {
-    char b[BUFSIZ];
-    ssize_t bytes_r;
-    char *l;
+    char buf[BUFSIZ];
 
-    bytes_r = read(fd, b, sizeof(b));
+    ssize_t bytes_r = read(fd, buf, sizeof(buf) - 1);
     if (bytes_r <= 0)
         return bytes_r;
 
-    b[bytes_r] = '\0';
-    l = &b[0];
+    buf[bytes_r] = '\0';
+    char *line = &buf[0];
 
-    while (l < &b[bytes_r]) {
-        size_t nl = strcspn(l, "\n");
+    while (line < &buf[bytes_r]) {
+        size_t newline = strcspn(line, "\n");
 
-        l[nl] = 0;
-        parse_agentdata_line(l, data);
-        l += nl + 1;
+        line[newline] = 0;
+        parse_agentdata_line(line, data);
+        line += newline + 1;
     }
 
     if (data->sock[0] == 0) {

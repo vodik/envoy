@@ -41,7 +41,7 @@ struct gpg_t {
 
 static int gpg_buffer_refill(struct gpg_t *gpg)
 {
-    ssize_t nbytes_r = read(gpg->fd, gpg->buf, BUFSIZ);
+    ssize_t nbytes_r = read(gpg->fd, gpg->buf, sizeof(gpg->buf) - 1);
     if (nbytes_r < 0)
         return -1;
 
