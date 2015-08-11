@@ -46,8 +46,10 @@ static void source_agent_env(enum agent id)
         break;
     case ENVOY_FAILED:
         warnx("agent failed to start, check envoyd's log");
+        return;
     case ENVOY_BADUSER:
         warnx("connection rejected, user is unauthorized to use this agent");
+        return;
     }
 
     if (data.type == AGENT_GPG_AGENT) {

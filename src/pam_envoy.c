@@ -93,8 +93,12 @@ static int pam_get_agent(struct agent_data_t *data, enum agent id, uid_t uid, gi
         break;
     case ENVOY_FAILED:
         syslog(PAM_LOG_ERR, "agent failed to start, check envoyd's log");
+        ret = -1;
+        break;
     case ENVOY_BADUSER:
         syslog(PAM_LOG_ERR, "connection rejected, user is unauthorized to use this agent");
+        ret = -1;
+        break;
     }
 
     if (dropped)
