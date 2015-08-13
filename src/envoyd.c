@@ -280,7 +280,7 @@ static int get_socket(void)
         if (bind(fd, &sa.sa, sa_len) < 0)
             err(EXIT_FAILURE, "failed to bind");
 
-        if (sa.un.sun_path[0] != '@' && chmod(sa.un.sun_path, multiuser_mode ? 0777 : 0700) < 0)
+        if (sa.un.sun_path[0] != '\0' && chmod(sa.un.sun_path, multiuser_mode ? 0777 : 0700) < 0)
             err(EXIT_FAILURE, "failed to chmod");
 
         if (listen(fd, SOMAXCONN) < 0)
