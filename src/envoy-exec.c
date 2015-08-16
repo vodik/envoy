@@ -70,6 +70,22 @@ static inline int safe_execv(const char *path, const char *exe_path, char *const
     return execv(path, argv);
 }
 
+#define WHITESPACE " \t\n\r"
+
+static char *strstrip(char *s)
+{
+    char *e;
+    s += strspn(s, WHITESPACE);
+
+    for (e = strchr(s, 0); e > s; --e) {
+        if (!strchr(WHITESPACE, e[-1]))
+            break;
+    }
+
+    *e = 0;
+    return s;
+}
+
 static char *extract_binary(char *path)
 {
     struct stat st;
@@ -90,14 +106,14 @@ static char *extract_binary(char *path)
 
     memblock += strcspn(memblock, "\n");
     while (*memblock++ == '\n') {
-        memblock += strspn(memblock, "\t ");
+        memblock += strspn(memblock, "#\t ");
         if (memblock[0] == '\0')
             break;
         else if (memblock[0] == '\n')
             continue;
 
-        size_t eol = strcspn(memblock, "\n");
-        if (*memblock == '#') {
+        size_t eol = strcspn(memblock, "\n#");
+        if (memblock[0] == '#') {
             memblock += eol;
             continue;
         } else {
@@ -108,7 +124,7 @@ static char *extract_binary(char *path)
 
 error:
     memblock != MAP_FAILED ? munmap(memblock, st.st_size) : 0;
-    return command;
+    return strstrip(command);
 }
 
 static _noreturn_ void exec_from_path(const char *cmd, const char *exe_path, char *argv[])
