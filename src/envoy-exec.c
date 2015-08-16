@@ -93,6 +93,8 @@ static char *extract_binary(char *path)
         memblock += strspn(memblock, "\t ");
         if (memblock[0] == '\0')
             break;
+        else if (memblock[0] == '\n')
+            continue;
 
         size_t eol = strcspn(memblock, "\n");
         if (*memblock == '#') {
