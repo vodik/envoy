@@ -2,7 +2,6 @@ RAGEL = ragel
 RAGEL_FLAGS := -F0
 
 COMPILE.rl = $(RAGEL) $(RAGEL_FLAGS)
-COMPILE.c = $(CC) $(CFLAGS) $(EXTRA_FLAGS) -c
 
 %.c: %.rl
 	$(COMPILE.rl) -C $(OUTPUT_OPTION) $<
@@ -44,7 +43,7 @@ ENVOYLIBS = gpg-protocol.o agents.o socket.o util.o
 all: envoyd envoy envoy-exec pam_envoy.so
 
 gpg-protocol.o: $(VPATH)/gpg-protocol.c
-$(ENVOYLIBS) pam_envoy.o: EXTRA_FLAGS := -fPIC
+$(ENVOYLIBS) pam_envoy.o: private CFLAGS += -fPIC
 
 envoyd: envoyd.o dbus.o $(ENVOYLIBS)
 envoy: envoy.o $(ENVOYLIBS)
