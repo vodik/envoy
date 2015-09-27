@@ -6,6 +6,9 @@ COMPILE.rl = $(RAGEL) $(RAGEL_FLAGS)
 %.c: %.rl
 	$(COMPILE.rl) -C $(OUTPUT_OPTION) $<
 
+%.so: %.o
+	$(LINK.o) -shared $^ $(LOADLIBES) $(LDLIBS) -o $@
+
 VERSION=v14
 GIT_DESC=$(shell test -d .git && git describe 2>/dev/null)
 
@@ -49,7 +52,6 @@ envoyd: envoyd.o dbus.o $(ENVOYLIBS)
 envoy: envoy.o $(ENVOYLIBS)
 envoy-exec: envoy-exec.o $(ENVOYLIBS)
 pam_envoy.so: pam_envoy.o $(ENVOYLIBS)
-	$(LINK.o) -shared $^ $(LOADLIBES) $(LDLIBS) -o $@
 
 install: envoyd envoy pam_envoy.so
 	install -Dm755 envoyd $(DESTDIR)/usr/bin/envoyd
