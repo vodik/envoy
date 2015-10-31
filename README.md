@@ -73,9 +73,10 @@ providing the filename is sufficient.
 ### Envoy with ssh-agent
 
 When invoking `envoy` causes `ssh-agent` to start, on that first run
-any keys passed to `envoy` will be added to the agent. Without any
-arguments, it'll try to add `.ssh/id_rsa`, `.ssh/id_dsa`, and
-`.ssh/id_ecdsa` automatically.
+any keys passed to `envoy` will be added to the agent. The default
+behavior is to check for the presence of the files `.ssh/id_rsa`,
+`.ssh/id_dsa`, `.ssh/id_ecdsa` and `.ssh/id_ed25519` and load those files
+if present.
 
 ### Envoy with gpg-agent
 
