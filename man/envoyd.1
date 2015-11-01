@@ -6,13 +6,13 @@ envoyd \- process manager for envoy
 .SH DESCRIPTION
 \fBenvoyd\fP starts the agent of choice in a sanitized environment and
 caches the associated environmental variables in memory. The agent is
-started on demand and it's lifetime is tracked through cgroups for
+started on demand and its lifetime is tracked through cgroups for
 accuracy.
 
 This daemon is typically started as root and can thus serve all the
-users on the system at once. When started as root, it will checks the
-credentials of the incoming connection and starts the agent under that
-uid/guid. If its started as a user it will only be able to serve that
+users on the system at once. When started as root, it will check the
+credentials of the incoming connection and start the agent under that
+uid/guid. If it is started as a user it will only be able to serve that
 particular user's requests.
 
 This effectively allows a user to share a single long-running

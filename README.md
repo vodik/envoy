@@ -5,16 +5,16 @@
        src="https://scan.coverity.com/projects/5987/badge.svg"/>
 </a>
 
-Envoy helps you to manage ssh keys in similar fashion to [keychain], but
-done in c, takes advantage of cgroups and systemd.
+Envoy helps you to manage SSH keys in a similar fashion to [keychain], but
+is implemented in C and takes advantage of cgroups and systemd.
 
 The daemon, `envoyd`, starts the agent of choice in a sanitized
 environment and caches the associated environmental variables in memory.
-The agent is started on demand and it's lifetime is tracked through
+The agent is started on demand and its lifetime is tracked through
 cgroups for accuracy. `envoyd` is typically started as root and can thus
 serve all the users on the system at once. It checks the credentials of
-the incoming connection and starts the agent under that uid/guid. If its
-started as a user it will only be able to serve that particular user's
+the incoming connection and starts the agent under that uid/guid. If it
+is started as a user it will only be able to serve that particular user's
 requests.
 
 The `envoy` command connects to the daemon and gets all the information
