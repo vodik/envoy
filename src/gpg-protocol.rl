@@ -107,6 +107,17 @@ static _printf_(2, 3) int gpg_send_message(struct gpg_t *gpg, const char *fmt, .
     return rc == 0 ? nbytes_r : rc;
 }
 
+static int get_gpg_agent_socket(char *path, size_t len, const char *home)
+{
+    const char *gnupghome = getenv("GNUPGHOME");
+    if (gnupghome) {
+        return snprintf(path, len, "%s/S.gpg-agent", gnupghome);
+    } else {
+        return snprintf(path, len, "%s/.gnupg/S.gpg-agent",
+                        home ? home : get_home_dir());
+    }
+}
+
 struct gpg_t *gpg_agent_connection(const char *sock, const char *home)
 {
     union {
@@ -123,9 +134,7 @@ struct gpg_t *gpg_agent_connection(const char *sock, const char *home)
     sa.un = (struct sockaddr_un){ .sun_family = AF_UNIX };
 
     if (!sock || !sock[0]) {
-        len = snprintf(sa.un.sun_path, sizeof(sa.un.sun_path),
-                       "%s/.gnupg/S.gpg-agent",
-                       home ? home : get_home_dir());
+        len = get_gpg_agent_socket(sa.un.sun_path, sizeof(sa.un.sun_path), home);
     } else {
         len = strcspn(sock, ":");
         memcpy(&sa.un.sun_path, sock, len);
