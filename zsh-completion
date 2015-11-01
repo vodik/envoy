@@ -7,9 +7,11 @@ envoy)
   _arguments -s \
     {-h,--help}'[display this help]'\
     {-v,--version}'[display version]'\
+    {-d,--defer}'[defer adding keys until the next envoy invocation]'\
     {-a,--add}'[add private key identities]':files:_files \
-    {-k,--clear}'[force identities to expire (gpg-agent only)]'\
-    {-K,--kill}'[kill the running agent]'\
+    {-x,--expunge}'[remove private key identities]'\
+    {-k,--kill}'[kill the running agent]'\
+    {-r,--reload}'[reload the agent (gpg-agent only)]'\
     {-l,--list}'[list fingerprints of all loaded identities]'\
     {-u,--unlock=-}'[unlock the agent''s keyring (gpg-agent only)]'\
     {-p,--print}'[print out environmental arguments]' \
