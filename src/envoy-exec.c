@@ -92,8 +92,11 @@ static char *extract_binary(char *path)
     char *memblock, *command = NULL;
 
     _cleanup_close_ int fd = open(path, O_RDONLY);
-    if (fd < 0)
-        return command;
+    if (fd < 0) {
+        if (errno == ENOENT)
+            return NULL;
+        err(EXIT_FAILURE, "failed to open script %s", path);
+    }
 
     if (fstat(fd, &st) < 0)
         err(EXIT_FAILURE, "failed to stat %s", path);
@@ -124,7 +127,7 @@ static char *extract_binary(char *path)
 
 error:
     memblock != MAP_FAILED ? munmap(memblock, st.st_size) : 0;
-    return strstrip(command);
+    return command ? strstrip(command) : NULL;
 }
 
 static _noreturn_ void exec_from_path(const char *cmd, const char *exe_path, char *argv[])
