@@ -1,3 +1,20 @@
+### NOTICE
+
+I've had a lot of fun developing and supporting this tool and learned
+temendously from developing it. However, I won't be dedicating much more
+effort into it going foward. Recent changes in `gpg-agent` have weakened
+the rational for using `envoyd` around `gpg-agent`.
+
+Its simpler and better to just wrap gpg-agent in a service now.  That
+leaves `envoy-exec`, for this configuration, the only useful component.
+I've seperated it into a seperate project
+[gpg-tools](http://github.com/vodik/gpg-tools) under the name
+`gpg-exec`.
+
+Those using `ssh-agent` can continue to use this project, but since
+I primarily use `gpg-agent`, I can't speak for the quality of it. I will
+continue to try to support this project and fix bugs.
+
 ## envoy
 
 <a href="https://scan.coverity.com/projects/5987">
