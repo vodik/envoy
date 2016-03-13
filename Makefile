@@ -22,8 +22,8 @@ base_CFLAGS = -std=c11 -g \
 	-D_GNU_SOURCE \
 	-DENVOY_VERSION=\"$(VERSION)\"
 
-libsystemd_CFLAGS = $(shell pkg-config --cflags libsystemd-daemon)
-libsystemd_LDLIBS = $(shell pkg-config --libs libsystemd-daemon)
+libsystemd_CFLAGS = $(shell pkg-config --cflags libsystemd)
+libsystemd_LDLIBS = $(shell pkg-config --libs libsystemd)
 
 dbus_CFLAGS = $(shell pkg-config --cflags dbus-1)
 dbus_LDLIBS = $(shell pkg-config --libs dbus-1)
